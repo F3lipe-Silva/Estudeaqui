@@ -2,14 +2,14 @@
 
 import { useStudy } from '@/contexts/study-context';
 import { Button } from '@/components/ui/button';
-import { Home, Timer, BookCopy, Workflow, History, BookCheck, MessageSquare } from 'lucide-react';
+import { Home, Timer, BookCopy, Workflow, History, BookCheck, BrainCircuit } from 'lucide-react'; // Adicionar BrainCircuit
 import { cn } from '@/lib/utils';
 import { SheetClose } from './ui/sheet';
 
 const navItems = [
     { id: 'overview', label: 'Visão Geral', icon: Home },
     { id: 'planning', label: 'Planejamento', icon: Workflow },
-    { id: 'chat', label: 'Chat AI', icon: MessageSquare },
+    { id: 'coach-ai', label: 'Coach AI', icon: BrainCircuit }, // Adicionar Coach AI
     { id: 'pomodoro', label: 'Pomodoro', icon: Timer },
     { id: 'cycle', label: 'Ciclo', icon: BookCopy },
     { id: 'revision', label: 'Revisão', icon: BookCheck },

@@ -7,6 +7,7 @@ const nextConfig = {
                 ...config.resolve.fallback,
                 fs: false,
                 async_hooks: false,
+                handlebars: false, // Adicionar para evitar erro no cliente
             };
         }
 

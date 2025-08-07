@@ -9,8 +9,8 @@ import StudySequencePlanningTab from '@/components/study-sequence-planning-tab';
 import PomodoroWidget from '@/components/pomodoro-widget';
 import RevisionTab from '@/components/revision-tab';
 import HistoryTab from '@/components/history-tab';
+import InstructorAiTab from '@/components/instructor-ai-tab'; // Nova importação
 import Sidebar from './sidebar';
-import ChatTab from './chat-tab';
 
 
 export default function MainContent() {
@@ -31,8 +31,8 @@ export default function MainContent() {
                              <TabsContent value="planning" className="p-4 md:p-6 mt-0">
                                 <StudySequencePlanningTab />
                             </TabsContent>
-                            <TabsContent value="chat" className="p-4 md:p-6 mt-0 h-full">
-                                <ChatTab />
+                            <TabsContent value="coach-ai" className="p-4 md:p-6 mt-0 h-full"> {/* Nova aba */}
+                                <InstructorAiTab />
                             </TabsContent>
                             <TabsContent value="pomodoro" className="p-4 md:p-6 mt-0">
                                 <PomodoroTab />

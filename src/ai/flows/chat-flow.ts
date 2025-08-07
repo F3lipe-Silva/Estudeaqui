@@ -9,6 +9,7 @@
  * - ChatOutput: The output type for the chat flow.
  */
 import {ai} from '@/ai/genkit';
+import {googleAI} from '@/ai/genkit'; // Importar googleAI daqui
 import {z} from 'zod';
 import { ChatMessage, ChatInput, ChatOutput, ChatInputSchema, ChatOutputSchema } from './chat-types';
 
@@ -31,7 +32,7 @@ Assistant: {{{content}}}
 User: {{{message}}}
 Assistant:`,
     config: {
-        model: 'gemini-1.5-flash',
+        model: googleAI.model('gemini-1.5-flash'), // Usar a referência completa ao modelo
         temperature: 0.7,
     },
 });
