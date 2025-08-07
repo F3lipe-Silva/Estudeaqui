@@ -95,6 +95,25 @@ export default function StudySequencePlanningTab() {
       setIsEditing(false);
   }
 
+  const handleDeleteSequenceItem = (index: number) => {
+    const newSequence = [...editingSequence];
+    newSequence.splice(index, 1);
+    setEditingSequence(newSequence);
+  };
+
+  const handleAddSubjectToSequence = (subjectId: string | undefined) => {
+    if (!subjectId) {
+      toast({ title: "Selecione uma matéria para adicionar." });
+      return;
+    }
+    const subjectExists = editingSequence.some(item => item.subjectId === subjectId);
+    if (subjectExists) {
+      toast({ title: "Matéria já existe na sequência." });
+      return;
+    }
+    setEditingSequence(prev => [...prev, { subjectId, totalTimeStudied: 0 }]);
+  };
+
   const getSubjectById = (id: string) => subjects.find(s => s.id === id);
 
   const openLogForm = (subjectId: string, itemSequenceIndex: number) => {
@@ -110,6 +129,16 @@ export default function StudySequencePlanningTab() {
       };
       dispatch({ type: 'SAVE_STUDY_SEQUENCE', payload: newSequence });
       toast({ title: "Sequência de estudos criada!" });
+  }
+
+  const handleCreateEmptyManualSequence = () => {
+    const newSequence = {
+        id: `seq-manual-empty-${Date.now()}`,
+        name: "Plano de Estudos Manual Vazio",
+        sequence: [],
+    };
+    dispatch({ type: 'SAVE_STUDY_SEQUENCE', payload: newSequence });
+    toast({ title: "Plano de estudos manual vazio criado!" });
   }
 
 
@@ -218,6 +247,7 @@ export default function StudySequencePlanningTab() {
                                           <div className='flex gap-1'>
                                             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => moveSequenceItem(index, index - 1)} disabled={index === 0}><ArrowUp className="h-4 w-4"/></Button>
                                             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => moveSequenceItem(index, index + 1)} disabled={index === editingSequence.length - 1}><ArrowDown className="h-4 w-4"/></Button>
+                                            <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => handleDeleteSequenceItem(index)}><Trash2 className="h-4 w-4"/></Button>
                                           </div>
                                         )}
                                         <Button size="sm" variant="outline" className="flex-shrink-0" onClick={() => openLogForm(subject.id, index)}>
@@ -228,6 +258,26 @@ export default function StudySequencePlanningTab() {
                             })}
                         </div>
                     </div>
+                    {isEditing && (
+                        <div className="flex items-end gap-2 mt-4">
+                            <div className="flex-grow">
+                                <Label htmlFor="add-subject-to-sequence">Adicionar Matéria</Label>
+                                <Select onValueChange={handleAddSubjectToSequence}>
+                                    <SelectTrigger id="add-subject-to-sequence">
+                                        <SelectValue placeholder="Selecione uma matéria" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {subjects.map(subject => (
+                                            <SelectItem key={subject.id} value={subject.id}>{subject.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <Button onClick={() => handleAddSubjectToSequence(undefined)} disabled={!subjects.length}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
+                            </Button>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         ) : (
@@ -236,9 +286,12 @@ export default function StudySequencePlanningTab() {
                   <CardTitle>Crie sua Sequência de Estudos</CardTitle>
                    <CardDescription>Você ainda não tem um plano de estudos. Crie um para começar.</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex flex-col sm:flex-row gap-2">
                       <Button onClick={handleCreateEmptySequence}>
                         Criar Plano Básico (com todas as matérias)
+                      </Button>
+                      <Button variant="outline" onClick={handleCreateEmptyManualSequence}>
+                        Criar Plano Manual Vazio
                       </Button>
                 </CardContent>
             </Card>
