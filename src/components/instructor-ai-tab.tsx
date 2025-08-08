@@ -44,7 +44,7 @@ export default function InstructorAiTab() {
 
     let messageToSend = input;
     if (cespeMode) {
-      messageToSend = `Com base no seguinte tópico/texto, elabore afirmações complexas e aprofundadas no estilo CESPE/Cebraspe (Certo ou Errado) ou questões de múltipla escolha (A, B, C, D, E), conforme a necessidade e a complexidade do tema. As afirmações/questões devem abordar nuances, exceções e detalhes específicos do assunto, evitando generalidades. Para cada afirmação/questão, forneça um gabarito e uma justificativa completa e bem fundamentada, **incluindo exemplos práticos ou analogias para facilitar o entendimento**, explicando o porquê da resposta.
+      messageToSend = `Com base no seguinte tópico/texto, elabore tantas afirmações complexas e aprofundadas quanto julgar necessárias, exclusivamente no estilo CESPE/Cebraspe (Certo ou Errado). As afirmações devem abordar nuances, exceções e detalhes específicos do assunto, evitando generalidades. Para cada afirmação, forneça um gabarito e uma justificativa completa, bem fundamentada e **didática, de fácil compreensão para qualquer pessoa**, **OBRIGATORIAMENTE incluindo exemplos práticos ou analogias para facilitar o entendimento**, explicando detalhadamente o porquê da resposta.
 
       Tópico/Texto: "${input}"`;
     }

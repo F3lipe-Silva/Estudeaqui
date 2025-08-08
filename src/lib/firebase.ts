@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { getAuth, setPersistence, indexedDBLocalPersistence } from "firebase/auth";
 
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
@@ -23,3 +23,12 @@ console.log('Firebase API Key:', process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+
+// Set Firebase Authentication persistence to local (IndexedDB)
+setPersistence(auth, indexedDBLocalPersistence)
+  .then(() => {
+    console.log('Firebase Auth persistence set to IndexedDB');
+  })
+  .catch((error) => {
+    console.error('Error setting Firebase Auth persistence:', error);
+  });

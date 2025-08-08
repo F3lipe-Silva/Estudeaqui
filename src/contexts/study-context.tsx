@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useReducer, useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { StudyContextType, StudyData, Subject, Topic, PomodoroState, StudyLogEntry, StudySequenceItem, PomodoroSettings } from '@/lib/types';
+import type { StudyContextType, StudyData, Subject, Topic, PomodoroState, StudyLogEntry, StudySequenceItem, PomodoroSettings, StudySequence } from '@/lib/types';
 import { INITIAL_SUBJECTS } from '@/lib/data';
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, isSameDay, parseISO } from 'date-fns';
@@ -29,8 +29,9 @@ const initialState: StudyData = {
   studyLog: [],
   lastStudiedDate: null,
   streak: 0,
-  studySequence: null,
+  studySequence: { id: 'default-sequence', name: 'Minha Sequência de Estudos', sequence: [] },
   sequenceIndex: 0,
+  savedStudySequences: [], // Inicializa como um array vazio
   pomodoroSettings: initialPomodoroSettings,
 };
 
@@ -39,10 +40,29 @@ const StudyContext = createContext<StudyContextType | undefined>(undefined);
 function studyReducer(state: StudyData, action: any): StudyData {
   switch (action.type) {
     case 'SET_STATE':
-      const loadedState = action.payload;
+      let loadedState = action.payload;
       if (!loadedState) return initialState;
       if (!loadedState.studyLog) {
         loadedState.studyLog = [];
+      }
+      // Garante que todos os itens da sequência carregada tenham um ID único
+      if (loadedState.studySequence && loadedState.studySequence.sequence) {
+        loadedState.studySequence.sequence = loadedState.studySequence.sequence.map((item: StudySequenceItem) => ({
+          ...item,
+          id: item.id || `${item.subjectId}-${Date.now()}-${Math.random().toString(36).substring(7)}`
+        }));
+      }
+      // Garante que savedStudySequences seja um array e que todos os itens tenham ID
+      if (!loadedState.savedStudySequences) {
+        loadedState.savedStudySequences = [];
+      } else {
+        loadedState.savedStudySequences = loadedState.savedStudySequences.map((seq: StudySequence) => ({
+          ...seq,
+          sequence: seq.sequence.map((item: StudySequenceItem) => ({
+            ...item,
+            id: item.id || `${item.subjectId}-${Date.now()}-${Math.random().toString(36).substring(7)}`
+          }))
+        }));
       }
       return { ...initialState, ...loadedState };
     case 'ADD_SUBJECT': {
@@ -268,10 +288,50 @@ function studyReducer(state: StudyData, action: any): StudyData {
        if (newSequence) {
         const isNew = !state.studySequence || state.studySequence.id !== newSequence.id;
         if(isNew) {
-            newSequence.sequence = newSequence.sequence.map((item: StudySequenceItem) => ({ ...item, totalTimeStudied: 0 }));
+            // Quando uma nova sequência é criada, garanta que cada item tenha um ID único
+            newSequence.sequence = newSequence.sequence.map((item: StudySequenceItem) => ({
+              ...item,
+              id: item.id || `${item.subjectId}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+              totalTimeStudied: 0
+            }));
+        } else {
+          // Se a sequência existente está sendo atualizada, apenas zere o totalTimeStudied se for o caso
+          newSequence.sequence = newSequence.sequence.map((item: StudySequenceItem) => ({
+            ...item,
+            id: item.id || `${item.subjectId}-${Date.now()}-${Math.random().toString(36).substring(7)}` // Garante ID para itens existentes sem ID
+          }));
         }
        }
       return { ...state, studySequence: newSequence, sequenceIndex: 0 };
+    }
+    case 'SAVE_AS_NEW_SEQUENCE': {
+      const { name, sequence } = action.payload;
+      const newSavedSequence: StudySequence = {
+        id: `saved-seq-${Date.now()}`,
+        name: name,
+        sequence: sequence.map((item: StudySequenceItem) => ({ ...item, id: item.id || `${item.subjectId}-${Date.now()}-${Math.random().toString(36).substring(7)}` })),
+      };
+      return {
+        ...state,
+        savedStudySequences: [...state.savedStudySequences, newSavedSequence],
+      };
+    }
+    case 'LOAD_SAVED_SEQUENCE': {
+      const sequenceIdToLoad = action.payload;
+      const sequenceToLoad = state.savedStudySequences.find(s => s.id === sequenceIdToLoad);
+      if (!sequenceToLoad) return state;
+      return {
+        ...state,
+        studySequence: { ...sequenceToLoad, sequence: sequenceToLoad.sequence.map(item => ({ ...item, totalTimeStudied: 0 })) }, // Resetar progresso ao carregar
+        sequenceIndex: 0,
+      };
+    }
+    case 'DELETE_SAVED_SEQUENCE': {
+      const sequenceIdToDelete = action.payload;
+      return {
+        ...state,
+        savedStudySequences: state.savedStudySequences.filter(s => s.id !== sequenceIdToDelete),
+      };
     }
     case 'RESET_STUDY_SEQUENCE': {
       if (!state.studySequence) return state;
@@ -401,6 +461,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       try {
         const userDocRef = doc(db, "userData", user.uid);
         const stateToSave = cleanUndefined(state);
+        console.log('State being saved to Firestore:', stateToSave); // Adicionado para depuração
 
         await setDoc(userDocRef, stateToSave, { merge: true });
       } catch (error) {
