@@ -9,7 +9,8 @@ import StudySequencePlanningTab from '@/components/study-sequence-planning-tab';
 import PomodoroWidget from '@/components/pomodoro-widget';
 import RevisionTab from '@/components/revision-tab';
 import HistoryTab from '@/components/history-tab';
-import InstructorAiTab from '@/components/instructor-ai-tab'; // Nova importação
+import InstructorAiTab from '@/components/instructor-ai-tab';
+import FlashcardsPage from '@/app/flashcards/page';
 import Sidebar from './sidebar';
 
 
@@ -31,7 +32,7 @@ export default function MainContent() {
                              <TabsContent value="planning" className="p-4 md:p-6 mt-0">
                                 <StudySequencePlanningTab />
                             </TabsContent>
-                            <TabsContent value="coach-ai" className="p-4 md:p-6 mt-0 h-full"> {/* Nova aba */}
+                            <TabsContent value="coach-ai" className="p-4 md:p-6 mt-0 h-full">
                                 <InstructorAiTab />
                             </TabsContent>
                             <TabsContent value="pomodoro" className="p-4 md:p-6 mt-0">
@@ -45,6 +46,9 @@ export default function MainContent() {
                             </TabsContent>
                             <TabsContent value="history" className="p-4 md:p-6 mt-0">
                                 <HistoryTab />
+                            </TabsContent>
+                            <TabsContent value="flashcards" className="p-4 md:p-6 mt-0">
+                                <FlashcardsPage />
                             </TabsContent>
                         </div>
                     </Tabs>

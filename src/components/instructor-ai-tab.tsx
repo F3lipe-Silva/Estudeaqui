@@ -22,7 +22,9 @@ export default function InstructorAiTab() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [cespeMode, setCespeMode] = useState(false); // Novo estado para o modo CESPE
-  const [showAnkiCsvButton, setShowAnkiCsvButton] = useState(false); // Novo estado
+  const [ankiCsvMode, setAnkiCsvMode] = useState(false); // Novo estado para o modo Anki CSV
+  const [markdownMode, setMarkdownMode] = useState(false);
+  const [repeatQuestionMode, setRepeatQuestionMode] = useState(false); // Novo estado para repetir a pergunta
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -40,19 +42,27 @@ export default function InstructorAiTab() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim()) return;
 
-    let messageToSend = input;
-    if (cespeMode) {
-      messageToSend = `Com base no seguinte tópico/texto, elabore afirmações complexas e aprofundadas no estilo CESPE/Cebraspe (Certo ou Errado) ou questões de múltipla escolha (A, B, C, D, E), conforme a necessidade e a complexidade do tema. As afirmações/questões devem abordar nuances, exceções e detalhes específicos do assunto, evitando generalidades. Para cada afirmação/questão, forneça um gabarito e uma justificativa completa e bem fundamentada, **incluindo exemplos práticos ou analogias para facilitar o entendimento**, explicando o porquê da resposta.
-
-      Tópico/Texto: "${input}"`;
+    if (markdownMode) {
+      const modelMessage: InstructorMessage = { role: 'model', content: `${input};${input}` };
+      setMessages((prev) => [...prev, modelMessage]);
+      setInput('');
+      return;
     }
 
-    const userMessage: InstructorMessage = { role: 'user', content: input }; // Exibe o input original do usuário
+    const userMessage: InstructorMessage = { role: 'user', content: input };
     setMessages((prev) => [...prev, userMessage]);
-    setInput('');
+
     setIsLoading(true);
+    let messageToSend = input;
+    if (cespeMode) {
+      messageToSend = `Com base no seguinte tópico/texto, elabore tantas afirmações complexas e aprofundadas quanto julgar necessárias, exclusivamente no estilo CESPE/Cebraspe (Certo ou Errado). As afirmações devem abordar nuances, exceções e detalhes específicos do assunto, evitando generalidades. Para cada afirmação, forneça um gabarito e uma justificativa completa, bem fundamentada e **didática, de fácil compreensão para qualquer pessoa**, **OBRIGATORIAMENTE incluindo exemplos práticos ou analogias para facilitar o entendimento**, explicando detalhadamente o porquê da resposta.
+
+       Tópico/Texto: "${input}"`;
+    }
+    
+    setInput('');
 
     try {
       const response = await fetch('/api/instructor', {
@@ -70,25 +80,25 @@ export default function InstructorAiTab() {
       }
 
       const data = await response.json();
+      let modelContent = data.response;
+      if (repeatQuestionMode) {
+        modelContent = `${userMessage.content};${data.response}`; // Adiciona a pergunta do usuário na resposta
+      }
+
       const modelMessage: InstructorMessage = {
         role: 'model',
-        content: data.response,
+        content: modelContent,
         originalInput: cespeMode ? input : undefined, // Salvar o input original se for modo CESPE
       };
       setMessages((prev) => {
         const newMessages = [...prev, modelMessage];
         // Habilitar o botão CSV apenas se a última mensagem foi no modo CESPE
         // e o conteúdo da resposta for o esperado para questões
-        if (cespeMode && data.response && typeof data.response === 'string') {
-          // Uma heurística simples para verificar se a resposta parece uma questão CESPE
-          // Pode ser aprimorada para uma validação mais robusta
+        if (cespeMode && ankiCsvMode && data.response && typeof data.response === 'string') {
           if (data.response.includes('Certo') || data.response.includes('Errado') || data.response.includes('Gabarito')) {
-            setShowAnkiCsvButton(true);
-          } else {
-            setShowAnkiCsvButton(false);
+            // Se o modo CESPE e Anki CSV estão ativos e a resposta parece uma questão CESPE, gerar CSV
+            setTimeout(() => handleGenerateAnkiCsv(), 0); // Gerar CSV assincronamente
           }
-        } else {
-          setShowAnkiCsvButton(false);
         }
         return newMessages;
       });
@@ -96,19 +106,37 @@ export default function InstructorAiTab() {
     } catch (error: any) {
       const errorMessage: InstructorMessage = {
         role: 'model',
-        content: `Desculpe, ocorreu um erro ao me conectar. \n\n**Detalhes:**\n\`\`\`\n${error.message}\n\`\`\`\n\n Verifique o console do navegador e do servidor para mais informações.`,
+        content: `Desculpe, ocorreu um erro ao me conectar.
+
+**Detalhes:**
+
+${error.message}
+
+ Verifique o console do navegador e do servidor para mais informações.`,
       };
       setMessages((prev) => [...prev, errorMessage]);
-      setShowAnkiCsvButton(false); // Desabilitar o botão em caso de erro
     } finally {
       setIsLoading(false);
     }
   };
 
+  const sanitizeCsvField = (text: string): string => {
+    // Substitui todos os ';' por ',' exceto o separador principal
+    let sanitizedText = text.replace(/;/g, ',');
+    // Escapa aspas duplas por aspas duplas duplas
+    sanitizedText = sanitizedText.replace(/"/g, '""');
+    // Converte Markdown para HTML para suportar formatação no Anki
+    // Isso é uma simplificação; uma biblioteca completa de markdown para HTML seria ideal
+    sanitizedText = sanitizedText
+      .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') // Negrito
+      .replace(/\*(.*?)\*/g, '<i>$1</i>')   // Itálico
+      .replace(/`(.*?)`/g, '<code>$1</code>'); // Código (monoespaçado)
+    return sanitizedText;
+  };
+
   const handleGenerateAnkiCsv = () => {
     if (!messages.length) return;
 
-    // A última mensagem do modelo deve conter as questões CESPE
     const lastModelMessage = messages[messages.length - 1];
     if (lastModelMessage.role !== 'model') {
       console.error("Última mensagem não é do modelo.");
@@ -116,54 +144,32 @@ export default function InstructorAiTab() {
     }
 
     const rawText = lastModelMessage.content;
-    const lines = rawText.split('\n').filter(line => line.trim() !== '');
-
-    let csvContent = "Frente;Verso;Tags\n"; // Cabeçalho CSV
-    let currentQuestion = "";
-    let currentAnswer = "";
-    let isQuestion = true; // Alterna entre pergunta e resposta/justificativa
-
     const questions: { question: string; answer: string }[] = [];
-    let tempQuestion = '';
-    let tempAnswer = '';
-    let readingAnswer = false;
 
-    for (const line of lines) {
-      const affirmationMatch = line.match(/^(Afirmação|Questão):\s*(.*)/i);
-      const gabaritoMatch = line.match(/^(Gabarito|Justificativa):\s*(.*)/i);
+    // Regex para encontrar todas as questões e gabaritos/justificativas
+    // Removido o flag 's' para compatibilidade e ajustado o regex para considerar quebras de linha
+    const questionAnswerRegex = /(.*?)\s*◦\s*(Certo|Errado)\.\s*◦\s*Justificativa:\s*([\s\S]*?)(?=;\s*\d+\.\s*|$)/g;
+    let match;
 
-      if (affirmationMatch) {
-        if (tempQuestion && tempAnswer) {
-          questions.push({ question: tempQuestion.trim(), answer: tempAnswer.trim() });
-        }
-        tempQuestion = affirmationMatch[2];
-        tempAnswer = '';
-        readingAnswer = true; // Começa a ler a resposta para esta nova pergunta
-      } else if (gabaritoMatch) {
-        tempAnswer += gabaritoMatch[0].trim() + '\n'; // Adiciona a linha de gabarito/justificativa
-        readingAnswer = true;
-      } else if (readingAnswer && line.trim() !== '') {
-        // Continuação da resposta/justificativa
-        tempAnswer += line.trim() + '\n';
+    while ((match = questionAnswerRegex.exec(lastModelMessage.content)) !== null) {
+      const questionText = match[1].trim();
+      const answerText = `◦ ${match[2]}. ◦ Justificativa: ${match[3].trim()}`;
+
+      if (questionText && answerText) {
+        questions.push({ question: questionText, answer: answerText });
       }
     }
 
-    // Adicionar a última questão/resposta se houver
-    if (tempQuestion && tempAnswer) {
-      questions.push({ question: tempQuestion.trim(), answer: tempAnswer.trim() });
-    }
+    let csvContent = "Frente;Verso;Tags\n";
 
     for (const q of questions) {
-      const sanitizedQuestion = q.question.replace(/"/g, '""').replace(/;/g, ',');
-      const sanitizedAnswer = q.answer.replace(/"/g, '""').replace(/;/g, ',');
-      const tags = lastModelMessage.originalInput ? `CESPE,${lastModelMessage.originalInput.replace(/"/g, '""').replace(/;/g, ',')}` : "CESPE";
-      csvContent += `"${sanitizedQuestion}";"${sanitizedAnswer}";"${tags}"\n`;
-    }
+      const sanitizedQuestion = sanitizeCsvField(q.question);
+      const sanitizedAnswer = sanitizeCsvField(q.answer);
+      const tags = lastModelMessage.originalInput ?
+        `CESPE,${sanitizeCsvField(lastModelMessage.originalInput)}` :
+        "CESPE";
 
-    // Adicionar a última questão/resposta se houver
-    if (currentQuestion && currentAnswer) {
-      const tags = lastModelMessage.originalInput ? `CESPE,${lastModelMessage.originalInput.replace(/"/g, '""').replace(/;/g, ',')}` : "CESPE";
-      csvContent += `"${currentQuestion.replace(/"/g, '""').replace(/;/g, ',')}";"${currentAnswer.replace(/"/g, '""').replace(/;/g, ',')}";"${tags}"\n`;
+      csvContent += `"${sanitizedQuestion}";"${sanitizedAnswer}";"${tags}"\n`;
     }
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -212,13 +218,20 @@ export default function InstructorAiTab() {
                     )}
                     <div
                         className={cn(
-                        'max-w-[80%] rounded-lg px-4 py-3 text-sm prose dark:prose-invert prose-p:my-0 prose-headings:my-2',
+                        'max-w-[80%] rounded-lg px-4 py-3 text-sm',
                         message.role === 'user'
                             ? 'bg-secondary text-secondary-foreground'
-                            : 'bg-muted'
+                            : 'bg-muted',
+                        (markdownMode && !repeatQuestionMode) && 'prose dark:prose-invert prose-p:my-0 prose-headings:my-2'
                         )}
                     >
-                        <ReactMarkdown>{message.content}</ReactMarkdown>
+                        {
+                          (markdownMode && !repeatQuestionMode) ? (
+                            <ReactMarkdown>{message.content}</ReactMarkdown>
+                          ) : (
+                            <div style={{whiteSpace: "pre-wrap"}}>{message.content}</div>
+                          )
+                        }
                     </div>
                      {message.role === 'user' && (
                         <div className="bg-muted rounded-full p-2 flex-shrink-0">
@@ -250,16 +263,6 @@ export default function InstructorAiTab() {
           >
             {cespeMode ? "Desativar Modo CESPE" : "Ativar Modo CESPE"}
           </Button>
-          {showAnkiCsvButton && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleGenerateAnkiCsv}
-              disabled={isLoading}
-            >
-              Gerar CSV para Anki
-            </Button>
-          )}
         </div>
         <form onSubmit={handleSendMessage} className="flex w-full items-start gap-2">
           <Textarea
@@ -271,7 +274,11 @@ export default function InstructorAiTab() {
                 handleSendMessage(e);
               }
             }}
-            placeholder={cespeMode ? "Digite o tópico para a questão CESPE..." : "Digite sua dúvida sobre os estudos..."}
+            placeholder={
+              cespeMode
+                ? "Digite o tópico para a questão CESPE..."
+                : "Digite sua dúvida sobre os estudos..."
+            }
             className="flex-grow resize-none"
             rows={1}
             disabled={isLoading}

@@ -38,6 +38,29 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 
+function TopicForm({ topic, onSave, onCancel }: { topic?: any; onSave: (data: any) => void; onCancel: () => void; }) {
+  const [name, setName] = useState(topic?.name || '');
+
+  const handleSubmit = () => {
+    onSave({ name });
+    onCancel();
+  };
+
+  return (
+    <div className="grid gap-4 py-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+        <Label htmlFor="name" className="text-left sm:text-right">Nome</Label>
+        <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="col-span-1 sm:col-span-3" />
+      </div>
+      <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+        <Button variant="outline" onClick={onCancel}>Cancelar</Button>
+        <Button onClick={handleSubmit}>Salvar</Button>
+      </DialogFooter>
+    </div>
+  );
+}
+
+
 const COLORS = ['#2563EB', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#6B7280'];
 
 function SubjectForm({ subject, onSave, onCancel }: { subject?: any; onSave: (data: any) => void; onCancel: () => void; }) {
@@ -91,6 +114,7 @@ export default function StudyCycleTab() {
   const [newTopicName, setNewTopicName] = useState('');
   const [addingTopicTo, setAddingTopicTo] = useState<string | null>(null);
   const [editingSubject, setEditingSubject] = useState(null);
+  const [editingTopic, setEditingTopic] = useState<any>(null);
 
   const handleAddSubject = (data: any) => {
     dispatch({ type: 'ADD_SUBJECT', payload: data });
@@ -113,6 +137,11 @@ export default function StudyCycleTab() {
       setNewTopicName('');
       setAddingTopicTo(null);
     }
+  };
+
+  const handleUpdateTopic = (subjectId: string, topicId: string, data: any) => {
+    dispatch({ type: 'UPDATE_TOPIC', payload: { subjectId, topicId, data } });
+    setEditingTopic(null);
   };
   
   const handleToggleTopic = (subjectId: string, topicId: string) => {
@@ -213,6 +242,23 @@ export default function StudyCycleTab() {
                               <span className="font-mono text-sm text-muted-foreground">{topic.order.toString().padStart(2, '0')}</span>
                               <span className="text-sm">{topic.name}</span>
                           </div>
+                          <Dialog>
+                           <DialogTrigger asChild>
+                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingTopic({ subjectId: subject.id, topic })}>
+                               <Edit className="h-4 w-4" />
+                             </Button>
+                           </DialogTrigger>
+                           {editingTopic && editingTopic.topic.id === topic.id && (
+                             <DialogContent>
+                               <DialogHeader><DialogTitle>Editar Assunto</DialogTitle></DialogHeader>
+                               <TopicForm
+                                 topic={editingTopic.topic}
+                                 onSave={(data) => handleUpdateTopic(editingTopic.subjectId, editingTopic.topic.id, data)}
+                                 onCancel={() => setEditingTopic(null)}
+                               />
+                             </DialogContent>
+                           )}
+                         </Dialog>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startPomodoroForItem(topic.id, 'topic')}>
                             <PlayCircle className="h-5 w-5 text-primary" />
                           </Button>

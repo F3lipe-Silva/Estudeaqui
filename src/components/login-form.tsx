@@ -21,7 +21,7 @@ export default function LoginForm() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await logIn({ email, password });
+      await logIn(email, password);
       // The redirect is handled by the AuthProvider now
     } catch (error: any) {
       toast({
@@ -35,10 +35,11 @@ export default function LoginForm() {
   };
   
     const handleGoogleSignIn = async () => {
-    // Mock Google sign-in
+    // Implement Google sign-in with Firebase here
+    // For now, we'll just log an error as this is out of scope for current task
     setIsLoading(true);
     try {
-      await logIn({ isGoogle: true });
+      throw new Error('Google Sign-in not implemented yet.');
     } catch (error: any) {
        toast({
         title: 'Erro de Login',

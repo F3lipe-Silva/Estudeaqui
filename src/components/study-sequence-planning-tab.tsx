@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -37,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { StudySequenceItem } from '@/lib/types';
+import type { StudySequenceItem, StudySequence } from '@/lib/types';
 
 
 export default function StudySequencePlanningTab() {
@@ -49,10 +48,17 @@ export default function StudySequencePlanningTab() {
   const [editingSequence, setEditingSequence] = useState<StudySequenceItem[]>([]);
   const [isLogFormOpen, setIsLogFormOpen] = useState(false);
   const [logInitialData, setLogInitialData] = useState<any>(undefined);
+  const [isSaveAsModalOpen, setIsSaveAsModalOpen] = useState(false);
+  const [newSequenceName, setNewSequenceName] = useState('');
   
   useEffect(() => {
      if (studySequence) {
-      setEditingSequence(studySequence.sequence);
+      // Garante que todos os itens da sequência tenham um ID único para React keys
+      const sequenceWithIds = studySequence.sequence.map(item => ({
+        ...item,
+        id: item.id || `${item.subjectId}-${Date.now()}-${Math.random().toString(36).substring(7)}` // Gera ID se estiver faltando
+      }));
+      setEditingSequence(sequenceWithIds);
     }
   }, [studySequence]);
 
@@ -106,12 +112,9 @@ export default function StudySequencePlanningTab() {
       toast({ title: "Selecione uma matéria para adicionar." });
       return;
     }
-    const subjectExists = editingSequence.some(item => item.subjectId === subjectId);
-    if (subjectExists) {
-      toast({ title: "Matéria já existe na sequência." });
-      return;
-    }
-    setEditingSequence(prev => [...prev, { subjectId, totalTimeStudied: 0 }]);
+    // Para permitir matérias duplicadas, geramos um ID único para cada item da sequência
+    setEditingSequence(prev => [...prev, { id: `${subjectId}-${Date.now()}`, subjectId, totalTimeStudied: 0 }]);
+    toast({ title: "Matéria adicionada à sequência!" });
   };
 
   const getSubjectById = (id: string) => subjects.find(s => s.id === id);
@@ -125,7 +128,7 @@ export default function StudySequencePlanningTab() {
       const newSequence = {
           id: `seq-manual-${Date.now()}`,
           name: "Plano de Estudos Manual",
-          sequence: subjects.map(s => ({ subjectId: s.id, totalTimeStudied: 0 })),
+          sequence: subjects.map(s => ({ id: `${s.id}-${Date.now()}-${Math.random().toString(36).substring(7)}`, subjectId: s.id, totalTimeStudied: 0 })),
       };
       dispatch({ type: 'SAVE_STUDY_SEQUENCE', payload: newSequence });
       toast({ title: "Sequência de estudos criada!" });
@@ -135,26 +138,122 @@ export default function StudySequencePlanningTab() {
     const newSequence = {
         id: `seq-manual-empty-${Date.now()}`,
         name: "Plano de Estudos Manual Vazio",
-        sequence: [],
+        sequence: [], // Sequence is empty, so no need to add IDs here. IDs will be added when subjects are added.
     };
     dispatch({ type: 'SAVE_STUDY_SEQUENCE', payload: newSequence });
     toast({ title: "Plano de estudos manual vazio criado!" });
   }
 
 
+  const handleSaveAsNew = () => {
+    if (!newSequenceName.trim()) {
+      toast({ title: "Por favor, dê um nome ao seu novo plano de estudos." });
+      return;
+    }
+    dispatch({
+      type: 'SAVE_AS_NEW_SEQUENCE',
+      payload: { name: newSequenceName.trim(), sequence: editingSequence }
+    });
+    toast({ title: `Plano "${newSequenceName.trim()}" salvo com sucesso!` });
+    setIsSaveAsModalOpen(false);
+    setNewSequenceName('');
+  };
+
+  const handleLoadSequence = (id: string) => {
+    dispatch({ type: 'LOAD_SAVED_SEQUENCE', payload: id });
+    toast({ title: "Plano de estudos carregado com sucesso!" });
+    setIsEditing(false); // Sair do modo de edição ao carregar
+  };
+
+  const handleDeleteSavedSequence = (id: string) => {
+    dispatch({ type: 'DELETE_SAVED_SEQUENCE', payload: id });
+    toast({ title: "Plano de estudos salvo apagado!" });
+  };
+
+
   return (
+    <>
     <Dialog open={isLogFormOpen} onOpenChange={setIsLogFormOpen}>
-      <div className="space-y-6">
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-            <DialogTitle>Registrar Sessão de Estudo</DialogTitle>
-            </DialogHeader>
-            <StudyLogForm 
-                onSave={() => setIsLogFormOpen(false)} 
-                onCancel={() => setIsLogFormOpen(false)}
-                initialData={logInitialData}
-            />
-        </DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+          <DialogTitle>Registrar Sessão de Estudo</DialogTitle>
+          </DialogHeader>
+          <StudyLogForm
+              onSave={() => setIsLogFormOpen(false)}
+              onCancel={() => setIsLogFormOpen(false)}
+              initialData={logInitialData}
+          />
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={isSaveAsModalOpen} onOpenChange={setIsSaveAsModalOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Salvar Plano de Estudos</DialogTitle>
+          <CardDescription>Dê um nome ao seu plano de estudos para salvá-lo e poder restaurá-lo mais tarde.</CardDescription>
+        </DialogHeader>
+        <div className="grid gap-2">
+          <Label htmlFor="new-sequence-name">Nome do Plano</Label>
+          <Input
+            id="new-sequence-name"
+            value={newSequenceName}
+            onChange={(e) => setNewSequenceName(e.target.value)}
+            placeholder="Ex: Ciclo 1 Concurso X"
+          />
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setIsSaveAsModalOpen(false)}>Cancelar</Button>
+          <Button onClick={handleSaveAsNew} disabled={!newSequenceName.trim()}>Salvar</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <div className="space-y-6">
+        {/* Adiciona um botão para "Salvar como" fora do modo de edição */}
+        {studySequence && (
+          <div className="flex justify-end">
+            <Button onClick={() => setIsSaveAsModalOpen(true)}><Save className="mr-2 h-4 w-4" /> Salvar como...</Button>
+          </div>
+        )}
+
+        {/* Seção para listar planejamentos salvos */}
+        {data.savedStudySequences && data.savedStudySequences.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Meus Planos Salvos</CardTitle>
+              <CardDescription>Selecione um plano para carregar ou gerencie seus planos salvos.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {data.savedStudySequences.map(savedSeq => (
+                  <div key={savedSeq.id} className="flex items-center justify-between p-2 border rounded-md">
+                    <span className="font-medium">{savedSeq.name}</span>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => handleLoadSequence(savedSeq.id)}>Carregar</Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="destructive">Excluir</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir Plano Salvo?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja excluir o plano "{savedSeq.name}"? Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteSavedSequence(savedSeq.id)}>Excluir</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
         
         {studySequence ? (
             <Card>
@@ -225,7 +324,7 @@ export default function StudySequencePlanningTab() {
 
                                 return (
                                     <div
-                                        key={`${item.subjectId}-${index}`}
+                                        key={item.id}
                                         className={cn(
                                             "flex items-center gap-3 p-2 rounded-md bg-card border transition-all",
                                             isCurrent && "border-primary ring-2 ring-primary/50",
@@ -297,6 +396,6 @@ export default function StudySequencePlanningTab() {
             </Card>
         )}
       </div>
-    </Dialog>
+    </>
   );
 }

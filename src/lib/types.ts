@@ -64,6 +64,7 @@ export interface PomodoroState {
 }
 
 export interface StudySequenceItem {
+  id: string; // Adicionado para permitir matérias duplicadas na sequência
   subjectId: string;
   totalTimeStudied?: number; // in minutes
 }
@@ -79,7 +80,8 @@ export interface StudyData {
   studyLog: StudyLogEntry[];
   lastStudiedDate: string | null;
   streak: number;
-  studySequence: StudySequence | null;
+  studySequence: StudySequence | null; // O planejamento atualmente ativo
+  savedStudySequences: StudySequence[]; // Coleção de planejamentos salvos
   sequenceIndex: number;
   pomodoroSettings: PomodoroSettings;
 }

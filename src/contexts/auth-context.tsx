@@ -3,18 +3,25 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { auth } from '@/lib/firebase';
+import {
+  User as FirebaseUser,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth';
 
-// Mock User type to avoid breaking other parts of the app
 type User = {
   uid: string;
-  email?: string;
+  email?: string | null;
 };
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  logIn: (p: any) => Promise<any>;
-  signUp: (p: any) => Promise<any>;
+  logIn: (email: string, password: string) => Promise<any>;
+  signUp: (email: string, password: string) => Promise<any>;
   logOut: () => Promise<any>;
 }
 
@@ -25,49 +32,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Simulate checking for a user session
   useEffect(() => {
-    const checkSession = () => {
-      // In a real app, you'd check localStorage, a cookie, or make an API call
-      // For this mock, we'll just assume the user is logged out initially.
-      setUser(null);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        setUser({ uid: firebaseUser.uid, email: firebaseUser.email });
+      } else {
+        setUser(null);
+      }
       setLoading(false);
-    };
-    checkSession();
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const logIn = async (credentials: any): Promise<any> => {
+  const logIn = async (email: string, password: string): Promise<any> => {
     setLoading(true);
-    // Simulate API call
-    return new Promise(resolve => {
-        setTimeout(() => {
-            const mockUser = { uid: 'mock-user-123', email: credentials.email || 'user@google.com' };
-            setUser(mockUser);
-            setLoading(false);
-            router.push('/');
-            resolve(mockUser);
-        }, 1000);
-    });
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      setUser({ uid: userCredential.user.uid, email: userCredential.user.email });
+      router.push('/');
+      return userCredential.user;
+    } catch (error) {
+      console.error("Login failed:", error);
+      setLoading(false);
+      throw error;
+    }
+  };
+
+  const signUp = async (email: string, password: string): Promise<any> => {
+    setLoading(true);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      setUser({ uid: userCredential.user.uid, email: userCredential.user.email });
+      router.push('/');
+      return userCredential.user;
+    } catch (error) {
+      console.error("Sign up failed:", error);
+      setLoading(false);
+      throw error;
+    }
   };
 
   const logOut = async (): Promise<any> => {
     setLoading(true);
-    // Simulate API call
-     return new Promise(resolve => {
-        setTimeout(() => {
-            setUser(null);
-            setLoading(false);
-            router.push('/login');
-            resolve(true);
-        }, 500);
-    });
+    try {
+      await signOut(auth);
+      setUser(null);
+      router.push('/login');
+      return true;
+    } catch (error) {
+      console.error("Logout failed:", error);
+      setLoading(false);
+      throw error;
+    }
   };
-
-  const signUp = async (credentials: any): Promise<any> => {
-    // This is a mock. In a real app, this would create a new user.
-    return logIn(credentials);
-  };
-
 
   return (
     <AuthContext.Provider value={{
