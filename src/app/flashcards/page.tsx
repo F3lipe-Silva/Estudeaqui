@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Flashcard, ReviewSession } from '@/lib/types/flashcard-types';
 import FlashcardEditor from '@/components/flashcard-editor';
