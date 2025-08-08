@@ -87,6 +87,25 @@ function studyReducer(state: StudyData, action: any): StudyData {
       });
       return { ...state, subjects };
     }
+    case 'UPDATE_TOPIC': {
+     const { subjectId, topicId, data } = action.payload;
+     return {
+       ...state,
+       subjects: state.subjects.map(s => {
+         if (s.id === subjectId) {
+           return {
+             ...s,
+             topics: s.topics.map(t =>
+               t.id === topicId
+                 ? { ...t, ...data }
+                 : t
+             ),
+           };
+         }
+         return s;
+       }),
+     };
+   }
      case 'TOGGLE_TOPIC_COMPLETED': {
       const { subjectId, topicId } = action.payload;
       return {
