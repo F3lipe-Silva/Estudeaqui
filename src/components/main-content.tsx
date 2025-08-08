@@ -32,7 +32,7 @@ export default function MainContent() {
                              <TabsContent value="planning" className="p-4 md:p-6 mt-0">
                                 <StudySequencePlanningTab />
                             </TabsContent>
-                            <TabsContent value="coach-ai" className="p-4 md:p-6 mt-0 h-full"> {/* Nova aba */}
+                            <TabsContent value="coach-ai" className="p-4 md:p-6 mt-0 h-full">
                                 <InstructorAiTab />
                             </TabsContent>
                             <TabsContent value="pomodoro" className="p-4 md:p-6 mt-0">
