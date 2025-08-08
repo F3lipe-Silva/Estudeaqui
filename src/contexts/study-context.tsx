@@ -579,17 +579,23 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
     const timer = setInterval(() => {
       setPomodoroState(prev => {
+        // Se o tempo está prestes a acabar, apenas defina como 0 e deixe o próximo useEffect lidar com a transição
         if (prev.timeRemaining <= 1) {
-          clearInterval(timer); // Stop this interval immediately
-          handlePomodoroStateTransition(prev);
-          return prev; // Return previous state to avoid rendering with 0
+          clearInterval(timer); // Para o timer quando o tempo chega a 0
+          return { ...prev, timeRemaining: 0 };
         }
         return { ...prev, timeRemaining: prev.timeRemaining - 1 };
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [pomodoroState.status, pomodoroState.key, handlePomodoroStateTransition]);
+  }, [pomodoroState.status, pomodoroState.key]); // handlePomodoroStateTransition removido daqui
+
+  // Removido useEffect para transição automática. A transição será manual agora.
+
+  const advancePomodoroState = useCallback(() => {
+    handlePomodoroStateTransition(pomodoroState);
+  }, [pomodoroState, handlePomodoroStateTransition]);
 
 
   const startPomodoroForItem = useCallback((itemId: string, itemType: 'topic' | 'revision') => {
@@ -627,7 +633,8 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     activeTab,
     setActiveTab,
     startPomodoroForItem,
-  }), [state, pomodoroState, activeTab, startPomodoroForItem]);
+    advancePomodoroState, // Expor a nova função
+  }), [state, pomodoroState, activeTab, startPomodoroForItem, advancePomodoroState]);
   
   if (isLoading) {
     return (

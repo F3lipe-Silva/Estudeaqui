@@ -46,6 +46,7 @@ export interface PomodoroSettings {
   shortBreakDuration: number; // seconds
   longBreakDuration: number; // seconds
   cyclesUntilLongBreak: number;
+  alarmSound?: string; // URL or identifier for the alarm sound
 }
 
 export type PomodoroStatus = 'focus' | 'short_break' | 'long_break' | 'paused' | 'idle';
@@ -94,4 +95,5 @@ export interface StudyContextType {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   startPomodoroForItem: (itemId: string, itemType: 'topic' | 'revision') => void;
+  advancePomodoroState: () => void;
 }

@@ -1,11 +1,11 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useStudy } from '@/contexts/study-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Play, Pause, RotateCcw, FastForward, Settings, BarChart2, PlusCircle, Trash2, Save } from 'lucide-react';
+import { Play, Pause, RotateCcw, FastForward, Settings, BarChart2, PlusCircle, Trash2, Save, VolumeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -29,12 +29,35 @@ import { Progress } from '@/components/ui/progress';
 
 
 export default function PomodoroTab() {
-  const { pomodoroState, setPomodoroState, data, dispatch } = useStudy();
+  const { pomodoroState, setPomodoroState, data, dispatch, advancePomodoroState } = useStudy();
   const { toast } = useToast();
   const { pomodoroSettings } = data;
   
   const { status, timeRemaining, currentCycle, pomodorosCompletedToday, associatedItemId, associatedItemType, key, currentTaskIndex } = pomodoroState;
   
+  const alarmAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Helper function to stop the alarm
+  const stopAlarm = useCallback(() => {
+    if (alarmAudioRef.current) {
+      alarmAudioRef.current.pause();
+      alarmAudioRef.current.currentTime = 0;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (timeRemaining === 0 && (status === 'focus' || status === 'short_break' || status === 'long_break')) {
+      if (pomodoroSettings?.alarmSound) {
+        if (!alarmAudioRef.current) {
+          alarmAudioRef.current = new Audio(pomodoroSettings.alarmSound);
+        } else {
+          alarmAudioRef.current.src = pomodoroSettings.alarmSound;
+        }
+        alarmAudioRef.current.play().catch(e => console.error("Error playing alarm sound:", e));
+      }
+    }
+  }, [timeRemaining, status, pomodoroSettings?.alarmSound]);
+
   const getAssociatedItemDetails = () => {
     if (!associatedItemId) return null;
 
@@ -80,6 +103,7 @@ export default function PomodoroTab() {
   }
 
   const handleTogglePause = () => {
+    stopAlarm(); // Stop alarm when pausing/resuming
     setPomodoroState(prev => {
       if (prev.status === 'paused') {
         const previousStatus = prev.previousStatus || 'focus';
@@ -90,17 +114,19 @@ export default function PomodoroTab() {
   };
 
   const handleReset = () => {
-    setPomodoroState(prev => ({ 
-      ...prev, 
-      status: 'idle', 
+    stopAlarm(); // Stop alarm when resetting
+    setPomodoroState(prev => ({
+      ...prev,
+      status: 'idle',
       timeRemaining: pomodoroSettings?.tasks?.[0]?.duration || 0,
       currentTaskIndex: 0,
-      currentCycle: 0 
+      currentCycle: 0
     }));
   }
   
-  const handleSkip = () => {
-    setPomodoroState(prev => ({ ...prev, timeRemaining: 1 }));
+  const handleAdvance = () => { // Renamed from handleSkip
+    stopAlarm(); // Stop alarm when advancing
+    advancePomodoroState();
   };
 
   const formatTime = (seconds: number) => {
@@ -182,7 +208,7 @@ export default function PomodoroTab() {
                 </CardTitle>
                 {itemDetails?.subject && itemDetails?.topic ? (
                   <CardDescription>
-                    {associatedItemType === 'revision' ? 'Revisando: ' : 'Estudando: '} 
+                    {associatedItemType === 'revision' ? 'Revisando: ' : 'Estudando: '}
                     {itemDetails.subject.name} - {itemDetails.topic.name}
                   </CardDescription>
                 ) : (
@@ -215,9 +241,25 @@ export default function PomodoroTab() {
               {status === 'paused' ? <Play className="mr-2" /> : <Pause className="mr-2" />}
               {status === 'paused' ? 'Continuar' : 'Pausar'}
             </Button>
-            <Button onClick={handleSkip} size="lg" variant="ghost" title="Pular tarefa/pausa">
-              <FastForward />
-            </Button>
+
+            {/* Botão para parar o alarme */}
+            {timeRemaining === 0 && (status === 'focus' || status === 'short_break' || status === 'long_break') && (
+              <Button onClick={stopAlarm} size="lg" variant="destructive" title="Parar Alarme">
+                <VolumeX className="mr-2" /> Parar Alarme
+              </Button>
+            )}
+
+            {/* Botão de Avanço/Próximo */}
+            {timeRemaining === 0 && (status === 'focus' || status === 'short_break' || status === 'long_break') ? (
+              <Button onClick={handleAdvance} size="lg" variant="default" title="Avançar para o próximo estágio">
+                <FastForward className="mr-2" /> Próximo
+              </Button>
+            ) : (
+              <Button onClick={handleAdvance} size="lg" variant="ghost" title="Pular tarefa/pausa">
+                <FastForward /> Pular
+              </Button>
+            )}
+            
             <Button onClick={handleReset} size="lg" variant="ghost" title="Resetar ciclo">
               <RotateCcw />
             </Button>
@@ -252,16 +294,16 @@ export default function PomodoroTab() {
                        <div className="space-y-2 mt-2">
                           {tempSettings.tasks?.map((task, index) => (
                               <div key={task.id} className="flex items-center gap-2 p-2 border rounded-lg">
-                                 <Input 
-                                  value={task.name} 
-                                  onChange={(e) => handleTaskChange(index, 'name', e.target.value)} 
+                                 <Input
+                                  value={task.name}
+                                  onChange={(e) => handleTaskChange(index, 'name', e.target.value)}
                                   className="h-9"
                                   placeholder="Nome da tarefa"
                                 />
-                                <Input 
+                                <Input
                                   type="number"
-                                  value={task.duration / 60} 
-                                  onChange={(e) => handleTaskChange(index, 'duration', Number(e.target.value) * 60)} 
+                                  value={task.duration / 60}
+                                  onChange={(e) => handleTaskChange(index, 'duration', Number(e.target.value) * 60)}
                                   className="w-24 h-9"
                                   placeholder="Min"
                                 />
@@ -287,6 +329,19 @@ export default function PomodoroTab() {
                     <div>
                         <Label htmlFor="cycles">Ciclos até a pausa longa</Label>
                         <Input id="cycles" type="number" value={tempSettings.cyclesUntilLongBreak} onChange={(e) => setTempSettings(s => s ? ({...s, cyclesUntilLongBreak: Number(e.target.value)}) : null)} />
+                    </div>
+                    <div>
+                      <Label htmlFor="alarmSound">Som do Alarme</Label>
+                      <select
+                        id="alarmSound"
+                        value={tempSettings.alarmSound || ''}
+                        onChange={(e) => setTempSettings(s => s ? ({ ...s, alarmSound: e.target.value }) : null)}
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity50"
+                      >
+                        <option value="">Nenhum</option>
+                        <option value="/sounds/alarm-26718.mp3">Alarme Padrão</option>
+                        <option value="/sounds/facility-siren-loopable-100687.mp3">Sirene</option>
+                      </select>
                     </div>
                 </div>
                 )}
