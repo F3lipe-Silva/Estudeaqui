@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ThemeToggle } from './theme-toggle';
 import { Button } from './ui/button';
-import { Home, Timer, BookCopy, Workflow, History, BookCheck, Menu, BrainCircuit, BookOpen } from 'lucide-react'; // Adicionar BrainCircuit e BookOpen
+import { Home, Timer, BookCopy, Workflow, History, BookCheck, Menu, BrainCircuit } from 'lucide-react'; // Adicionar BrainCircuit e BookOpen
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { useStudy } from '@/contexts/study-context';
 import Sidebar from './sidebar';
@@ -17,7 +17,6 @@ const navItems = [
     { id: 'cycle', label: 'Ciclo', icon: BookCopy },
     { id: 'revision', label: 'Revisão', icon: BookCheck },
     { id: 'history', label: 'Histórico', icon: History },
-    { id: 'flashcards', label: 'Flashcards', icon: BookOpen },
 ];
 
 export default function AppHeader() {

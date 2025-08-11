@@ -10,8 +10,6 @@ import PomodoroWidget from '@/components/pomodoro-widget';
 import RevisionTab from '@/components/revision-tab';
 import HistoryTab from '@/components/history-tab';
 import InstructorAiTab from '@/components/instructor-ai-tab';
-import FlashcardsPage from '@/app/flashcards/page';
-import Sidebar from './sidebar';
 
 
 export default function MainContent() {
@@ -46,9 +44,6 @@ export default function MainContent() {
                             </TabsContent>
                             <TabsContent value="history" className="p-4 md:p-6 mt-0">
                                 <HistoryTab />
-                            </TabsContent>
-                            <TabsContent value="flashcards" className="p-4 md:p-6 mt-0">
-                                <FlashcardsPage />
                             </TabsContent>
                         </div>
                     </Tabs>

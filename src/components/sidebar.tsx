@@ -13,7 +13,6 @@ const navItems = [
     { id: 'pomodoro', label: 'Pomodoro', icon: Timer },
     { id: 'cycle', label: 'Ciclo', icon: BookCopy },
     { id: 'revision', label: 'Revisão', icon: BookCheck },
-    { id: 'flashcards', label: 'Flashcards', icon: BookOpen },
     { id: 'history', label: 'Histórico', icon: History },
 ];
 
