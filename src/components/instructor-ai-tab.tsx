@@ -13,7 +13,6 @@ import { cn } from '@/lib/utils';
 interface InstructorMessage {
   role: 'user' | 'model';
   content: string;
-  originalInput?: string; // Novo campo para armazenar o input original do usuário
 }
 
 
@@ -21,7 +20,6 @@ export default function InstructorAiTab() {
   const [messages, setMessages] = useState<InstructorMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [cespeMode, setCespeMode] = useState(false); // Novo estado para o modo CESPE
   const [ankiCsvMode, setAnkiCsvMode] = useState(false); // Novo estado para o modo Anki CSV
   const [markdownMode, setMarkdownMode] = useState(false);
   const [repeatQuestionMode, setRepeatQuestionMode] = useState(false); // Novo estado para repetir a pergunta
@@ -55,12 +53,7 @@ export default function InstructorAiTab() {
     setMessages((prev) => [...prev, userMessage]);
 
     setIsLoading(true);
-    let messageToSend = input;
-    if (cespeMode) {
-      messageToSend = `Com base no seguinte tópico/texto, elabore tantas afirmações complexas e aprofundadas quanto julgar necessárias, exclusivamente no estilo CESPE/Cebraspe (Certo ou Errado). As afirmações devem abordar nuances, exceções e detalhes específicos do assunto, evitando generalidades. Para cada afirmação, forneça um gabarito e uma justificativa completa, bem fundamentada e **didática, de fácil compreensão para qualquer pessoa**, **OBRIGATORIAMENTE incluindo exemplos práticos ou analogias para facilitar o entendimento**, explicando detalhadamente o porquê da resposta.
-
-       Tópico/Texto: "${input}"`;
-    }
+    const messageToSend = input;
     
     setInput('');
 
@@ -88,15 +81,13 @@ export default function InstructorAiTab() {
       const modelMessage: InstructorMessage = {
         role: 'model',
         content: modelContent,
-        originalInput: cespeMode ? input : undefined, // Salvar o input original se for modo CESPE
       };
       setMessages((prev) => {
         const newMessages = [...prev, modelMessage];
-        // Habilitar o botão CSV apenas se a última mensagem foi no modo CESPE
-        // e o conteúdo da resposta for o esperado para questões
-        if (cespeMode && ankiCsvMode && data.response && typeof data.response === 'string') {
+        // Habilitar o botão CSV se o modo Anki CSV estiver ativo e o conteúdo da resposta for o esperado para questões
+        if (ankiCsvMode && data.response && typeof data.response === 'string') {
           if (data.response.includes('Certo') || data.response.includes('Errado') || data.response.includes('Gabarito')) {
-            // Se o modo CESPE e Anki CSV estão ativos e a resposta parece uma questão CESPE, gerar CSV
+            // Se o modo Anki CSV está ativo e a resposta parece uma questão, gerar CSV
             setTimeout(() => handleGenerateAnkiCsv(), 0); // Gerar CSV assincronamente
           }
         }
@@ -165,9 +156,7 @@ ${error.message}
     for (const q of questions) {
       const sanitizedQuestion = sanitizeCsvField(q.question);
       const sanitizedAnswer = sanitizeCsvField(q.answer);
-      const tags = lastModelMessage.originalInput ?
-        `CESPE,${sanitizeCsvField(lastModelMessage.originalInput)}` :
-        "CESPE";
+      const tags = "Anki";
 
       csvContent += `"${sanitizedQuestion}";"${sanitizedAnswer}";"${tags}"\n`;
     }
@@ -176,7 +165,7 @@ ${error.message}
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'questoes_cespe_anki.csv');
+    link.setAttribute('download', 'questoes_anki.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -255,15 +244,6 @@ ${error.message}
         </ScrollArea>
       </CardContent>
       <CardFooter className="pt-6 flex-shrink-0 flex flex-col gap-2">
-        <div className="flex w-full items-center justify-between mb-2">
-          <Button
-            variant={cespeMode ? "default" : "outline"}
-            onClick={() => setCespeMode(prev => !prev)}
-            disabled={isLoading}
-          >
-            {cespeMode ? "Desativar Modo CESPE" : "Ativar Modo CESPE"}
-          </Button>
-        </div>
         <form onSubmit={handleSendMessage} className="flex w-full items-start gap-2">
           <Textarea
             value={input}
@@ -274,11 +254,7 @@ ${error.message}
                 handleSendMessage(e);
               }
             }}
-            placeholder={
-              cespeMode
-                ? "Digite o tópico para a questão CESPE..."
-                : "Digite sua dúvida sobre os estudos..."
-            }
+            placeholder="Digite sua dúvida sobre os estudos..."
             className="flex-grow resize-none"
             rows={1}
             disabled={isLoading}

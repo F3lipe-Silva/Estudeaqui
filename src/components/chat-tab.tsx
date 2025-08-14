@@ -102,8 +102,6 @@ export default function ChatTab() {
       let prompt = '';
       if (preset === 'anki') {
           prompt = 'Com base na última resposta que você gerou (contendo as questões no estilo CESPE), transforme-a em flashcards para o Anki no formato CSV (frente;verso;tags), com um cabeçalho. A "frente" do flashcard deve ser a afirmação da questão. O "verso" deve conter o gabarito (Certo ou Errado) e a justificativa completa. Não inclua mais nada na resposta além do conteúdo CSV.';
-      } else if (preset === 'cespe') {
-          prompt = 'Com base em nossa discussão detalhada sobre o último tópico, elabore 5 afirmações complexas e aprofundadas no estilo CESPE/Cebraspe (Certo ou Errado). As afirmações devem abordar nuances, exceções e detalhes específicos do assunto, evitando generalidades. Para cada afirmação, forneça um gabarito (Certo ou Errado) e uma justificativa completa e bem fundamentada, explicando o porquê da resposta.';
       }
       handleSend(prompt);
   }
@@ -163,10 +161,6 @@ export default function ChatTab() {
                     <Button variant="outline" size="sm" onClick={() => handlePresetAction('anki')} disabled={isLoading}>
                         <FileText className="mr-2 h-4 w-4" />
                         Gerar CSV para Anki
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => handlePresetAction('cespe')} disabled={isLoading}>
-                        <Repeat className="mr-2 h-4 w-4" />
-                        Transformar em Questão CESPE
                     </Button>
                 </div>
              )}
