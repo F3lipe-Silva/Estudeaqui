@@ -36,12 +36,25 @@ export default function PomodoroTab() {
   const { status, timeRemaining, currentCycle, pomodorosCompletedToday, associatedItemId, associatedItemType, key, currentTaskIndex } = pomodoroState;
   
   const alarmAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
 
   // Helper function to stop the alarm
   const stopAlarm = useCallback(() => {
     if (alarmAudioRef.current) {
       alarmAudioRef.current.pause();
       alarmAudioRef.current.currentTime = 0;
+    }
+  }, []);
+
+  // Request notification permission on component mount
+  useEffect(() => {
+    if (typeof Notification !== 'undefined') {
+      setNotificationPermission(Notification.permission);
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+          setNotificationPermission(permission);
+        });
+      }
     }
   }, []);
 
@@ -55,8 +68,15 @@ export default function PomodoroTab() {
         }
         alarmAudioRef.current.play().catch(e => console.error("Error playing alarm sound:", e));
       }
+
+      // Display browser notification
+      if (notificationPermission === 'granted') {
+        const title = status === 'focus' ? 'Foco Concluído!' : 'Pausa Concluída!';
+        const body = status === 'focus' ? 'Hora da pausa!' : 'Hora de voltar ao foco!';
+        new Notification(title, { body });
+      }
     }
-  }, [timeRemaining, status, pomodoroSettings?.alarmSound]);
+  }, [timeRemaining, status, pomodoroSettings?.alarmSound, notificationPermission]);
 
   const getAssociatedItemDetails = () => {
     if (!associatedItemId) return null;
@@ -200,7 +220,7 @@ export default function PomodoroTab() {
 
 
   return (
-    <div className="flex flex-col items-center justify-center h-full space-y-8">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] sm:min-h-[calc(100vh-4rem)] space-y-8 p-4">
         <Card className={cn("w-full max-w-md text-center shadow-2xl transition-colors duration-500", currentStatusInfo.bg)}>
             <CardHeader>
                 <CardTitle className={cn("text-lg font-semibold uppercase tracking-wider", currentStatusInfo.color)}>
@@ -215,7 +235,7 @@ export default function PomodoroTab() {
                    status === 'idle' && <CardDescription>Pronto para focar?</CardDescription>
                 )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-6"> {/* Increased padding for better mobile touch */}
                 <div key={key} className="text-8xl font-bold font-mono tracking-tighter animate-in fade-in duration-700">
                   {formatTime(timeRemaining)}
                 </div>
@@ -230,49 +250,49 @@ export default function PomodoroTab() {
             </CardContent>
         </Card>
       
-      <div className="flex space-x-4">
+      <div className="flex flex-wrap justify-center gap-4"> {/* Use flex-wrap and gap for better button layout */}
         {status === 'idle' ? (
-          <Button onClick={handleStart} size="lg" className="w-32 h-16 rounded-full text-lg">
+          <Button onClick={handleStart} size="lg" className="flex-1 min-w-[120px] h-16 rounded-full text-lg"> {/* Adjusted width for mobile */}
             <Play className="mr-2" /> Iniciar
           </Button>
         ) : (
           <>
-            <Button onClick={handleTogglePause} size="lg" variant="secondary" className="w-32 h-16 rounded-full text-lg">
+            <Button onClick={handleTogglePause} size="lg" variant="secondary" className="flex-1 min-w-[120px] h-16 rounded-full text-lg">
               {status === 'paused' ? <Play className="mr-2" /> : <Pause className="mr-2" />}
               {status === 'paused' ? 'Continuar' : 'Pausar'}
             </Button>
 
             {/* Botão para parar o alarme */}
             {timeRemaining === 0 && (status === 'focus' || status === 'short_break' || status === 'long_break') && (
-              <Button onClick={stopAlarm} size="lg" variant="destructive" title="Parar Alarme">
+              <Button onClick={stopAlarm} size="lg" variant="destructive" title="Parar Alarme" className="flex-1 min-w-[120px]">
                 <VolumeX className="mr-2" /> Parar Alarme
               </Button>
             )}
 
             {/* Botão de Avanço/Próximo */}
             {timeRemaining === 0 && (status === 'focus' || status === 'short_break' || status === 'long_break') ? (
-              <Button onClick={handleAdvance} size="lg" variant="default" title="Avançar para o próximo estágio">
+              <Button onClick={handleAdvance} size="lg" variant="default" title="Avançar para o próximo estágio" className="flex-1 min-w-[120px]">
                 <FastForward className="mr-2" /> Próximo
               </Button>
             ) : (
-              <Button onClick={handleAdvance} size="lg" variant="ghost" title="Pular tarefa/pausa">
+              <Button onClick={handleAdvance} size="lg" variant="ghost" title="Pular tarefa/pausa" className="flex-1 min-w-[120px]">
                 <FastForward /> Pular
               </Button>
             )}
             
-            <Button onClick={handleReset} size="lg" variant="ghost" title="Resetar ciclo">
+            <Button onClick={handleReset} size="lg" variant="ghost" title="Resetar ciclo" className="flex-1 min-w-[120px]">
               <RotateCcw />
             </Button>
           </>
         )}
       </div>
 
-      <div className="flex gap-4 items-center">
-          <div className="text-center">
+      <div className="flex flex-col sm:flex-row gap-4 items-center w-full max-w-md"> {/* Adjusted for mobile stacking */}
+          <div className="text-center flex-1">
             <p className="font-bold text-xl">{currentCycle}</p>
             <p className="text-sm text-muted-foreground">Ciclos</p>
           </div>
-          <div className="text-center">
+          <div className="text-center flex-1">
             <p className="font-bold text-xl">{pomodorosCompletedToday}</p>
             <p className="text-sm text-muted-foreground">Blocos (hoje)</p>
           </div>
@@ -281,7 +301,7 @@ export default function PomodoroTab() {
              <DialogTrigger asChild>
                 <Button variant="outline" size="icon"><Settings/></Button>
              </DialogTrigger>
-             <DialogContent className="max-w-xl">
+             <DialogContent className="max-w-full sm:max-w-xl"> {/* Adjusted max-width for mobile */}
                 <DialogHeader>
                     <DialogTitle>Personalizar Pomodoro</DialogTitle>
                     <DialogDescription>Ajuste os tempos e as tarefas da sua sessão de estudo focado.</DialogDescription>
@@ -293,18 +313,18 @@ export default function PomodoroTab() {
                       <CardDescription className="text-sm">Defina as etapas da sua sessão de estudo.</CardDescription>
                        <div className="space-y-2 mt-2">
                           {tempSettings.tasks?.map((task, index) => (
-                              <div key={task.id} className="flex items-center gap-2 p-2 border rounded-lg">
+                              <div key={task.id} className="flex flex-col sm:flex-row items-center gap-2 p-2 border rounded-lg"> {/* Adjusted for mobile stacking */}
                                  <Input
                                   value={task.name}
                                   onChange={(e) => handleTaskChange(index, 'name', e.target.value)}
-                                  className="h-9"
+                                  className="h-9 flex-1" /* Adjusted width for mobile */
                                   placeholder="Nome da tarefa"
                                 />
                                 <Input
                                   type="number"
                                   value={task.duration / 60}
                                   onChange={(e) => handleTaskChange(index, 'duration', Number(e.target.value) * 60)}
-                                  className="w-24 h-9"
+                                  className="w-full sm:w-24 h-9" /* Adjusted width for mobile */
                                   placeholder="Min"
                                 />
                                 <Button variant="ghost" size="icon" className="text-destructive h-9 w-9" onClick={() => handleDeleteTask(task.id)}>
@@ -313,10 +333,10 @@ export default function PomodoroTab() {
                               </div>
                           ))}
                        </div>
-                       <Button variant="outline" size="sm" className="mt-2" onClick={handleAddTask}><PlusCircle className="mr-2 h-4 w-4" />Adicionar Tarefa</Button>
+                       <Button variant="outline" size="sm" className="mt-2 w-full sm:w-auto"><PlusCircle className="mr-2 h-4 w-4" />Adicionar Tarefa</Button> {/* Adjusted width for mobile */}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"> {/* Adjusted for mobile stacking */}
                       <div className="space-y-2">
                           <Label htmlFor="short">Pausa Curta (min)</Label>
                           <Input id="short" type="number" value={tempSettings.shortBreakDuration / 60} onChange={(e) => setTempSettings(s => s ? ({...s, shortBreakDuration: Number(e.target.value) * 60}) : null)} />
@@ -343,10 +363,27 @@ export default function PomodoroTab() {
                         <option value="/sounds/facility-siren-loopable-100687.mp3">Sirene</option>
                       </select>
                     </div>
+                    {notificationPermission === 'default' && (
+                        <div>
+                            <Label>Notificações do Navegador</Label>
+                            <Button
+                                variant="outline"
+                                className="w-full mt-2"
+                                onClick={() => Notification.requestPermission().then(setNotificationPermission)}
+                            >
+                                Habilitar Notificações
+                            </Button>
+                        </div>
+                    )}
+                    {notificationPermission === 'denied' && (
+                        <p className="text-sm text-destructive mt-2">
+                            As notificações estão bloqueadas. Por favor, habilite-as nas configurações do seu navegador.
+                        </p>
+                    )}
                 </div>
                 )}
-                <DialogFooter>
-                    <Button onClick={handleSettingsSave}><Save className="mr-2 h-4 w-4" /> Salvar Alterações</Button>
+                <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2"> {/* Adjusted for mobile stacking */}
+                    <Button onClick={handleSettingsSave} className="w-full sm:w-auto"><Save className="mr-2 h-4 w-4" /> Salvar Alterações</Button>
                 </DialogFooter>
              </DialogContent>
           </Dialog>

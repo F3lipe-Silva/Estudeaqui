@@ -110,215 +110,215 @@ export default function OverviewTab() {
 
   return (
     <Dialog open={isLogFormOpen} onOpenChange={setIsLogFormOpen}>
-      <div className="space-y-6">
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
-          <Card className="col-span-1">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tempo (Hoje)</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatTime(timeToday)}</div>
-            </CardContent>
-          </Card>
-          <Card className="col-span-1">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tempo (Semana)</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatTime(timeThisWeek)}</div>
-            </CardContent>
-          </Card>
-          <Card className="col-span-1">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Streak</CardTitle>
-              <Zap className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{streak} dias</div>
-            </CardContent>
-          </Card>
-          <Card className="col-span-1">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tópicos</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{completedTopics}/{totalTopics}</div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
-          <Card className="md:col-span-2">
-              <CardHeader>
-                  <CardTitle className="text-lg font-bold text-primary">Próximo Passo</CardTitle>
-              </CardHeader>
-              <CardContent>
-                  <div className="space-y-4 rounded-lg bg-card-foreground/5 p-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                          <div className="flex items-center gap-4">
-                              <BookOpen className="h-8 w-8 text-primary" />
-                              <div>
-                                  {nextSubject ? (
-                                      <>
-                                        <div className="text-xl font-bold">{nextSubject.name}</div>
-                                        {pendingRevisionTopic && (
-                                           <div className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
-                                                <Repeat className="h-4 w-4" />
-                                                Revisão: {pendingRevisionTopic.name}
-                                           </div>
-                                        )}
-                                      </>
-                                  ) : (
-                                      <div className="text-lg font-semibold text-muted-foreground">Crie sua sequência no Planejamento!</div>
-                                  )}
-                              </div>
-                          </div>
-                          {nextSubject && (
-                            <DialogTrigger asChild>
-                              <Button 
-                                onClick={() => handleOpenLogForm(nextSubject.id, pendingRevisionTopic?.id)}
-                                className="w-full sm:w-auto" 
-                                >
-                                  <PlusCircle className="mr-2 h-4 w-4" /> Registrar
-                              </Button>
-                            </DialogTrigger>
-                          )}
+        <div className="min-h-[calc(100vh-12rem)] sm:min-h-[calc(100vh-4rem)] p-4 space-y-6">
+            <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
+              <Card className="col-span-1">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Tempo (Hoje)</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatTime(timeToday)}</div>
+                </CardContent>
+              </Card>
+              <Card className="col-span-1">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Tempo (Semana)</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatTime(timeThisWeek)}</div>
+                </CardContent>
+              </Card>
+              <Card className="col-span-1">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Streak</CardTitle>
+                  <Zap className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{streak} dias</div>
+                </CardContent>
+              </Card>
+              <Card className="col-span-1">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Tópicos</CardTitle>
+                  <Target className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{completedTopics}/{totalTopics}</div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+              <Card className="md:col-span-2">
+                  <CardHeader>
+                      <CardTitle className="text-lg font-bold text-primary">Próximo Passo</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                      <div className="space-y-4 rounded-lg bg-card-foreground/5 p-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                              <div className="flex items-center gap-4">
+                                   <BookOpen className="h-8 w-8 text-primary" />
+                                   <div>
+                                       {nextSubject ? (
+                                           <>
+                                             <div className="text-xl font-bold">{nextSubject.name}</div>
+                                             {pendingRevisionTopic && (
+                                                <div className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
+                                                     <Repeat className="h-4 w-4" />
+                                                     Revisão: {pendingRevisionTopic.name}
+                                                </div>
+                                             )}
+                                           </>
+                                       ) : (
+                                           <div className="text-lg font-semibold text-muted-foreground">Crie sua sequência no Planejamento!</div>
+                                       )}
+                                   </div>
+                               </div>
+                               {nextSubject && (
+                                 <DialogTrigger asChild>
+                                   <Button
+                                     onClick={() => handleOpenLogForm(nextSubject.id, pendingRevisionTopic?.id)}
+                                     className="w-full sm:w-auto"
+                                     >
+                                       <PlusCircle className="mr-2 h-4 w-4" /> Registrar
+                                   </Button>
+                                 </DialogTrigger>
+                               )}
+                           </div>
+                           {nextSubject && timeGoal > 0 && (
+                               <div className="mt-2">
+                                 <Progress value={progress} className="h-2" />
+                                 <div className="flex justify-between text-sm text-muted-foreground mt-2">
+                                   <span>{timeStudied} min</span>
+                                   <span>Meta: {timeGoal} min</span>
+                                 </div>
+                               </div>
+                           )}
+                       </div>
+                   </CardContent>
+               </Card>
+
+               <Card>
+                 <CardHeader>
+                   <CardTitle>Progresso por Matéria</CardTitle>
+                   <CardDescription>Visão geral do avanço em cada matéria do ciclo.</CardDescription>
+                 </CardHeader>
+                 <CardContent className="space-y-4">
+                   {subjects.map(subject => {
+                     const completed = subject.topics.filter(t => t.isCompleted).length;
+                     const total = subject.topics.length;
+                     const progress = total > 0 ? (completed / total) * 100 : 0;
+                     return (
+                       <div key={subject.id}>
+                         <div className="flex justify-between text-sm mb-1">
+                           <span className="font-medium">{subject.name}</span>
+                           <span className="text-muted-foreground">{completed}/{total}</span>
+                         </div>
+                         <Progress value={progress} style={{'--subject-color': subject.color} as React.CSSProperties} className="h-2 [&>div]:bg-[var(--subject-color)]" />
+                       </div>
+                     );
+                   })}
+                 </CardContent>
+               </Card>
+
+               <Card>
+                 <CardHeader>
+                   <CardTitle>Tempo por Matéria</CardTitle>
+                   <CardDescription>Distribuição do tempo de estudo focado.</CardDescription>
+                 </CardHeader>
+                 <CardContent>
+                    <ChartContainer config={{}} className="h-[250px] w-full">
+                       <ResponsiveContainer width="100%" height="100%">
+                         <BarChart
+                           data={chartData}
+                           layout="vertical"
+                           margin={{ left: 10, right: 10, top: 10, bottom: 10 }}
+                           accessibilityLayer
+                         >
+                           <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                           <XAxis type="number" hide />
+                           <YAxis
+                             dataKey="name"
+                             type="category"
+                             tickLine={false}
+                             axisLine={false}
+                             width={120}
+                             tick={{ fontSize: 12 }}
+                           />
+                           <ChartTooltip
+                             cursor={false}
+                             content={<ChartTooltipContent
+                               formatter={(value) => `${value} min`}
+                               labelClassName="font-bold"
+                               indicator="dot"
+                             />}
+                           />
+                           <Bar dataKey="minutes" radius={5} />
+                         </BarChart>
+                       </ResponsiveContainer>
+                     </ChartContainer>
+                 </CardContent>
+               </Card>
+               
+               <Card className="md:col-span-2">
+                 <CardHeader>
+                   <CardTitle className="flex items-center gap-2"><Percent className="h-5 w-5"/> Percentual de Acertos por Matéria</CardTitle>
+                   <CardDescription>Desempenho geral nas questões registradas.</CardDescription>
+                 </CardHeader>
+                 <CardContent>
+                    {accuracyChartData.length > 0 ? (
+                      <ChartContainer config={{}} className="h-[250px] w-full">
+                         <ResponsiveContainer width="100%" height="100%">
+                           <BarChart
+                             data={accuracyChartData}
+                             layout="vertical"
+                             margin={{ left: 10, right: 30, top: 10, bottom: 10 }}
+                             accessibilityLayer
+                           >
+                             <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                             <XAxis type="number" domain={[0, 100]} unit="%" />
+                             <YAxis
+                               dataKey="name"
+                               type="category"
+                               tickLine={false}
+                               axisLine={false}
+                               width={120}
+                               tick={{ fontSize: 12 }}
+                             />
+                             <ChartTooltip
+                               cursor={false}
+                               content={<ChartTooltipContent
+                                 formatter={(value) => `${value}%`}
+                                 labelClassName="font-bold"
+                                 indicator="dot"
+                               />}
+                             />
+                             <Bar dataKey="accuracy" radius={5} />
+                           </BarChart>
+                         </ResponsiveContainer>
+                       </ChartContainer>
+                    ) : (
+                      <div className="flex items-center justify-center h-[250px] text-muted-foreground text-center">
+                        <p>Nenhum registro de questões encontrado para exibir o desempenho.</p>
                       </div>
-                      {nextSubject && timeGoal > 0 && (
-                          <div className="mt-2">
-                            <Progress value={progress} className="h-2" />
-                            <div className="flex justify-between text-sm text-muted-foreground mt-2">
-                              <span>{timeStudied} min</span>
-                              <span>Meta: {timeGoal} min</span>
-                            </div>
-                          </div>
-                      )}
-                  </div>
-              </CardContent>
-          </Card>
+                    )}
+                 </CardContent>
+               </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Progresso por Matéria</CardTitle>
-              <CardDescription>Visão geral do avanço em cada matéria do ciclo.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {subjects.map(subject => {
-                const completed = subject.topics.filter(t => t.isCompleted).length;
-                const total = subject.topics.length;
-                const progress = total > 0 ? (completed / total) * 100 : 0;
-                return (
-                  <div key={subject.id}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium">{subject.name}</span>
-                      <span className="text-muted-foreground">{completed}/{total}</span>
-                    </div>
-                    <Progress value={progress} style={{'--subject-color': subject.color} as React.CSSProperties} className="h-2 [&>div]:bg-[var(--subject-color)]" />
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Tempo por Matéria</CardTitle>
-              <CardDescription>Distribuição do tempo de estudo focado.</CardDescription>
-            </CardHeader>
-            <CardContent>
-               <ChartContainer config={{}} className="h-[250px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={chartData}
-                      layout="vertical"
-                      margin={{ left: 10, right: 10, top: 10, bottom: 10 }}
-                      accessibilityLayer
-                    >
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" hide />
-                      <YAxis
-                        dataKey="name"
-                        type="category"
-                        tickLine={false}
-                        axisLine={false}
-                        width={120}
-                        tick={{ fontSize: 12 }}
-                      />
-                      <ChartTooltip
-                        cursor={false}
-                        content={<ChartTooltipContent
-                          formatter={(value) => `${value} min`}
-                          labelClassName="font-bold"
-                          indicator="dot"
-                        />}
-                      />
-                      <Bar dataKey="minutes" radius={5} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-            </CardContent>
-          </Card>
-          
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Percent className="h-5 w-5"/> Percentual de Acertos por Matéria</CardTitle>
-              <CardDescription>Desempenho geral nas questões registradas.</CardDescription>
-            </CardHeader>
-            <CardContent>
-               {accuracyChartData.length > 0 ? (
-                 <ChartContainer config={{}} className="h-[250px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={accuracyChartData}
-                        layout="vertical"
-                        margin={{ left: 10, right: 30, top: 10, bottom: 10 }}
-                        accessibilityLayer
-                      >
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                        <XAxis type="number" domain={[0, 100]} unit="%" />
-                        <YAxis
-                          dataKey="name"
-                          type="category"
-                          tickLine={false}
-                          axisLine={false}
-                          width={120}
-                          tick={{ fontSize: 12 }}
-                        />
-                        <ChartTooltip
-                          cursor={false}
-                          content={<ChartTooltipContent
-                            formatter={(value) => `${value}%`}
-                            labelClassName="font-bold"
-                            indicator="dot"
-                          />}
-                        />
-                        <Bar dataKey="accuracy" radius={5} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-               ) : (
-                 <div className="flex items-center justify-center h-[250px] text-muted-foreground text-center">
-                   <p>Nenhum registro de questões encontrado para exibir o desempenho.</p>
-                 </div>
-               )}
-            </CardContent>
-          </Card>
-
-        </div>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-            <DialogTitle>Registrar Nova Sessão de Estudo</DialogTitle>
-            </DialogHeader>
-            <StudyLogForm 
-                onSave={() => setIsLogFormOpen(false)} 
-                onCancel={() => setIsLogFormOpen(false)} 
-                initialData={initialLogData}
-             />
-        </DialogContent>
-      </div>
+             </div>
+             <DialogContent className="max-h-[90vh] overflow-y-auto">
+                 <DialogHeader>
+                 <DialogTitle>Registrar Nova Sessão de Estudo</DialogTitle>
+                 </DialogHeader>
+                 <StudyLogForm
+                     onSave={() => setIsLogFormOpen(false)}
+                     onCancel={() => setIsLogFormOpen(false)}
+                     initialData={initialLogData}
+                  />
+             </DialogContent>
+           </div>
     </Dialog>
   );
 }

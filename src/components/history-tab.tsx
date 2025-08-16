@@ -67,7 +67,7 @@ export default function HistoryTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-[calc(100vh-12rem)] sm:min-h-[calc(100vh-4rem)] p-4 space-y-6">
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -108,74 +108,74 @@ export default function HistoryTab() {
                        </CardTitle>
                        <CardDescription>{getTopicName(log.subjectId, log.topicId)}</CardDescription>
                     </CardHeader>
-                    <CardContent className="p-4 pt-0 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 text-sm">
+                    <CardContent className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm"> {/* Adjusted grid for mobile */}
                        <div className="flex items-center gap-2">
-                        <Repeat className="h-5 w-5 text-primary" />
-                        <div>
-                          <p className="font-semibold">{getSourceDisplayName(log.source)}</p>
-                          <p className="text-xs text-muted-foreground">Fonte</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <FileClock className="h-5 w-5 text-primary" />
-                        <div>
-                          <p className="font-semibold">{log.duration} min</p>
-                          <p className="text-xs text-muted-foreground">Duração</p>
-                        </div>
-                      </div>
+                         <Repeat className="h-5 w-5 text-primary" />
+                         <div>
+                           <p className="font-semibold">{getSourceDisplayName(log.source)}</p>
+                           <p className="text-xs text-muted-foreground">Fonte</p>
+                         </div>
+                       </div>
                        <div className="flex items-center gap-2">
-                        <Book className="h-5 w-5 text-primary" />
-                        <div>
-                          <p className="font-semibold">{pagesRead > 0 ? `${pagesRead} pág.` : "N/A"}</p>
-                          <p className="text-xs text-muted-foreground">Leitura</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Target className="h-5 w-5 text-primary" />
-                        <div>
-                          <p className="font-semibold">{log.questionsTotal > 0 ? `${log.questionsCorrect}/${log.questionsTotal}`: "N/A"}</p>
-                          <p className="text-xs text-muted-foreground">Questões</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Percent className="h-5 w-5 text-primary" />
-                        <div>
-                          <p className="font-semibold">{log.questionsTotal > 0 ? `${accuracy.toFixed(0)}%` : 'N/A'}</p>
-                          <p className="text-xs text-muted-foreground">Acertos</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                     <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(log)}>
-                              <Edit className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                      <Trash2 className="h-4 w-4" />
-                                  </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                      <AlertDialogTitle>Remover Registro?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                          Esta ação não pode ser desfeita. Tem certeza que deseja apagar este registro de estudo?
-                                      </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => handleDelete(log.id)}>Confirmar</AlertDialogAction>
-                                  </AlertDialogFooter>
-                              </AlertDialogContent>
-                          </AlertDialog>
-                      </div>
-                  </Card>
-                )
-              })
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+                         <FileClock className="h-5 w-5 text-primary" />
+                         <div>
+                           <p className="font-semibold">{log.duration} min</p>
+                           <p className="text-xs text-muted-foreground">Duração</p>
+                         </div>
+                       </div>
+                        <div className="flex items-center gap-2">
+                         <Book className="h-5 w-5 text-primary" />
+                         <div>
+                           <p className="font-semibold">{pagesRead > 0 ? `${pagesRead} pág.` : "N/A"}</p>
+                           <p className="text-xs text-muted-foreground">Leitura</p>
+                         </div>
+                       </div>
+                       <div className="flex items-center gap-2">
+                         <Target className="h-5 w-5 text-primary" />
+                         <div>
+                           <p className="font-semibold">{log.questionsTotal > 0 ? `${log.questionsCorrect}/${log.questionsTotal}`: "N/A"}</p>
+                           <p className="text-xs text-muted-foreground">Questões</p>
+                         </div>
+                       </div>
+                       <div className="flex items-center gap-2">
+                         <Percent className="h-5 w-5 text-primary" />
+                         <div>
+                           <p className="font-semibold">{log.questionsTotal > 0 ? `${accuracy.toFixed(0)}%` : 'N/A'}</p>
+                           <p className="text-xs text-muted-foreground">Acertos</p>
+                         </div>
+                       </div>
+                     </CardContent>
+                      <div className="absolute top-2 right-2 flex flex-col sm:flex-row items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"> {/* Adjusted for mobile stacking */}
+                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(log)}>
+                               <Edit className="h-4 w-4" />
+                           </Button>
+                           <AlertDialog>
+                               <AlertDialogTrigger asChild>
+                                   <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                                       <Trash2 className="h-4 w-4" />
+                                   </Button>
+                               </AlertDialogTrigger>
+                               <AlertDialogContent>
+                                   <AlertDialogHeader>
+                                       <AlertDialogTitle>Remover Registro?</AlertDialogTitle>
+                                       <AlertDialogDescription>
+                                           Esta ação não pode ser desfeita. Tem certeza que deseja apagar este registro de estudo?
+                                       </AlertDialogDescription>
+                                   </AlertDialogHeader>
+                                   <AlertDialogFooter>
+                                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                       <AlertDialogAction onClick={() => handleDelete(log.id)}>Confirmar</AlertDialogAction>
+                                   </AlertDialogFooter>
+                               </AlertDialogContent>
+                           </AlertDialog>
+                       </div>
+                   </Card>
+                 )
+               })
+             )}
+           </div>
+         </CardContent>
+       </Card>
+     </div>
   );
 }

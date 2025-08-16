@@ -52,9 +52,9 @@ function TopicForm({ topic, onSave, onCancel }: { topic?: any; onSave: (data: an
         <Label htmlFor="name" className="text-left sm:text-right">Nome</Label>
         <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="col-span-1 sm:col-span-3" />
       </div>
-      <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-        <Button variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button onClick={handleSubmit}>Salvar</Button>
+      <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2"> {/* Adjusted for mobile stacking */}
+        <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">Cancelar</Button> {/* Adjusted width for mobile */}
+        <Button onClick={handleSubmit} className="w-full sm:w-auto">Salvar</Button> {/* Adjusted width for mobile */}
       </DialogFooter>
     </div>
   );
@@ -101,9 +101,9 @@ function SubjectForm({ subject, onSave, onCancel }: { subject?: any; onSave: (da
           ))}
         </div>
       </div>
-      <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-        <Button variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button onClick={handleSubmit}>Salvar</Button>
+      <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2"> {/* Adjusted for mobile stacking */}
+        <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">Cancelar</Button> {/* Adjusted width for mobile */}
+        <Button onClick={handleSubmit} className="w-full sm:w-auto">Salvar</Button> {/* Adjusted width for mobile */}
       </DialogFooter>
     </div>
   );
@@ -153,7 +153,7 @@ export default function StudyCycleTab() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="min-h-[calc(100vh-12rem)] sm:min-h-[calc(100vh-4rem)] p-4 space-y-4">
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -164,7 +164,7 @@ export default function StudyCycleTab() {
             <DialogTrigger asChild>
               <Button className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4" /> Nova Matéria</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-full sm:max-w-lg"> {/* Adjusted max-width for mobile */}
               <DialogHeader><DialogTitle>Adicionar Nova Matéria</DialogTitle></DialogHeader>
               <SubjectForm onSave={handleAddSubject} onCancel={() => {}} />
             </DialogContent>
@@ -184,7 +184,7 @@ export default function StudyCycleTab() {
                 <AccordionContent className="pl-5">
                   {subject.description && <p className="text-sm text-muted-foreground mb-4">{subject.description}</p>}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2"> {/* Use flex-wrap for buttons */}
                         {subject.materialUrl && (
                            <a href={subject.materialUrl} target="_blank" rel="noopener noreferrer">
                              <Button variant="outline" size="sm"><FolderKanban className="mr-2 h-3 w-3" /> Abrir Material</Button>
@@ -195,7 +195,7 @@ export default function StudyCycleTab() {
                                 <Button variant="outline" size="sm" onClick={() => setEditingSubject(subject as any)}><Edit className="mr-2 h-3 w-3" /> Editar</Button>
                             </DialogTrigger>
                             {editingSubject && (
-                                <DialogContent>
+                                <DialogContent className="max-w-full sm:max-w-lg"> {/* Adjusted max-width for mobile */}
                                     <DialogHeader><DialogTitle>Editar Matéria</DialogTitle></DialogHeader>
                                     <SubjectForm subject={editingSubject} onSave={handleUpdateSubject} onCancel={() => setEditingSubject(null)}/>
                                 </DialogContent>
@@ -230,86 +230,86 @@ export default function StudyCycleTab() {
                     {subject.topics.map(topic => (
                       <div key={topic.id} className="flex flex-col">
                         <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             className={cn("h-8 w-8", topic.isCompleted ? 'text-green-500 hover:text-green-600' : 'text-muted-foreground hover:text-foreground')}
                             onClick={() => handleToggleTopic(subject.id, topic.id)}
                           >
                             {topic.isCompleted ? <CheckCircle2 className="h-5 w-5"/> : <Circle className="h-5 w-5"/>}
                           </Button>
                           <div className="flex-grow flex items-center gap-3">
-                              <span className="font-mono text-sm text-muted-foreground">{topic.order.toString().padStart(2, '0')}</span>
-                              <span className="text-sm">{topic.name}</span>
-                          </div>
-                          <Dialog>
-                           <DialogTrigger asChild>
-                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingTopic({ subjectId: subject.id, topic })}>
-                               <Edit className="h-4 w-4" />
-                             </Button>
-                           </DialogTrigger>
-                           {editingTopic && editingTopic.topic.id === topic.id && (
-                             <DialogContent>
-                               <DialogHeader><DialogTitle>Editar Assunto</DialogTitle></DialogHeader>
-                               <TopicForm
-                                 topic={editingTopic.topic}
-                                 onSave={(data) => handleUpdateTopic(editingTopic.subjectId, editingTopic.topic.id, data)}
-                                 onCancel={() => setEditingTopic(null)}
-                               />
-                             </DialogContent>
-                           )}
-                         </Dialog>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startPomodoroForItem(topic.id, 'topic')}>
-                            <PlayCircle className="h-5 w-5 text-primary" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <Trash2 className="h-4 w-4 text-destructive" />
+                               <span className="font-mono text-sm text-muted-foreground">{topic.order.toString().padStart(2, '0')}</span>
+                               <span className="text-sm">{topic.name}</span>
+                           </div>
+                           <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingTopic({ subjectId: subject.id, topic })}>
+                                <Edit className="h-4 w-4" />
                               </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Remover assunto?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que deseja remover "{topic.name}"?
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteTopic(subject.id, topic.id)}>Remover</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </div>
-                    ))}
-                    {addingTopicTo === subject.id ? (
-                       <div className="flex flex-col sm:flex-row gap-2 p-2">
-                         <Input
-                           placeholder="Nome do novo assunto"
-                           value={newTopicName}
-                           onChange={(e) => setNewTopicName(e.target.value)}
-                           onKeyDown={(e) => e.key === 'Enter' && handleAddTopic(subject.id)}
-                           autoFocus
-                         />
-                         <div className='flex gap-2 justify-end'>
-                            <Button onClick={() => handleAddTopic(subject.id)}>Salvar</Button>
-                            <Button variant="ghost" onClick={() => setAddingTopicTo(null)}>Cancelar</Button>
+                            </DialogTrigger>
+                            {editingTopic && editingTopic.topic.id === topic.id && (
+                              <DialogContent className="max-w-full sm:max-w-lg"> {/* Adjusted max-width for mobile */}
+                                <DialogHeader><DialogTitle>Editar Assunto</DialogTitle></DialogHeader>
+                                <TopicForm
+                                  topic={editingTopic.topic}
+                                  onSave={(data) => handleUpdateTopic(editingTopic.subjectId, editingTopic.topic.id, data)}
+                                  onCancel={() => setEditingTopic(null)}
+                                />
+                              </DialogContent>
+                            )}
+                          </Dialog>
+                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startPomodoroForItem(topic.id, 'topic')}>
+                             <PlayCircle className="h-5 w-5 text-primary" />
+                           </Button>
+                           <AlertDialog>
+                             <AlertDialogTrigger asChild>
+                               <Button variant="ghost" size="icon" className="h-8 w-8">
+                                 <Trash2 className="h-4 w-4 text-destructive" />
+                               </Button>
+                             </AlertDialogTrigger>
+                             <AlertDialogContent>
+                               <AlertDialogHeader>
+                                 <AlertDialogTitle>Remover assunto?</AlertDialogTitle>
+                                 <AlertDialogDescription>
+                                   Tem certeza que deseja remover "{topic.name}"?
+                                 </AlertDialogDescription>
+                               </AlertDialogHeader>
+                               <AlertDialogFooter>
+                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                 <AlertDialogAction onClick={() => handleDeleteTopic(subject.id, topic.id)}>Remover</AlertDialogAction>
+                               </AlertDialogFooter>
+                             </AlertDialogContent>
+                           </AlertDialog>
                          </div>
                        </div>
-                    ) : (
-                      <Button variant="ghost" className="w-full justify-start mt-2" onClick={() => setAddingTopicTo(subject.id)}>
-                        <Plus className="mr-2 h-4 w-4" /> Adicionar Assunto
-                      </Button>
-                    )}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </CardContent>
-      </Card>
-    </div>
+                     ))}
+                     {addingTopicTo === subject.id ? (
+                        <div className="flex flex-col sm:flex-row gap-2 p-2">
+                          <Input
+                            placeholder="Nome do novo assunto"
+                            value={newTopicName}
+                            onChange={(e) => setNewTopicName(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddTopic(subject.id)}
+                            autoFocus
+                          />
+                          <div className='flex gap-2 justify-end'>
+                             <Button onClick={() => handleAddTopic(subject.id)}>Salvar</Button>
+                             <Button variant="ghost" onClick={() => setAddingTopicTo(null)}>Cancelar</Button>
+                          </div>
+                        </div>
+                     ) : (
+                       <Button variant="ghost" className="w-full justify-start mt-2" onClick={() => setAddingTopicTo(subject.id)}>
+                         <Plus className="mr-2 h-4 w-4" /> Adicionar Assunto
+                       </Button>
+                     )}
+                   </div>
+                 </AccordionContent>
+               </AccordionItem>
+             ))}
+           </Accordion>
+         </CardContent>
+       </Card>
+     </div>
   );
 }

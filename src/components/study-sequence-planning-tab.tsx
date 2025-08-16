@@ -208,7 +208,7 @@ export default function StudySequencePlanningTab() {
       </DialogContent>
     </Dialog>
 
-    <div className="space-y-6">
+    <div className="min-h-[calc(100vh-12rem)] sm:min-h-[calc(100vh-4rem)] p-4 space-y-6">
         {/* Adiciona um botão para "Salvar como" fora do modo de edição */}
         {studySequence && (
           <div className="flex justify-end">
@@ -228,7 +228,7 @@ export default function StudySequencePlanningTab() {
                 {data.savedStudySequences.map(savedSeq => (
                   <div key={savedSeq.id} className="flex items-center justify-between p-2 border rounded-md">
                     <span className="font-medium">{savedSeq.name}</span>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2"> {/* Adjusted for mobile */}
                       <Button size="sm" variant="outline" onClick={() => handleLoadSequence(savedSeq.id)}>Carregar</Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -241,9 +241,9 @@ export default function StudySequencePlanningTab() {
                               Tem certeza que deseja excluir o plano "{savedSeq.name}"? Esta ação não pode ser desfeita.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteSavedSequence(savedSeq.id)}>Excluir</AlertDialogAction>
+                          <AlertDialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2"> {/* Adjusted for mobile */}
+                            <AlertDialogCancel className="w-full sm:w-auto">Cancelar</AlertDialogCancel> {/* Adjusted width for mobile */}
+                            <AlertDialogAction onClick={() => handleDeleteSavedSequence(savedSeq.id)} className="w-full sm:w-auto">Excluir</AlertDialogAction> {/* Adjusted width for mobile */}
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
@@ -259,8 +259,8 @@ export default function StudySequencePlanningTab() {
             <Card>
                 <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                      <CardTitle>{studySequence.name}</CardTitle>
-                      <CardDescription>Este é o seu plano de estudos ativo. Conclua cada sessão para avançar.</CardDescription>
+                        <CardTitle>{studySequence.name}</CardTitle>
+                        <CardDescription>Este é o seu plano de estudos ativo. Conclua cada sessão para avançar.</CardDescription>
                     </div>
                      <div className="flex flex-col sm:flex-row gap-2">
                         {isEditing ? (
@@ -281,9 +281,9 @@ export default function StudySequencePlanningTab() {
                                         Isto irá zerar o progresso de tempo estudado de todas as sessões e voltar ao início da sequência. A ordem das matérias será mantida.
                                     </AlertDialogDescription>
                                     </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleResetSequence}>Confirmar</AlertDialogAction>
+                                    <AlertDialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2"> {/* Adjusted for mobile */}
+                                    <AlertDialogCancel className="w-full sm:w-auto">Cancelar</AlertDialogCancel> {/* Adjusted width for mobile */}
+                                    <AlertDialogAction onClick={handleResetSequence} className="w-full sm:w-auto">Confirmar</AlertDialogAction> {/* Adjusted width for mobile */}
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
@@ -299,9 +299,9 @@ export default function StudySequencePlanningTab() {
                                         Tem certeza que deseja apagar sua sequência de estudos atual? Você precisará gerar uma nova.
                                     </AlertDialogDescription>
                                     </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleDeleteSequence}>Confirmar</AlertDialogAction>
+                                    <AlertDialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2"> {/* Adjusted for mobile */}
+                                    <AlertDialogCancel className="w-full sm:w-auto">Cancelar</AlertDialogCancel> {/* Adjusted width for mobile */}
+                                    <AlertDialogAction onClick={handleDeleteSequence} className="w-full sm:w-auto">Confirmar</AlertDialogAction> {/* Adjusted width for mobile */}
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
@@ -315,18 +315,18 @@ export default function StudySequencePlanningTab() {
                             {(isEditing ? editingSequence : studySequence.sequence).map((item, index) => {
                                 const subject = getSubjectById(item.subjectId);
                                 if (!subject) return null;
-
+ 
                                 const isCurrent = index === sequenceIndex && !isEditing;
                                 const timeStudied = item.totalTimeStudied || 0;
                                 const timeGoal = subject.studyDuration || 60;
                                 const progress = timeGoal > 0 ? (timeStudied / timeGoal) * 100 : 0;
                                 const isCompleted = timeStudied >= timeGoal;
-
+ 
                                 return (
                                     <div
                                         key={item.id}
                                         className={cn(
-                                            "flex items-center gap-3 p-2 rounded-md bg-card border transition-all",
+                                            "flex flex-col sm:flex-row items-center gap-3 p-2 rounded-md bg-card border transition-all", /* Adjusted for mobile */
                                             isCurrent && "border-primary ring-2 ring-primary/50",
                                             isCompleted && !isEditing && "bg-green-600/10 border-green-600/20"
                                         )}
@@ -343,13 +343,13 @@ export default function StudySequencePlanningTab() {
                                             )}
                                         </div>
                                         {isEditing && (
-                                          <div className='flex gap-1'>
+                                          <div className='flex flex-wrap gap-1 justify-end w-full sm:w-auto'> {/* Adjusted for mobile */}
                                             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => moveSequenceItem(index, index - 1)} disabled={index === 0}><ArrowUp className="h-4 w-4"/></Button>
                                             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => moveSequenceItem(index, index + 1)} disabled={index === editingSequence.length - 1}><ArrowDown className="h-4 w-4"/></Button>
                                             <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => handleDeleteSequenceItem(index)}><Trash2 className="h-4 w-4"/></Button>
                                           </div>
                                         )}
-                                        <Button size="sm" variant="outline" className="flex-shrink-0" onClick={() => openLogForm(subject.id, index)}>
+                                        <Button size="sm" variant="outline" className="flex-shrink-0 w-full sm:w-auto" onClick={() => openLogForm(subject.id, index)}> {/* Adjusted width for mobile */}
                                             <PlusCircle className="mr-2 h-4 w-4" /> Registrar
                                         </Button>
                                     </div>
@@ -358,8 +358,8 @@ export default function StudySequencePlanningTab() {
                         </div>
                     </div>
                     {isEditing && (
-                        <div className="flex items-end gap-2 mt-4">
-                            <div className="flex-grow">
+                        <div className="flex flex-col sm:flex-row items-end gap-2 mt-4"> {/* Adjusted for mobile */}
+                            <div className="flex-grow w-full"> {/* Adjusted for mobile */}
                                 <Label htmlFor="add-subject-to-sequence">Adicionar Matéria</Label>
                                 <Select onValueChange={handleAddSubjectToSequence}>
                                     <SelectTrigger id="add-subject-to-sequence">
@@ -372,7 +372,7 @@ export default function StudySequencePlanningTab() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <Button onClick={() => handleAddSubjectToSequence(undefined)} disabled={!subjects.length}>
+                            <Button onClick={() => handleAddSubjectToSequence(undefined)} disabled={!subjects.length} className="w-full sm:w-auto"> {/* Adjusted width for mobile */}
                                 <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
                             </Button>
                         </div>
@@ -386,10 +386,10 @@ export default function StudySequencePlanningTab() {
                    <CardDescription>Você ainda não tem um plano de estudos. Crie um para começar.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col sm:flex-row gap-2">
-                      <Button onClick={handleCreateEmptySequence}>
+                      <Button onClick={handleCreateEmptySequence} className="w-full sm:w-auto"> {/* Adjusted width for mobile */}
                         Criar Plano Básico (com todas as matérias)
                       </Button>
-                      <Button variant="outline" onClick={handleCreateEmptyManualSequence}>
+                      <Button variant="outline" onClick={handleCreateEmptyManualSequence} className="w-full sm:w-auto"> {/* Adjusted width for mobile */}
                         Criar Plano Manual Vazio
                       </Button>
                 </CardContent>

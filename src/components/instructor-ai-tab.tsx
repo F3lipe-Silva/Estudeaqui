@@ -176,14 +176,14 @@ ${error.message}
   };
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-[calc(100vh-12rem)] sm:h-[calc(100vh-4rem)] flex flex-col"> {/* Adjusted height for mobile */}
       <CardHeader className="flex-shrink-0">
         <CardTitle className="flex items-center gap-2">
           <BrainCircuit className="h-6 w-6 text-primary" />
           <span>Instrutor AI</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex-grow overflow-hidden flex flex-col">
+      <CardContent className="flex-grow overflow-hidden flex flex-col p-4"> {/* Added padding */}
         <ScrollArea className="flex-grow pr-4 -mr-4" ref={scrollAreaRef}>
           <div className="space-y-4">
             {messages.length === 0 ? (
@@ -243,7 +243,7 @@ ${error.message}
           </div>
         </ScrollArea>
       </CardContent>
-      <CardFooter className="pt-6 flex-shrink-0 flex flex-col gap-2">
+      <CardFooter className="pt-6 flex-shrink-0 flex flex-col gap-2 p-4"> {/* Added padding */}
         <form onSubmit={handleSendMessage} className="flex w-full items-start gap-2">
           <Textarea
             value={input}

@@ -71,7 +71,7 @@ export default function RevisionTab() {
 
     return (
       <div className={cn(
-          "flex flex-col items-center justify-between p-2 border rounded-lg bg-card shadow-sm h-24 w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(33.33%-0.5rem)] lg:w-[calc(25%-0.5rem)] xl:w-[calc(20%-0.5rem)] transition-all duration-300",
+          "flex flex-col items-center justify-between p-2 border rounded-lg bg-card shadow-sm h-24 flex-auto w-full max-w-[calc(50%-0.5rem)] sm:max-w-[calc(33.33%-0.5rem)] md:max-w-[calc(25%-0.5rem)] lg:max-w-[calc(20%-0.5rem)] transition-all duration-300",
           isCompleted && "bg-green-600/90 border-green-700/50 text-primary-foreground",
           isCompleted && canClick && "cursor-pointer hover:border-primary",
           isCurrent && "border-primary border-2 shadow-lg",
@@ -89,7 +89,7 @@ export default function RevisionTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-[calc(100vh-12rem)] sm:min-h-[calc(100vh-4rem)] p-4 space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><History className="h-6 w-6 text-primary" /> Sistema de Revisão por Ciclos</CardTitle>

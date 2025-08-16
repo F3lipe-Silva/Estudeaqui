@@ -25,7 +25,7 @@ export default function AppHeader() {
     return (
         <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur-sm lg:px-6">
             <div className="flex items-center gap-4">
-                 <div className="lg:hidden">
+                 <div className="hidden sm:block lg:hidden"> {/* Show sheet trigger between sm and lg */}
                     <Sheet>
                         <SheetTrigger asChild>
                             <Button variant="ghost" size="icon">
@@ -40,7 +40,7 @@ export default function AppHeader() {
                         </SheetContent>
                     </Sheet>
                  </div>
-                <h1 className="text-xl font-bold">Estudaqui</h1>
+                <h1 className="text-xl font-bold flex-grow text-center lg:text-left">Estudaqui</h1> {/* Center title on mobile */}
                  <nav className="hidden lg:flex items-center gap-2">
                     {navItems.map((item) => (
                         <Button

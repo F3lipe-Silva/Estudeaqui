@@ -109,7 +109,7 @@ export default function ChatTab() {
   const hasUserMessages = messages.some(m => m.role === 'user');
 
   return (
-    <div className="flex flex-col h-full max-h-[calc(100vh-12rem)]">
+    <div className="flex flex-col h-[calc(100vh-12rem)] sm:h-[calc(100vh-4rem)]"> {/* Adjusted height for mobile */}
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-6">
           {messages.map((message, index) => (

@@ -22,7 +22,7 @@ export default function Sidebar({ isSheet = false }: { isSheet?: boolean }) {
     const NavButton = isSheet ? SheetClose : Button;
 
     return (
-        <aside className={cn('flex flex-col border-r bg-background transition-all w-full')}>
+        <aside className={cn('hidden sm:flex flex-col border-r bg-background transition-all w-full')}>
         {isSheet && (
              <div className="flex items-center justify-between p-4 border-b">
                  <h2 className="text-lg font-semibold">Estudaqui</h2>
