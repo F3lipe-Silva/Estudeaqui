@@ -1,16 +1,8 @@
-
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { auth } from '@/lib/firebase';
-import {
-  User as FirebaseUser,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-} from 'firebase/auth';
+import { supabase } from '@/lib/supabase';
 
 type User = {
   uid: string;
@@ -33,25 +25,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
-      if (firebaseUser) {
-        setUser({ uid: firebaseUser.uid, email: firebaseUser.email });
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setUser({ uid: session.user.id, email: session.user.email });
       } else {
         setUser(null);
       }
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   const logIn = async (email: string, password: string): Promise<any> => {
     setLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      setUser({ uid: userCredential.user.uid, email: userCredential.user.email });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      setUser({ uid: data.user?.id || '', email: data.user?.email });
       router.push('/');
-      return userCredential.user;
+      return data.user;
     } catch (error) {
       console.error("Login failed:", error);
       setLoading(false);
@@ -62,10 +57,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string): Promise<any> => {
     setLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      setUser({ uid: userCredential.user.uid, email: userCredential.user.email });
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) throw error;
+      setUser({ uid: data.user?.id || '', email: data.user?.email });
       router.push('/');
-      return userCredential.user;
+      return data.user;
     } catch (error) {
       console.error("Sign up failed:", error);
       setLoading(false);
@@ -76,7 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logOut = async (): Promise<any> => {
     setLoading(true);
     try {
-      await signOut(auth);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
       setUser(null);
       router.push('/login');
       return true;

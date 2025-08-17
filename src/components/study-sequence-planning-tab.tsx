@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PlusCircle, Trash2, Pencil, ArrowUp, ArrowDown, Save, X, RotateCcw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { cn } from '@/lib/utils';
+import { cn, generateUUID } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import {
   Dialog,
@@ -56,7 +56,7 @@ export default function StudySequencePlanningTab() {
       // Garante que todos os itens da sequência tenham um ID único para React keys
       const sequenceWithIds = studySequence.sequence.map(item => ({
         ...item,
-        id: item.id || `${item.subjectId}-${Date.now()}-${Math.random().toString(36).substring(7)}` // Gera ID se estiver faltando
+        id: item.id || generateUUID() // Gera ID se estiver faltando
       }));
       setEditingSequence(sequenceWithIds);
     }
@@ -113,7 +113,7 @@ export default function StudySequencePlanningTab() {
       return;
     }
     // Para permitir matérias duplicadas, geramos um ID único para cada item da sequência
-    setEditingSequence(prev => [...prev, { id: `${subjectId}-${Date.now()}`, subjectId, totalTimeStudied: 0 }]);
+    setEditingSequence(prev => [...prev, { id: generateUUID(), subjectId, totalTimeStudied: 0 }]);
     toast({ title: "Matéria adicionada à sequência!" });
   };
 
@@ -126,7 +126,7 @@ export default function StudySequencePlanningTab() {
 
   const handleCreateEmptySequence = () => {
       const newSequence = {
-          id: `seq-manual-${Date.now()}`,
+          id: generateUUID(),
           name: "Plano de Estudos Manual",
           sequence: subjects.map(s => ({ id: `${s.id}-${Date.now()}-${Math.random().toString(36).substring(7)}`, subjectId: s.id, totalTimeStudied: 0 })),
       };
@@ -136,7 +136,7 @@ export default function StudySequencePlanningTab() {
 
   const handleCreateEmptyManualSequence = () => {
     const newSequence = {
-        id: `seq-manual-empty-${Date.now()}`,
+        id: generateUUID(),
         name: "Plano de Estudos Manual Vazio",
         sequence: [], // Sequence is empty, so no need to add IDs here. IDs will be added when subjects are added.
     };

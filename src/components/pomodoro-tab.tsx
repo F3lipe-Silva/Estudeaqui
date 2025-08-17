@@ -22,7 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { format, subDays, isSameDay, parseISO } from 'date-fns';
+import { format, subDays, isSameDay, parseISO, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { PomodoroSubTask, PomodoroSettings } from '@/lib/types';
 import { Progress } from '@/components/ui/progress';
@@ -105,7 +105,7 @@ export default function PomodoroTab() {
     const last7Days = Array.from({ length: 7 }, (_, i) => subDays(today, i)).reverse();
 
     return last7Days.map(day => {
-        const count = pomodoroLogs.filter(log => isSameDay(parseISO(log.date), day)).length;
+        const count = pomodoroLogs.filter(log => isSameDay(startOfDay(parseISO(log.date)), startOfDay(day))).length;
         return {
             date: format(day, "eee", { locale: ptBR }),
             pomodoros: count,

@@ -16,7 +16,6 @@ export const ai = genkit({
   // enableDevUi: false,
   // Flow state is stored in memory by default. For production, you should
   // configure a different state store.
-  // flowStateStore: 'firebase',
 });
 
 // Define the 'eq' helper globally for Genkit

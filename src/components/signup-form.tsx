@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -10,39 +9,39 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-export default function LoginForm() {
+export default function SignupForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { logIn } = useAuth();
+  const { signUp } = useAuth();
   const { toast } = useToast();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await logIn(email, password);
-      // The redirect is handled by the AuthProvider now
+      await signUp(email, password);
+      // O redirecionamento é tratado pelo AuthProvider agora
     } catch (error: any) {
       toast({
-        title: 'Erro de Login',
-        description: error.message || 'Ocorreu um erro ao tentar fazer login.',
+        title: 'Erro de Cadastro',
+        description: error.message || 'Ocorreu um erro ao tentar cadastrar.',
         variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle className="text-2xl">Login</CardTitle>
+        <CardTitle className="text-2xl">Cadastro</CardTitle>
         <CardDescription>
-          Digite seu e-mail e senha para acessar sua conta.
+          Crie sua conta para começar a estudar.
         </CardDescription>
       </CardHeader>
-      <form onSubmit={handleLogin}>
+      <form onSubmit={handleSignUp}>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
@@ -69,14 +68,14 @@ export default function LoginForm() {
           </div>
            <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Entrar
+            Cadastrar
           </Button>
         </CardContent>
         <CardFooter>
           <p className="text-center text-sm text-muted-foreground w-full">
-            Não tem uma conta?{' '}
-            <a href="/signup" className="underline">
-              Cadastre-se
+            Já tem uma conta?{' '}
+            <a href="/login" className="underline">
+              Entrar
             </a>
           </p>
         </CardFooter>

@@ -7,9 +7,9 @@ import { INITIAL_SUBJECTS } from '@/lib/data';
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, isSameDay, parseISO } from 'date-fns';
 import { REVISION_SEQUENCE } from '@/components/revision-tab';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, deleteField } from 'firebase/firestore';
 import { useAuth } from './auth-context';
+import { supabase } from '@/lib/supabase'; // Importar supabase
+import { generateUUID } from '@/lib/utils'; // Importar generateUUID
 
 const COLORS = ['#2563EB', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#6B7280', '#EC4899', '#3B82F6'];
 
@@ -25,14 +25,14 @@ const initialPomodoroSettings: PomodoroSettings = {
 };
 
 const initialState: StudyData = {
-  subjects: INITIAL_SUBJECTS,
-  studyLog: [],
+  subjects: [], // Inicializa vazio, será carregado do Supabase
+  studyLog: [], // Inicializa vazio, será carregado do Supabase
   lastStudiedDate: null,
   streak: 0,
-  studySequence: { id: 'default-sequence', name: 'Minha Sequência de Estudos', sequence: [] },
+  studySequence: null, // Inicializa nulo, será carregado do Supabase
   sequenceIndex: 0,
-  savedStudySequences: [], // Inicializa como um array vazio
-  pomodoroSettings: initialPomodoroSettings,
+  savedStudySequences: [], // Inicializa vazio, será carregado do Supabase
+  pomodoroSettings: initialPomodoroSettings, // Pode ser carregado ou usar default
 };
 
 const StudyContext = createContext<StudyContextType | undefined>(undefined);
@@ -49,7 +49,7 @@ function studyReducer(state: StudyData, action: any): StudyData {
       if (loadedState.studySequence && loadedState.studySequence.sequence) {
         loadedState.studySequence.sequence = loadedState.studySequence.sequence.map((item: StudySequenceItem) => ({
           ...item,
-          id: item.id || `${item.subjectId}-${Date.now()}-${Math.random().toString(36).substring(7)}`
+          id: item.id || generateUUID()
         }));
       }
       // Garante que savedStudySequences seja um array e que todos os itens tenham ID
@@ -60,14 +60,14 @@ function studyReducer(state: StudyData, action: any): StudyData {
           ...seq,
           sequence: seq.sequence.map((item: StudySequenceItem) => ({
             ...item,
-            id: item.id || `${item.subjectId}-${Date.now()}-${Math.random().toString(36).substring(7)}`
+            id: item.id || generateUUID()
           }))
         }));
       }
       return { ...initialState, ...loadedState };
     case 'ADD_SUBJECT': {
       const newSubject: Subject = {
-        id: `subj-${Date.now()}`,
+        id: action.payload.id || generateUUID(), // Use provided ID or generate new
         name: action.payload.name,
         color: action.payload.color,
         description: action.payload.description,
@@ -91,11 +91,11 @@ function studyReducer(state: StudyData, action: any): StudyData {
         };
     }
     case 'ADD_TOPIC': {
-      const { subjectId, name } = action.payload;
+      const { subjectId, name, id } = action.payload;
       const subjects = state.subjects.map(s => {
         if (s.id === subjectId) {
           const newTopic: Topic = {
-            id: `topic-${subjectId}-${Date.now()}`,
+            id: id || generateUUID(),
             subjectId,
             name,
             order: s.topics.length,
@@ -184,7 +184,7 @@ function studyReducer(state: StudyData, action: any): StudyData {
 
       const newLog: StudyLogEntry = {
         ...logData,
-        id: `log-${Date.now()}`,
+        id: logData.id || generateUUID(),
         date: today.toISOString(),
       };
       
@@ -291,25 +291,25 @@ function studyReducer(state: StudyData, action: any): StudyData {
             // Quando uma nova sequência é criada, garanta que cada item tenha um ID único
             newSequence.sequence = newSequence.sequence.map((item: StudySequenceItem) => ({
               ...item,
-              id: item.id || `${item.subjectId}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+              id: item.id || generateUUID(),
               totalTimeStudied: 0
             }));
         } else {
           // Se a sequência existente está sendo atualizada, apenas zere o totalTimeStudied se for o caso
           newSequence.sequence = newSequence.sequence.map((item: StudySequenceItem) => ({
             ...item,
-            id: item.id || `${item.subjectId}-${Date.now()}-${Math.random().toString(36).substring(7)}` // Garante ID para itens existentes sem ID
+            id: item.id || generateUUID() // Garante ID para itens existentes sem ID
           }));
         }
        }
       return { ...state, studySequence: newSequence, sequenceIndex: 0 };
     }
     case 'SAVE_AS_NEW_SEQUENCE': {
-      const { name, sequence } = action.payload;
+      const { name, sequence, id } = action.payload;
       const newSavedSequence: StudySequence = {
-        id: `saved-seq-${Date.now()}`,
+        id: id || generateUUID(),
         name: name,
-        sequence: sequence.map((item: StudySequenceItem) => ({ ...item, id: item.id || `${item.subjectId}-${Date.now()}-${Math.random().toString(36).substring(7)}` })),
+        sequence: sequence.map((item: StudySequenceItem) => ({ ...item, id: item.id || generateUUID() })),
       };
       return {
         ...state,
@@ -361,18 +361,28 @@ function studyReducer(state: StudyData, action: any): StudyData {
   }
 }
 
-function cleanUndefined(obj: any): any {
+
+function camelToSnakeCase(key: string): string {
+  return key.replace(/([A-Z])/g, "_$1").toLowerCase();
+}
+
+function snakeToCamelCase(key: string): string {
+  return key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+}
+
+function toSnakeCaseKeys(obj: any): any {
   if (obj === null || obj === undefined) {
     return obj;
   }
   if (Array.isArray(obj)) {
-    return obj.map(v => cleanUndefined(v));
+    return obj.map(v => toSnakeCaseKeys(v));
   }
   if (typeof obj === 'object') {
     const newObj: {[key: string]: any} = {};
     for (const key in obj) {
       if (obj[key] !== undefined) {
-        newObj[key] = cleanUndefined(obj[key]);
+        const newKey = camelToSnakeCase(key);
+        newObj[newKey] = toSnakeCaseKeys(obj[key]);
       }
     }
     return newObj;
@@ -380,6 +390,45 @@ function cleanUndefined(obj: any): any {
   return obj;
 }
 
+function toCamelCaseKeys(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(v => toCamelCaseKeys(v));
+  }
+  if (typeof obj === 'object') {
+    const newObj: {[key: string]: any} = {};
+    for (const key in obj) {
+      if (obj[key] !== undefined) {
+        const newKey = snakeToCamelCase(key);
+        newObj[newKey] = toCamelCaseKeys(obj[key]);
+      }
+    }
+    return newObj;
+  }
+  return obj;
+}
+
+
+function cleanUndefinedValues(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(v => cleanUndefinedValues(v));
+  }
+  if (typeof obj === 'object') {
+    const newObj: {[key: string]: any} = {};
+    for (const key in obj) {
+      if (obj[key] !== undefined) {
+        newObj[key] = cleanUndefinedValues(obj[key]);
+      }
+    }
+    return newObj;
+  }
+  return obj;
+}
 
 export function StudyProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -391,6 +440,104 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   const saveTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const { pomodoroSettings } = state;
+
+  // Effect to save data to Supabase whenever state changes
+  useEffect(() => {
+    if (!user || isLoading) return;
+
+    // Clear any existing timeout to prevent multiple saves in quick succession
+    if (saveTimeout.current) {
+      clearTimeout(saveTimeout.current);
+    }
+
+    // Set a new timeout to debounce saves
+    saveTimeout.current = setTimeout(async () => {
+      if (isSaving.current) return; // Prevent re-entry if already saving
+      isSaving.current = true;
+
+      try {
+        // Save Subjects
+        for (const subject of state.subjects) {
+          const subjectToSave = { ...subject, topics: undefined }; // Remove a propriedade topics
+          const { error } = await supabase
+            .from('subjects')
+            .upsert({ ...toSnakeCaseKeys(subjectToSave), user_id: user.uid })
+            .eq('id', subject.id);
+          if (error) throw error;
+        }
+
+        // Save Topics
+        for (const subject of state.subjects) {
+          for (const topic of subject.topics) {
+            const { error } = await supabase
+              .from('topics')
+              .upsert({ ...toSnakeCaseKeys(topic), user_id: user.uid, subject_id: subject.id })
+              .eq('id', topic.id);
+            if (error) throw error;
+          }
+        }
+
+        // Save Study Log
+        for (const logEntry of state.studyLog) {
+          const { error } = await supabase
+            .from('study_log')
+            .upsert({ ...toSnakeCaseKeys(logEntry), user_id: user.uid })
+            .eq('id', logEntry.id);
+          if (error) throw error;
+        }
+
+        // Save Study Sequences (active and saved)
+        const allSequencesToSave = [];
+        if (state.studySequence) {
+          allSequencesToSave.push({ ...toSnakeCaseKeys(state.studySequence), user_id: user.uid });
+        }
+        for (const savedSeq of state.savedStudySequences) {
+          allSequencesToSave.push({ ...toSnakeCaseKeys(savedSeq), user_id: user.uid });
+        }
+
+        for (const seq of allSequencesToSave) {
+          const { error } = await supabase
+            .from('study_sequences')
+            .upsert(seq)
+            .eq('id', seq.id);
+          if (error) throw error;
+        }
+
+        // Save Pomodoro Settings
+        const pomodoroSettingsToSave = {
+          user_id: user.uid,
+          tasks: state.pomodoroSettings.tasks, // tasks é JSONB, não converter chaves internas
+          short_break_duration: state.pomodoroSettings.shortBreakDuration,
+          long_break_duration: state.pomodoroSettings.longBreakDuration,
+          cycles_until_long_break: state.pomodoroSettings.cyclesUntilLongBreak,
+          alarm_sound: state.pomodoroSettings.alarmSound,
+        };
+        console.log("Objeto pomodoro_settings sendo salvo:", pomodoroSettingsToSave);
+        const { error: settingsError } = await supabase
+          .from('pomodoro_settings')
+          .upsert(pomodoroSettingsToSave)
+          .eq('user_id', user.uid); // Assuming one settings per user
+        if (settingsError) throw settingsError;
+
+        // toast({ title: "Dados salvos com sucesso!" });
+      } catch (error: any) {
+        console.error("Erro ao salvar dados no Supabase:", error, JSON.stringify(error));
+        toast({
+          title: "Erro ao salvar dados",
+          description: `Não foi possível salvar seus dados no Supabase. Detalhes: ${error.message || JSON.stringify(error)}`,
+          variant: "destructive",
+        });
+      } finally {
+        isSaving.current = false;
+      }
+    }, 2000); // Debounce time: 2 seconds
+
+    return () => {
+      if (saveTimeout.current) {
+        clearTimeout(saveTimeout.current);
+      }
+    };
+  }, [state, user, isLoading, toast]); // Depende do estado e do usuário
 
   const [pomodoroState, setPomodoroState] = useState<PomodoroState>({
     status: 'idle',
@@ -413,71 +560,88 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   }, [pomodoroSettings]);
 
   useEffect(() => {
-    if (!user) {
-      setIsLoading(false);
+    if (user) {
+      const loadData = async () => {
+        setIsLoading(true);
+        try {
+          // Fetch subjects
+          const { data: subjectsData, error: subjectsError } = await supabase
+            .from('subjects')
+            .select('*')
+            .eq('user_id', user.uid);
+          if (subjectsError) throw subjectsError;
+
+          // Fetch topics
+          const { data: topicsData, error: topicsError } = await supabase
+            .from('topics')
+            .select('*')
+            .eq('user_id', user.uid);
+          if (topicsError) throw topicsError;
+
+          // Fetch study_log
+          const { data: studyLogData, error: studyLogError } = await supabase
+            .from('study_log')
+            .select('*')
+            .eq('user_id', user.uid);
+          if (studyLogError) throw studyLogError;
+
+          // Fetch study_sequences
+          const { data: studySequencesData, error: studySequencesError } = await supabase
+            .from('study_sequences')
+            .select('*')
+            .eq('user_id', user.uid);
+          if (studySequencesError) throw studySequencesError;
+
+          // Fetch pomodoro_settings
+          const { data: pomodoroSettingsData, error: pomodoroSettingsError } = await supabase
+            .from('pomodoro_settings')
+            .select('*')
+            .eq('user_id', user.uid)
+            .single(); // Assuming one settings per user
+          if (pomodoroSettingsError && pomodoroSettingsError.code !== 'PGRST116') throw pomodoroSettingsError; // PGRST116 means no rows found
+          console.log("Objeto pomodoro_settings carregado:", pomodoroSettingsData);
+
+          const subjectsWithTopics = toCamelCaseKeys(subjectsData || []).map((subject: Subject) => ({
+            ...subject,
+            topics: toCamelCaseKeys(topicsData || []).filter((topic: Topic) => topic.subjectId === subject.id)
+          }));
+
+          const loadedState: StudyData = {
+            ...initialState, // Keep default structure for non-DB fields
+            subjects: subjectsWithTopics,
+            studyLog: toCamelCaseKeys(studyLogData || []),
+            studySequence: toCamelCaseKeys(studySequencesData?.[0] || null), // Assuming only one active sequence
+            savedStudySequences: toCamelCaseKeys(studySequencesData?.slice(1) || []), // Rest are saved
+            pomodoroSettings: pomodoroSettingsData ? {
+              tasks: pomodoroSettingsData.tasks, // tasks é JSONB, não converter chaves internas
+              shortBreakDuration: pomodoroSettingsData.short_break_duration,
+              longBreakDuration: pomodoroSettingsData.long_break_duration,
+              cyclesUntilLongBreak: pomodoroSettingsData.cycles_until_long_break,
+              alarmSound: pomodoroSettingsData.alarm_sound,
+            } : initialPomodoroSettings,
+          };
+
+          dispatch({ type: 'SET_STATE', payload: loadedState });
+        } catch (error) {
+          console.error("Erro ao carregar dados do Supabase:", error);
+          toast({
+            title: "Erro ao carregar dados",
+            description: "Não foi possível carregar seus dados do Supabase.",
+            variant: "destructive",
+          });
+          // Fallback to initial state if loading fails
+          dispatch({ type: 'SET_STATE', payload: initialState });
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      loadData();
+    } else {
+      // If no user, reset to initial state and stop loading
       dispatch({ type: 'SET_STATE', payload: initialState });
-      return;
+      setIsLoading(false);
     }
-
-    const loadData = async () => {
-      setIsLoading(true);
-      const userDocRef = doc(db, "userData", user.uid);
-      try {
-        const docSnap = await getDoc(userDocRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data() as StudyData;
-          dispatch({ type: 'SET_STATE', payload: data });
-        } else {
-          // If document doesn't exist (new user), create it and set initial state
-          const stateToSave = { ...initialState };
-          await setDoc(userDocRef, stateToSave);
-          dispatch({ type: 'SET_STATE', payload: stateToSave });
-        }
-      } catch (error: any) {
-        console.error("Failed to load or create data in Firestore:", error);
-        let description = "Verifique sua conexão e se o Firestore está ativado no console do Firebase. Usando dados locais por enquanto.";
-        if (error.code === 'permission-denied' || error.code === 'PERMISSION_DENIED') {
-          description = "Permissão negada. Verifique suas Regras de Segurança do Firestore no console do Firebase para permitir leitura e escrita para usuários autenticados.";
-        }
-        toast({ title: "Erro ao conectar com a nuvem", description, variant: "destructive", duration: 10000 });
-        dispatch({ type: 'SET_STATE', payload: initialState });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
-  }, [user, toast]);
-
-  useEffect(() => {
-    if (isLoading || isSaving.current || !user) return;
-
-    if (saveTimeout.current) {
-      clearTimeout(saveTimeout.current);
-    }
-
-    saveTimeout.current = setTimeout(async () => {
-      isSaving.current = true;
-      try {
-        const userDocRef = doc(db, "userData", user.uid);
-        const stateToSave = cleanUndefined(state);
-        console.log('State being saved to Firestore:', stateToSave); // Adicionado para depuração
-
-        await setDoc(userDocRef, stateToSave, { merge: true });
-      } catch (error) {
-        console.error("Failed to save data to Firestore:", error);
-        toast({ title: "Erro ao salvar na nuvem", description: "Suas alterações podem não ter sido salvas. Verifique a conexão.", variant: "destructive" });
-      } finally {
-        isSaving.current = false;
-      }
-    }, 1500);
-
-    return () => {
-      if (saveTimeout.current) {
-        clearTimeout(saveTimeout.current);
-      }
-    };
-  }, [state, isLoading, toast, user]);
+  }, [user]); // Depende do objeto user do useAuth
 
   const getAssociatedTopic = useCallback(() => {
     if (!pomodoroState.associatedItemId) return null;

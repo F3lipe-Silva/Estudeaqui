@@ -6,7 +6,9 @@ import { Button } from './ui/button';
 import { Home, Timer, BookCopy, Workflow, History, BookCheck, Menu, BrainCircuit } from 'lucide-react'; // Adicionar BrainCircuit e BookOpen
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { useStudy } from '@/contexts/study-context';
+import { useAuth } from '@/contexts/auth-context'; // Importar useAuth
 import Sidebar from './sidebar';
+import { useToast } from '@/hooks/use-toast'; // Importar useToast
 
 
 const navItems = [
@@ -57,7 +59,35 @@ export default function AppHeader() {
             </div>
             <div className="flex items-center gap-2">
                 <ThemeToggle />
+                <LogoutButton />
             </div>
         </header>
+    );
+}
+
+function LogoutButton() {
+    const { logOut, loading } = useAuth();
+    const { toast } = useToast();
+
+    const handleLogout = async () => {
+        try {
+            await logOut();
+            toast({
+                title: "Logout bem-sucedido",
+                description: "Você foi desconectado da sua conta.",
+            });
+        } catch (error: any) {
+            toast({
+                title: "Erro ao fazer logout",
+                description: error.message || "Ocorreu um erro ao tentar fazer logout.",
+                variant: "destructive",
+            });
+        }
+    };
+
+    return (
+        <Button variant="ghost" size="sm" onClick={handleLogout} disabled={loading}>
+            Sair
+        </Button>
     );
 }
