@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    output: 'export', // Ensures a static export for Capacitor
     webpack: (config, { isServer }) => {
         // This is to solve the 'fs' module not found error in browser builds
         if (!isServer) {

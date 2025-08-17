@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Estudeaqui</string>
+    <string name="title_activity_main">Estudeaqui</string>
+    <string name="package_name">com.estudeaqui.app</string>
+    <string name="custom_url_scheme">com.estudeaqui.app</string>
+</resources>
