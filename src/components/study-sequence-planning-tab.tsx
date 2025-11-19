@@ -106,11 +106,6 @@ export default function StudySequencePlanningTab() {
       toast({ title: "Selecione uma matéria para adicionar." });
       return;
     }
-    const subjectExists = editingSequence.some(item => item.subjectId === subjectId);
-    if (subjectExists) {
-      toast({ title: "Matéria já existe na sequência." });
-      return;
-    }
     setEditingSequence(prev => [...prev, { subjectId, totalTimeStudied: 0 }]);
   };
 

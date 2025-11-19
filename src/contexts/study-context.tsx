@@ -7,8 +7,8 @@ import { INITIAL_SUBJECTS } from '@/lib/data';
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, isSameDay, parseISO } from 'date-fns';
 import { REVISION_SEQUENCE } from '@/components/revision-tab';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, deleteField } from 'firebase/firestore';
+// import { db } from '@/lib/firebase';
+// import { doc, getDoc, setDoc, deleteField } from 'firebase/firestore';
 import { useAuth } from './auth-context';
 
 const COLORS = ['#2563EB', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#6B7280', '#EC4899', '#3B82F6'];
@@ -342,18 +342,18 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
     const loadData = async () => {
       setIsLoading(true);
-      const userDocRef = doc(db, "userData", user.uid);
+      // const userDocRef = doc(db, "userData", user.uid);
       try {
-        const docSnap = await getDoc(userDocRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data() as StudyData;
-          dispatch({ type: 'SET_STATE', payload: data });
-        } else {
-          // If document doesn't exist (new user), create it and set initial state
-          const stateToSave = { ...initialState };
-          await setDoc(userDocRef, stateToSave);
-          dispatch({ type: 'SET_STATE', payload: stateToSave });
-        }
+        // const docSnap = await getDoc(userDocRef);
+        // if (docSnap.exists()) {
+        //   const data = docSnap.data() as StudyData;
+          dispatch({ type: 'SET_STATE', payload: initialState });
+        // } else {
+        //   // If document doesn't exist (new user), create it and set initial state
+        //   const stateToSave = { ...initialState };
+        //   // await setDoc(userDocRef, stateToSave);
+        //   dispatch({ type: 'SET_STATE', payload: stateToSave });
+        // }
       } catch (error: any) {
         console.error("Failed to load or create data in Firestore:", error);
         let description = "Verifique sua conexão e se o Firestore está ativado no console do Firebase. Usando dados locais por enquanto.";
@@ -380,10 +380,10 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     saveTimeout.current = setTimeout(async () => {
       isSaving.current = true;
       try {
-        const userDocRef = doc(db, "userData", user.uid);
+        // const userDocRef = doc(db, "userData", user.uid);
         const stateToSave = cleanUndefined(state);
 
-        await setDoc(userDocRef, stateToSave, { merge: true });
+        // await setDoc(userDocRef, stateToSave, { merge: true });
       } catch (error) {
         console.error("Failed to save data to Firestore:", error);
         toast({ title: "Erro ao salvar na nuvem", description: "Suas alterações podem não ter sido salvas. Verifique a conexão.", variant: "destructive" });
@@ -402,8 +402,8 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   const getAssociatedTopic = useCallback(() => {
     if (!pomodoroState.associatedItemId) return null;
     const topic = state.subjects
-      .flatMap(s => s.topics)
-      .find(t => t.id === pomodoroState.associatedItemId);
+      .flatMap((s: any) => s.topics)
+      .find((t: any) => t.id === pomodoroState.associatedItemId);
     return topic || null;
   }, [pomodoroState.associatedItemId, state.subjects]);
   
@@ -430,8 +430,8 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           // Focus block finished, log time and start a break
           const topic = getAssociatedTopic();
           if (topic) {
-            const totalFocusDuration = pomodoroSettings.tasks.reduce((sum, task) => sum + task.duration, 0);
-            const sequenceItemIndex = state.studySequence ? state.studySequence.sequence.findIndex((item, index) => item.subjectId === topic.subjectId && index === state.sequenceIndex) : -1;
+            const totalFocusDuration = pomodoroSettings.tasks.reduce((sum: number, task: any) => sum + task.duration, 0);
+            const sequenceItemIndex = state.studySequence ? state.studySequence.sequence.findIndex((item: any, index: number) => item.subjectId === topic.subjectId && index === state.sequenceIndex) : -1;
             dispatch({
               type: 'ADD_STUDY_LOG',
               payload: {
