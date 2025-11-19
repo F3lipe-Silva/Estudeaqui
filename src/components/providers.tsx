@@ -4,6 +4,7 @@
 import { ThemeProvider } from '@/contexts/theme-provider';
 import { AuthProvider } from '@/contexts/auth-context';
 import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -13,10 +14,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
       enableSystem
       disableTransitionOnChange
     >
-      <AuthProvider>
-        {children}
-      </AuthProvider>
-      <Toaster />
+      <TooltipProvider>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+        <Toaster />
+      </TooltipProvider>
     </ThemeProvider>
   );
 }

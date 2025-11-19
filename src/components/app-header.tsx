@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ThemeToggle } from './theme-toggle';
 import { Button } from './ui/button';
-import { Home, Timer, BookCopy, Workflow, History, BookCheck, Menu } from 'lucide-react';
+import { Home, Timer, BookCopy, Workflow, History, BookCheck, Menu, CalendarClock } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { useStudy } from '@/contexts/study-context';
 import Sidebar from './sidebar';
@@ -11,6 +11,7 @@ import Sidebar from './sidebar';
 
 const navItems = [
     { id: 'overview', label: 'Visão Geral', icon: Home },
+    { id: 'schedule', label: 'Cronograma', icon: CalendarClock },
     { id: 'planning', label: 'Planejamento', icon: Workflow },
     { id: 'cycle', label: 'Ciclo', icon: BookCopy },
     { id: 'revision', label: 'Revisão', icon: BookCheck },
@@ -23,7 +24,7 @@ export default function AppHeader() {
     return (
         <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur-sm lg:px-6">
             <div className="flex items-center gap-4">
-                 <div className="lg:hidden">
+                 <div className="hidden md:block lg:hidden">
                     <Sheet>
                         <SheetTrigger asChild>
                             <Button variant="ghost" size="icon">

@@ -68,17 +68,22 @@ export default function HistoryTab() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <Card className="border-2">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gradient-to-r from-primary/5 to-transparent">
           <div>
-            <CardTitle>Histórico de Estudos</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-2xl flex items-center gap-2">
+              <FileClock className="h-6 w-6 text-primary" />
+              Histórico de Estudos
+            </CardTitle>
+            <CardDescription className="mt-1">
               Visualize, adicione e edite seus registros de estudo manuais.
             </CardDescription>
           </div>
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogTrigger asChild>
-              <Button onClick={handleAddNew} className="w-full sm:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Registrar Estudo</Button>
+              <Button onClick={handleAddNew} className="w-full sm:w-auto shadow-sm hover:shadow-md transition-shadow">
+                <PlusCircle className="mr-2 h-4 w-4" /> Registrar Estudo
+              </Button>
             </DialogTrigger>
             <DialogContent onInteractOutside={handleCloseDialog} className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
@@ -88,70 +93,76 @@ export default function HistoryTab() {
             </DialogContent>
           </Dialog>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="space-y-4">
             {data.studyLog.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">Nenhum registro de estudo encontrado.</p>
+              <div className="text-center py-12 px-4">
+                <div className="mx-auto bg-muted/50 p-4 rounded-full w-fit mb-4">
+                  <FileClock className="h-12 w-12 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Nenhum registro encontrado</h3>
+                <p className="text-muted-foreground mb-4">Comece registrando suas sessões de estudo para acompanhar seu progresso.</p>
+              </div>
             ) : (
               data.studyLog.map(log => {
                 const pagesRead = log.endPage > 0 ? log.endPage - log.startPage + 1 : 0;
                 const accuracy = log.questionsTotal > 0 ? (log.questionsCorrect / log.questionsTotal) * 100 : 0;
                 return (
-                  <Card key={log.id} className="bg-card-foreground/5 relative group">
-                    <CardHeader className="p-4">
+                  <Card key={log.id} className="relative group hover:shadow-lg transition-all duration-300 border-2">
+                    <CardHeader className="p-4 pb-3">
                        <CardTitle className="text-base flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                         <span>{getSubjectName(log.subjectId)}</span>
-                         <span className="text-sm font-normal text-muted-foreground flex items-center gap-2">
-                           <CalendarIcon className="h-4 w-4" />
+                         <span className="font-bold text-lg">{getSubjectName(log.subjectId)}</span>
+                         <span className="text-xs font-normal text-muted-foreground flex items-center gap-1.5 bg-muted px-2 py-1 rounded-md">
+                           <CalendarIcon className="h-3.5 w-3.5" />
                            {format(parseISO(log.date), "dd/MM/yyyy 'às' HH:mm")}
                          </span>
                        </CardTitle>
-                       <CardDescription>{getTopicName(log.subjectId, log.topicId)}</CardDescription>
+                       <CardDescription className="text-sm font-medium">{getTopicName(log.subjectId, log.topicId)}</CardDescription>
                     </CardHeader>
-                    <CardContent className="p-4 pt-0 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 text-sm">
-                       <div className="flex items-center gap-2">
-                        <Repeat className="h-5 w-5 text-primary" />
+                    <CardContent className="p-4 pt-0 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 text-sm">
+                       <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-lg">
+                        <Repeat className="h-5 w-5 text-primary flex-shrink-0" />
                         <div>
-                          <p className="font-semibold">{getSourceDisplayName(log.source)}</p>
-                          <p className="text-xs text-muted-foreground">Fonte</p>
+                          <p className="font-bold text-sm">{getSourceDisplayName(log.source)}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Fonte</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <FileClock className="h-5 w-5 text-primary" />
+                      <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-lg">
+                        <FileClock className="h-5 w-5 text-primary flex-shrink-0" />
                         <div>
-                          <p className="font-semibold">{log.duration} min</p>
-                          <p className="text-xs text-muted-foreground">Duração</p>
+                          <p className="font-bold text-sm">{log.duration} min</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Duração</p>
                         </div>
                       </div>
-                       <div className="flex items-center gap-2">
-                        <Book className="h-5 w-5 text-primary" />
+                       <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-lg">
+                        <Book className="h-5 w-5 text-primary flex-shrink-0" />
                         <div>
-                          <p className="font-semibold">{pagesRead > 0 ? `${pagesRead} pág.` : "N/A"}</p>
-                          <p className="text-xs text-muted-foreground">Leitura</p>
+                          <p className="font-bold text-sm">{pagesRead > 0 ? `${pagesRead} pág.` : "N/A"}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Leitura</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Target className="h-5 w-5 text-primary" />
+                      <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-lg">
+                        <Target className="h-5 w-5 text-primary flex-shrink-0" />
                         <div>
-                          <p className="font-semibold">{log.questionsTotal > 0 ? `${log.questionsCorrect}/${log.questionsTotal}`: "N/A"}</p>
-                          <p className="text-xs text-muted-foreground">Questões</p>
+                          <p className="font-bold text-sm">{log.questionsTotal > 0 ? `${log.questionsCorrect}/${log.questionsTotal}`: "N/A"}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Questões</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Percent className="h-5 w-5 text-primary" />
+                      <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-lg">
+                        <Percent className="h-5 w-5 text-primary flex-shrink-0" />
                         <div>
-                          <p className="font-semibold">{log.questionsTotal > 0 ? `${accuracy.toFixed(0)}%` : 'N/A'}</p>
-                          <p className="text-xs text-muted-foreground">Acertos</p>
+                          <p className="font-bold text-sm">{log.questionsTotal > 0 ? `${accuracy.toFixed(0)}%` : 'N/A'}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Acertos</p>
                         </div>
                       </div>
                     </CardContent>
-                     <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(log)}>
+                     <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-background/95 backdrop-blur rounded-lg shadow-lg p-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary" onClick={() => handleEdit(log)} title="Editar">
                               <Edit className="h-4 w-4" />
                           </Button>
                           <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" title="Remover">
                                       <Trash2 className="h-4 w-4" />
                                   </Button>
                               </AlertDialogTrigger>

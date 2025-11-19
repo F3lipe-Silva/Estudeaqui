@@ -33,7 +33,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Edit, Trash2, PlayCircle, CheckCircle2, Clock, FolderKanban, Circle } from 'lucide-react';
+import { Plus, Edit, Trash2, PlayCircle, CheckCircle2, Clock, FolderKanban, Circle, Save, FolderOpen } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -91,6 +91,9 @@ export default function StudyCycleTab() {
   const [newTopicName, setNewTopicName] = useState('');
   const [addingTopicTo, setAddingTopicTo] = useState<string | null>(null);
   const [editingSubject, setEditingSubject] = useState(null);
+  const [saveTemplateName, setSaveTemplateName] = useState('');
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
 
   const handleAddSubject = (data: any) => {
     dispatch({ type: 'ADD_SUBJECT', payload: data });
@@ -123,39 +126,158 @@ export default function StudyCycleTab() {
     dispatch({ type: 'DELETE_TOPIC', payload: { subjectId, topicId } });
   }
 
+  const handleSaveTemplate = () => {
+    if (saveTemplateName.trim()) {
+      dispatch({ type: 'SAVE_TEMPLATE', payload: { name: saveTemplateName } });
+      setSaveTemplateName('');
+      setIsSaveDialogOpen(false);
+    }
+  };
+
+  const handleLoadTemplate = (templateId: string) => {
+    dispatch({ type: 'LOAD_TEMPLATE', payload: templateId });
+    setIsLoadDialogOpen(false);
+  };
+
+  const handleDeleteTemplate = (templateId: string) => {
+    dispatch({ type: 'DELETE_TEMPLATE', payload: templateId });
+  };
+
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-6">
+      <Card className="border-2">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gradient-to-r from-primary/5 to-transparent">
           <div>
-            <CardTitle>Ciclo de Estudos</CardTitle>
-            <CardDescription>Gerencie suas matérias e assuntos.</CardDescription>
+            <CardTitle className="text-2xl flex items-center gap-2">
+              <FolderKanban className="h-6 w-6 text-primary" />
+              Matéria
+            </CardTitle>
+            <CardDescription className="mt-1">Gerencie suas matérias e assuntos de forma organizada.</CardDescription>
           </div>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4" /> Nova Matéria</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Adicionar Nova Matéria</DialogTitle></DialogHeader>
-              <SubjectForm onSave={handleAddSubject} onCancel={() => {}} />
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-2">
+            <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="shadow-sm hover:shadow-md transition-shadow">
+                  <Save className="mr-2 h-4 w-4" /> Salvar Template
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Salvar Template de Matérias</DialogTitle>
+                  <DialogDescription>Digite o nome do concurso para salvar as matérias atuais como template.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="templateName" className="text-right">Nome</Label>
+                    <Input id="templateName" value={saveTemplateName} onChange={(e) => setSaveTemplateName(e.target.value)} className="col-span-3" placeholder="Ex: Concurso XYZ" />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsSaveDialogOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleSaveTemplate}>Salvar</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={isLoadDialogOpen} onOpenChange={setIsLoadDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="shadow-sm hover:shadow-md transition-shadow">
+                  <FolderOpen className="mr-2 h-4 w-4" /> Carregar Template
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Carregar Template de Matérias</DialogTitle>
+                  <DialogDescription>Selecione um template para carregar as matérias.</DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  {data.templates.length === 0 ? (
+                    <p className="text-muted-foreground">Nenhum template salvo ainda.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {data.templates.map(template => (
+                        <div key={template.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <span className="font-medium">{template.name}</span>
+                          <div className="flex gap-2">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm">Carregar</Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Carregar template?</AlertDialogTitle>
+                                  <AlertDialogDescription>Isso substituirá todas as matérias atuais pelas do template "{template.name}".</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleLoadTemplate(template.id)}>Carregar</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4" /></Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Remover template?</AlertDialogTitle>
+                                  <AlertDialogDescription>Isso removerá o template "{template.name}".</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeleteTemplate(template.id)}>Remover</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsLoadDialogOpen(false)}>Fechar</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button className="w-full sm:w-auto shadow-sm hover:shadow-md transition-shadow">
+                  <Plus className="mr-2 h-4 w-4" /> Nova Matéria
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[90vh] overflow-y-auto">
+                <DialogHeader><DialogTitle>Adicionar Nova Matéria</DialogTitle></DialogHeader>
+                <SubjectForm onSave={handleAddSubject} onCancel={() => {}} />
+              </DialogContent>
+            </Dialog>
+          </div>
         </CardHeader>
-        <CardContent>
-          <Accordion type="multiple" className="w-full">
+        <CardContent className="pt-6">
+          {data.subjects.length === 0 ? (
+            <div className="text-center py-12 px-4">
+              <div className="mx-auto bg-muted/50 p-4 rounded-full w-fit mb-4">
+                <FolderKanban className="h-12 w-12 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Nenhuma matéria cadastrada</h3>
+              <p className="text-muted-foreground mb-4">Comece adicionando sua primeira matéria para organizar seus estudos.</p>
+            </div>
+          ) : (
+          <Accordion type="multiple" className="w-full space-y-3">
             {data.subjects.map(subject => (
-              <AccordionItem key={subject.id} value={subject.id}>
-                <AccordionTrigger>
+              <AccordionItem key={subject.id} value={subject.id} className="border rounded-lg overflow-hidden bg-card shadow-sm hover:shadow-md transition-shadow">
+                <AccordionTrigger className="hover:bg-muted/50 px-4 transition-colors">
                   <div className="flex items-center gap-3 flex-1">
-                    <div className="w-2 h-6 rounded-full" style={{ backgroundColor: subject.color }}></div>
+                    <div className="w-3 h-3 rounded-full ring-2 ring-offset-2 ring-offset-background" style={{ backgroundColor: subject.color, '--tw-ring-color': subject.color } as React.CSSProperties}></div>
                     <span className="font-semibold text-lg text-left">{subject.name}</span>
-                    <span className="text-sm text-muted-foreground ml-2">({subject.topics.length} assuntos)</span>
+                    <span className="text-xs font-medium text-muted-foreground ml-2 bg-muted px-2 py-0.5 rounded-full">
+                      {subject.topics.filter(t => t.isCompleted).length}/{subject.topics.length}
+                    </span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pl-5">
-                  {subject.description && <p className="text-sm text-muted-foreground mb-4">{subject.description}</p>}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
-                    <div className="flex gap-2">
+                <AccordionContent className="px-4 pb-4 bg-muted/10">
+                  {subject.description && <p className="text-sm text-muted-foreground mb-4 italic bg-muted/50 p-3 rounded-md">{subject.description}</p>}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4 pb-4 border-b">
+                    <div className="flex flex-wrap gap-2">
                         {subject.materialUrl && (
                            <a href={subject.materialUrl} target="_blank" rel="noopener noreferrer">
                              <Button variant="outline" size="sm"><FolderKanban className="mr-2 h-3 w-3" /> Abrir Material</Button>
@@ -197,24 +319,40 @@ export default function StudyCycleTab() {
                         </div>
                     )}
                   </div>
-                  <div className="space-y-2">
-                    {subject.topics.map(topic => (
+                  <div className="space-y-2 mt-4">
+                    {subject.topics.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground bg-muted/30 rounded-lg">
+                        <p className="text-sm">Nenhum assunto cadastrado ainda.</p>
+                      </div>
+                    ) : (
+                      subject.topics.map(topic => (
                       <div key={topic.id} className="flex flex-col">
-                        <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted">
+                        <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-card border transition-all hover:shadow-sm">
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className={cn("h-8 w-8", topic.isCompleted ? 'text-green-500 hover:text-green-600' : 'text-muted-foreground hover:text-foreground')}
+                            className={cn(
+                              "h-9 w-9 rounded-full transition-all", 
+                              topic.isCompleted 
+                                ? 'text-green-600 hover:text-green-700 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30' 
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                            )}
                             onClick={() => handleToggleTopic(subject.id, topic.id)}
                           >
                             {topic.isCompleted ? <CheckCircle2 className="h-5 w-5"/> : <Circle className="h-5 w-5"/>}
                           </Button>
                           <div className="flex-grow flex items-center gap-3">
-                              <span className="font-mono text-sm text-muted-foreground">{topic.order.toString().padStart(2, '0')}</span>
-                              <span className="text-sm">{topic.name}</span>
+                              <span className="font-mono text-sm font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded">{topic.order.toString().padStart(2, '0')}</span>
+                              <span className={cn("text-sm font-medium", topic.isCompleted && "line-through text-muted-foreground")}>{topic.name}</span>
                           </div>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startPomodoroForItem(topic.id, 'topic')}>
-                            <PlayCircle className="h-5 w-5 text-primary" />
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-9 w-9 text-primary hover:text-primary hover:bg-primary/10 rounded-full transition-all" 
+                            onClick={() => startPomodoroForItem(topic.id, 'topic')}
+                            title="Iniciar Pomodoro"
+                          >
+                            <PlayCircle className="h-5 w-5" />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -237,23 +375,25 @@ export default function StudyCycleTab() {
                           </AlertDialog>
                         </div>
                       </div>
-                    ))}
+                    ))
+                    )}
                     {addingTopicTo === subject.id ? (
-                       <div className="flex flex-col sm:flex-row gap-2 p-2">
+                       <div className="flex flex-col sm:flex-row gap-2 p-3 bg-muted/50 rounded-lg">
                          <Input
                            placeholder="Nome do novo assunto"
                            value={newTopicName}
                            onChange={(e) => setNewTopicName(e.target.value)}
                            onKeyDown={(e) => e.key === 'Enter' && handleAddTopic(subject.id)}
                            autoFocus
+                           className="border-2"
                          />
                          <div className='flex gap-2 justify-end'>
-                            <Button onClick={() => handleAddTopic(subject.id)}>Salvar</Button>
-                            <Button variant="ghost" onClick={() => setAddingTopicTo(null)}>Cancelar</Button>
+                            <Button onClick={() => handleAddTopic(subject.id)} className="shadow-sm">Salvar</Button>
+                            <Button variant="outline" onClick={() => setAddingTopicTo(null)}>Cancelar</Button>
                          </div>
                        </div>
                     ) : (
-                      <Button variant="ghost" className="w-full justify-start mt-2" onClick={() => setAddingTopicTo(subject.id)}>
+                      <Button variant="outline" className="w-full justify-start mt-2 border-dashed hover:border-solid hover:bg-muted/50 transition-all" onClick={() => setAddingTopicTo(subject.id)}>
                         <Plus className="mr-2 h-4 w-4" /> Adicionar Assunto
                       </Button>
                     )}
@@ -262,6 +402,7 @@ export default function StudyCycleTab() {
               </AccordionItem>
             ))}
           </Accordion>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -112,7 +112,7 @@ export default function OverviewTab() {
     <Dialog open={isLogFormOpen} onOpenChange={setIsLogFormOpen}>
       <div className="space-y-6">
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
-          <Card className="col-span-1">
+          <Card className="col-span-1 hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Tempo (Hoje)</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
@@ -121,7 +121,7 @@ export default function OverviewTab() {
               <div className="text-2xl font-bold">{formatTime(timeToday)}</div>
             </CardContent>
           </Card>
-          <Card className="col-span-1">
+          <Card className="col-span-1 hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Tempo (Semana)</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
@@ -130,7 +130,7 @@ export default function OverviewTab() {
               <div className="text-2xl font-bold">{formatTime(timeThisWeek)}</div>
             </CardContent>
           </Card>
-          <Card className="col-span-1">
+          <Card className="col-span-1 hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Streak</CardTitle>
               <Zap className="h-4 w-4 text-muted-foreground" />
@@ -139,7 +139,7 @@ export default function OverviewTab() {
               <div className="text-2xl font-bold">{streak} dias</div>
             </CardContent>
           </Card>
-          <Card className="col-span-1">
+          <Card className="col-span-1 hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Tópicos</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
@@ -151,7 +151,7 @@ export default function OverviewTab() {
         </div>
         
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
-          <Card className="md:col-span-2">
+          <Card className="md:col-span-2 hover:shadow-md transition-shadow">
               <CardHeader>
                   <CardTitle className="text-lg font-bold text-primary">Próximo Passo</CardTitle>
               </CardHeader>
@@ -200,7 +200,7 @@ export default function OverviewTab() {
               </CardContent>
           </Card>
 
-          <Card>
+          <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
               <CardTitle>Progresso por Matéria</CardTitle>
               <CardDescription>Visão geral do avanço em cada matéria do ciclo.</CardDescription>
@@ -223,7 +223,7 @@ export default function OverviewTab() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
               <CardTitle>Tempo por Matéria</CardTitle>
               <CardDescription>Distribuição do tempo de estudo focado.</CardDescription>
@@ -262,7 +262,7 @@ export default function OverviewTab() {
             </CardContent>
           </Card>
           
-          <Card className="md:col-span-2">
+          <Card className="md:col-span-2 hover:shadow-md transition-shadow">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Percent className="h-5 w-5"/> Percentual de Acertos por Matéria</CardTitle>
               <CardDescription>Desempenho geral nas questões registradas.</CardDescription>

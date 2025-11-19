@@ -10,15 +10,10 @@ export interface Topic {
   completionDate?: string; // ISO String
 }
 
-export interface Subject {
-  id:string;
+export interface SubjectTemplate {
+  id: string;
   name: string;
-  color: string;
-  topics: Topic[];
-  description?: string;
-  revisionProgress: number;
-  studyDuration?: number; // Target study duration in minutes
-  materialUrl?: string; // URL for study materials
+  subjects: Omit<Subject, 'id'>[]; // Without ids, since they'll be regenerated
 }
 
 export interface StudyLogEntry {
@@ -82,6 +77,7 @@ export interface StudyData {
   studySequence: StudySequence | null;
   sequenceIndex: number;
   pomodoroSettings: PomodoroSettings;
+  templates: SubjectTemplate[];
 }
 
 export interface StudyContextType {

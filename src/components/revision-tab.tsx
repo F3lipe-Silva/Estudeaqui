@@ -4,7 +4,7 @@
 import { useStudy } from '@/contexts/study-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { History, Check, PlayCircle } from 'lucide-react';
+import { History, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Accordion,
@@ -30,7 +30,6 @@ export default function RevisionTab() {
       isCurrent,
       isCompleted,
       onToggle,
-      onStartTimer,
       topicId
   }: { 
       topicNumber: string; 
@@ -38,7 +37,6 @@ export default function RevisionTab() {
       isCurrent: boolean;
       isCompleted: boolean;
       onToggle: () => void;
-      onStartTimer: () => void;
       topicId: string;
   }) => {
     
@@ -47,39 +45,51 @@ export default function RevisionTab() {
     const boxContent = () => {
        if (isCurrent) {
          return (
-            <div className="w-full flex flex-col gap-1">
-              <Button size="sm" className="w-full h-7 text-xs" onClick={onToggle}>
-                <Check className="mr-1 h-3 w-3"/> Concluir
-              </Button>
-               <Button size="sm" variant="outline" className="w-full h-7 text-xs" onClick={() => startPomodoroForItem(topicId, 'revision')}>
-                <PlayCircle className="mr-1 h-3 w-3" /> Focar
+            <div className="w-full flex justify-center">
+              <Button size="sm" className="w-full h-6 text-[10px] px-2" onClick={onToggle}>
+                <Check className="mr-1 h-2.5 w-2.5"/> Concluir
               </Button>
             </div>
         )
       }
       if (isCompleted) {
         return (
-          <div className="flex items-center justify-center text-primary-foreground w-full h-full" onClick={canClick ? onToggle : undefined}>
-            <Check className="h-6 w-6" />
+          <div className="flex items-center justify-center w-full h-full py-0.5" onClick={canClick ? onToggle : undefined}>
+            <div className="flex items-center gap-1 text-green-600 dark:text-green-400 font-medium text-[10px] bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+              <Check className="h-2.5 w-2.5" /> Concluído
+            </div>
           </div>
         )
       }
       return (
-        <div className="text-xs text-muted-foreground text-center w-full">Aguardando</div>
+        <div className="text-[9px] uppercase tracking-wider font-semibold text-muted-foreground/60 text-center w-full py-1">
+          Aguardando
+        </div>
       )
     }
 
     return (
       <div className={cn(
-          "flex flex-col items-center justify-between p-2 border rounded-lg bg-card shadow-sm h-24 w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(33.33%-0.5rem)] lg:w-[calc(25%-0.5rem)] xl:w-[calc(20%-0.5rem)] transition-all duration-300",
-          isCompleted && "bg-green-600/90 border-green-700/50 text-primary-foreground",
-          isCompleted && canClick && "cursor-pointer hover:border-primary",
-          isCurrent && "border-primary border-2 shadow-lg",
-          !isCurrent && !isCompleted && "opacity-60"
+          "flex flex-col items-center justify-between p-2 border rounded-lg bg-card shadow-sm h-24 w-full sm:w-[calc(50%-0.25rem)] md:w-[calc(33.33%-0.33rem)] lg:w-[calc(25%-0.25rem)] xl:w-[calc(20%-0.2rem)] transition-all duration-300 hover:shadow-md",
+          isCompleted && "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900/50",
+          isCompleted && canClick && "cursor-pointer hover:border-green-400",
+          isCurrent && "border-primary border-2 shadow-lg ring-2 ring-primary/10 scale-105 z-10",
+          !isCurrent && !isCompleted && "opacity-50 grayscale bg-muted/50"
       )}>
-          <div className="flex-shrink-0 text-center w-full">
-            <span className="text-xl font-bold">{topicNumber}</span>
-            <p className={cn("text-xs text-center mt-1 leading-tight break-words", isCompleted ? "text-primary-foreground/80" : "text-muted-foreground")}>{topicName}</p>
+          <div className="flex-shrink-0 text-center w-full flex flex-col items-center gap-0.5">
+            <div className={cn(
+              "flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold transition-colors",
+              isCompleted ? "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-100" : 
+              isCurrent ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+            )}>
+              {topicNumber}
+            </div>
+            <p className={cn(
+              "text-[10px] text-center font-medium line-clamp-2 h-6 flex items-center justify-center leading-tight", 
+              isCompleted ? "text-green-800 dark:text-green-200" : "text-foreground"
+            )}>
+              {topicName}
+            </p>
           </div>
           <div className="flex-grow flex items-end w-full mt-1">
              {boxContent()}
@@ -89,16 +99,16 @@ export default function RevisionTab() {
   }
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><History className="h-6 w-6 text-primary" /> Sistema de Revisão por Ciclos</CardTitle>
-          <CardDescription>
+    <div className="space-y-2">
+      <Card className="border-2">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-lg"><History className="h-5 w-5 text-primary" /> Sistema de Revisão por Ciclos</CardTitle>
+          <CardDescription className="text-sm">
             Conclua cada revisão em sequência para avançar. Apenas os assuntos que você já estudou aparecerão aqui.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-           <Accordion type="multiple" defaultValue={subjects.map(s=>s.id)} className="w-full space-y-4">
+        <CardContent className="pt-1">
+           <Accordion type="multiple" className="w-full space-y-1">
             {subjects.map(subject => {
               const completedTopics = subject.topics.filter(t => t.isCompleted);
 
@@ -112,16 +122,19 @@ export default function RevisionTab() {
 
               
               return (
-                <AccordionItem key={subject.id} value={subject.id} className="border-none">
-                   <Card className="bg-card-foreground/5 overflow-hidden">
-                    <AccordionTrigger className="p-4 hover:no-underline">
-                      <div className="flex items-center gap-3">
-                        <div className="w-2 h-6 rounded-full" style={{ backgroundColor: subject.color }}></div>
-                        <span className="font-semibold text-lg">{subject.name}</span>
+                <AccordionItem key={subject.id} value={subject.id} className="border rounded-lg overflow-hidden bg-card">
+                   <div className="bg-card">
+                    <AccordionTrigger className="p-3 hover:no-underline hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full ring-1 ring-offset-1 ring-offset-card" style={{ backgroundColor: subject.color, '--tw-ring-color': subject.color } as React.CSSProperties}></div>
+                        <span className="font-semibold text-base">{subject.name}</span>
+                        <span className="text-[10px] font-normal text-muted-foreground ml-2 bg-muted px-1.5 py-0.5 rounded-full">
+                          {subject.revisionProgress} / {revisionSequence.length}
+                        </span>
                       </div>
                     </AccordionTrigger>
-                    <AccordionContent className="p-4 pt-0">
-                      <div className="flex flex-wrap py-4 gap-4">
+                    <AccordionContent className="p-3 pt-0 bg-muted/10">
+                      <div className="flex flex-wrap py-1 gap-1">
                         {revisionSequence.map((topic, index) => {
                           const topicDisplayNumber = `${topic.order}`;
                           
@@ -146,7 +159,6 @@ export default function RevisionTab() {
                               isCompleted={isCompleted}
                               isCurrent={isCurrent}
                               onToggle={handleToggle}
-                              onStartTimer={() => startPomodoroForItem(topic.id, 'revision')}
                            />
                           );
                         })}
@@ -162,7 +174,7 @@ export default function RevisionTab() {
                         )}
                       </div>
                     </AccordionContent>
-                  </Card>
+                  </div>
                 </AccordionItem>
               );
             })}

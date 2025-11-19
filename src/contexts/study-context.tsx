@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useReducer, useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { StudyContextType, StudyData, Subject, Topic, PomodoroState, StudyLogEntry, StudySequenceItem, PomodoroSettings } from '@/lib/types';
+import type { StudyContextType, StudyData, Subject, Topic, PomodoroState, StudyLogEntry, StudySequenceItem, PomodoroSettings, SubjectTemplate } from '@/lib/types';
 import { INITIAL_SUBJECTS } from '@/lib/data';
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, isSameDay, parseISO } from 'date-fns';
@@ -32,6 +32,7 @@ const initialState: StudyData = {
   studySequence: null,
   sequenceIndex: 0,
   pomodoroSettings: initialPomodoroSettings,
+  templates: [],
 };
 
 const StudyContext = createContext<StudyContextType | undefined>(undefined);
@@ -252,7 +253,18 @@ function studyReducer(state: StudyData, action: any): StudyData {
             newSequence.sequence = newSequence.sequence.map((item: StudySequenceItem) => ({ ...item, totalTimeStudied: 0 }));
         }
        }
-      return { ...state, studySequence: newSequence, sequenceIndex: 0 };
+
+       // Tentar preservar o sequenceIndex se o item atual ainda existir na mesma posição
+       let newSequenceIndex = 0;
+       if (!isNew && state.studySequence && state.sequenceIndex < newSequence.sequence.length) {
+         const currentItem = state.studySequence.sequence[state.sequenceIndex];
+         const newItemAtSameIndex = newSequence.sequence[state.sequenceIndex];
+         if (currentItem && newItemAtSameIndex && currentItem.subjectId === newItemAtSameIndex.subjectId) {
+           newSequenceIndex = state.sequenceIndex;
+         }
+       }
+
+      return { ...state, studySequence: newSequence, sequenceIndex: newSequenceIndex };
     }
     case 'RESET_STUDY_SEQUENCE': {
       if (!state.studySequence) return state;
@@ -275,6 +287,60 @@ function studyReducer(state: StudyData, action: any): StudyData {
       return {
         ...state,
         pomodoroSettings: action.payload as PomodoroSettings
+      };
+    }
+    case 'SAVE_TEMPLATE': {
+      const { name } = action.payload;
+      const templateSubjects: Omit<Subject, 'id'>[] = state.subjects.map(s => ({
+        name: s.name,
+        color: s.color,
+        description: s.description,
+        studyDuration: s.studyDuration,
+        materialUrl: s.materialUrl,
+        revisionProgress: 0, // Reset progress
+        topics: s.topics.map((t: Topic) => ({
+          name: t.name,
+          order: t.order,
+          isCompleted: false, // Reset completion
+        })),
+      }));
+      const newTemplate: SubjectTemplate = {
+        id: `template-${Date.now()}`,
+        name,
+        subjects: templateSubjects,
+      };
+      return {
+        ...state,
+        templates: [...state.templates, newTemplate],
+      };
+    }
+    case 'LOAD_TEMPLATE': {
+      const templateId = action.payload;
+      const template = state.templates.find(t => t.id === templateId);
+      if (!template) return state;
+      const newSubjects: Subject[] = template.subjects.map(s => ({
+        id: `subj-${Date.now()}-${Math.random()}`,
+        ...s,
+        topics: s.topics.map((t: any) => ({
+          ...t,
+          id: `topic-${Date.now()}-${Math.random()}`,
+          subjectId: '', // Will be set below
+        })),
+      }));
+      // Set subjectIds in topics
+      newSubjects.forEach(s => {
+        s.topics.forEach((t: Topic) => t.subjectId = s.id);
+      });
+      return {
+        ...state,
+        subjects: newSubjects,
+      };
+    }
+    case 'DELETE_TEMPLATE': {
+      const templateId = action.payload;
+      return {
+        ...state,
+        templates: state.templates.filter(t => t.id !== templateId),
       };
     }
     default:

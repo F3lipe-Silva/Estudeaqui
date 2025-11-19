@@ -2,6 +2,7 @@
 "use client";
 
 import AppHeader from './app-header';
+import BottomNavigationBar from './bottom-navigation-bar';
 import { useAuth } from '@/contexts/auth-context';
 import { StudyProvider } from '@/contexts/study-context';
 import MainContent from './main-content';
@@ -34,6 +35,7 @@ export default function AppLayout() {
         <div className="flex min-h-screen w-full flex-col bg-background font-body">
           <AppHeader />
           <div className="flex flex-1 w-full">{<MainContent />}</div>
+          <BottomNavigationBar />
         </div>
       </SidebarProvider>
     </StudyProvider>

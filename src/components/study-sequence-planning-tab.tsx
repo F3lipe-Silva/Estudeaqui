@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { PlusCircle, Trash2, Pencil, ArrowUp, ArrowDown, Save, X, RotateCcw } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, ArrowUp, ArrowDown, Save, X, RotateCcw, Calendar, Upload } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -58,21 +58,31 @@ export default function StudySequencePlanningTab() {
 
   const handleEditToggle = () => {
     if (isEditing) {
+      // Cancelar edição - voltar ao estado original
       setEditingSequence(studySequence?.sequence || []);
       setIsEditing(false);
     } else {
+      // Entrar no modo de edição
       setIsEditing(true);
     }
   }
 
   const handleSaveSequence = () => {
-    if(studySequence) {
-       dispatch({ 
-        type: 'SAVE_STUDY_SEQUENCE', 
-        payload: { ...studySequence, sequence: editingSequence } 
+    if (!studySequence) {
+      toast({ title: "Erro: Nenhuma sequência para salvar." });
+      return;
+    }
+
+    try {
+      dispatch({
+        type: 'SAVE_STUDY_SEQUENCE',
+        payload: { ...studySequence, sequence: editingSequence }
       });
       setIsEditing(false);
       toast({ title: "Sequência de estudos atualizada!" });
+    } catch (error) {
+      console.error('Erro ao salvar sequência:', error);
+      toast({ title: "Erro ao salvar sequência.", variant: "destructive" });
     }
   }
 
@@ -106,6 +116,12 @@ export default function StudySequencePlanningTab() {
       toast({ title: "Selecione uma matéria para adicionar." });
       return;
     }
+    // Verificar se a matéria já existe na sequência
+    const existingItem = editingSequence.find(item => item.subjectId === subjectId);
+    if (existingItem) {
+      toast({ title: "Esta matéria já está na sequência." });
+      return;
+    }
     setEditingSequence(prev => [...prev, { subjectId, totalTimeStudied: 0 }]);
   };
 
@@ -136,6 +152,37 @@ export default function StudySequencePlanningTab() {
     toast({ title: "Plano de estudos manual vazio criado!" });
   }
 
+  const handleImportToPlanning = () => {
+    if (!studySequence) return;
+
+    // Calcular o tempo total estudado por matéria na sequência
+    const timeBySubject: { [subjectId: string]: number } = {};
+    studySequence.sequence.forEach(item => {
+      const minutes = item.totalTimeStudied || 0;
+      if (timeBySubject[item.subjectId]) {
+        timeBySubject[item.subjectId] += minutes;
+      } else {
+        timeBySubject[item.subjectId] = minutes;
+      }
+    });
+
+    // Converter minutos para horas e atualizar as matérias
+    Object.entries(timeBySubject).forEach(([subjectId, totalMinutes]) => {
+      const hours = totalMinutes / 60; // converter minutos para horas
+      dispatch({
+        type: 'UPDATE_SUBJECT',
+        payload: {
+          id: subjectId,
+          data: { horasSemanais: hours }
+        }
+      });
+    });
+
+    // Mudar para a aba de planejamento
+    setActiveTab('planning');
+    toast({ title: "Dados importados para o planejamento semanal!" });
+  }
+
 
   return (
     <Dialog open={isLogFormOpen} onOpenChange={setIsLogFormOpen}>
@@ -152,11 +199,11 @@ export default function StudySequencePlanningTab() {
         </DialogContent>
         
         {studySequence ? (
-            <Card>
-                <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <Card className="border-2 shadow-sm hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gradient-to-r from-primary/5 to-transparent">
                     <div>
-                      <CardTitle>{studySequence.name}</CardTitle>
-                      <CardDescription>Este é o seu plano de estudos ativo. Conclua cada sessão para avançar.</CardDescription>
+                      <CardTitle className="text-xl">{studySequence.name}</CardTitle>
+                      <CardDescription className="mt-1">Este é o seu plano de estudos ativo. Conclua cada sessão para avançar.</CardDescription>
                     </div>
                      <div className="flex flex-col sm:flex-row gap-2">
                         {isEditing ? (
@@ -166,6 +213,9 @@ export default function StudySequencePlanningTab() {
                           </>
                         ) : (
                           <>
+                            <Button onClick={handleImportToPlanning} variant="secondary">
+                              <Upload className="mr-2 h-4 w-4" /> Importar p/ Planejamento
+                            </Button>
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button variant="outline"><RotateCcw className="mr-2 h-4 w-4" />Reiniciar Ciclo</Button>
@@ -205,9 +255,9 @@ export default function StudySequencePlanningTab() {
                         )}
                      </div>
                 </CardHeader>
-                <CardContent>
-                    <div className="mt-4 p-2 border rounded-lg bg-muted/20 min-h-[60px]">
-                        <div className="space-y-2">
+                <CardContent className="pt-6">
+                    <div className="mt-4 p-3 border-2 rounded-xl bg-gradient-to-br from-muted/30 to-muted/10 min-h-[60px]">
+                        <div className="space-y-3">
                             {(isEditing ? editingSequence : studySequence.sequence).map((item, index) => {
                                 const subject = getSubjectById(item.subjectId);
                                 if (!subject) return null;
@@ -222,30 +272,43 @@ export default function StudySequencePlanningTab() {
                                     <div
                                         key={`${item.subjectId}-${index}`}
                                         className={cn(
-                                            "flex items-center gap-3 p-2 rounded-md bg-card border transition-all",
-                                            isCurrent && "border-primary ring-2 ring-primary/50",
-                                            isCompleted && !isEditing && "bg-green-600/10 border-green-600/20"
+                                            "flex items-center gap-3 p-4 rounded-xl bg-card border-2 transition-all duration-300 hover:shadow-md",
+                                            isCurrent && "border-primary ring-4 ring-primary/20 shadow-lg scale-[1.02] z-10",
+                                            isCompleted && !isEditing && "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-900/50"
                                         )}
                                     >
-                                        <span className="font-mono text-sm text-muted-foreground w-6 text-center">{index + 1}</span>
-                                        <div className="w-2 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: subject.color }}></div>
+                                        <div className={cn(
+                                            "flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm transition-colors",
+                                            isCurrent ? "bg-primary text-primary-foreground" : 
+                                            isCompleted ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" : 
+                                            "bg-muted text-muted-foreground"
+                                        )}>
+                                            {index + 1}
+                                        </div>
+                                        <div className="w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-offset-2 ring-offset-card" style={{ backgroundColor: subject.color, '--tw-ring-color': subject.color } as React.CSSProperties}></div>
                                         <div className="flex-grow">
-                                            <span className="font-medium text-sm">{subject.name}</span>
+                                            <span className="font-semibold text-base">{subject.name}</span>
                                             {subject.studyDuration && (
-                                                <div className="text-xs text-muted-foreground mt-1">
-                                                    <Progress value={progress} className="h-1 my-1" />
-                                                    <span>{timeStudied} de {timeGoal} min concluídos</span>
+                                                <div className="text-xs text-muted-foreground mt-2">
+                                                    <Progress value={progress} className={cn(
+                                                        "h-2 shadow-inner",
+                                                        isCompleted && "[&>div]:bg-green-500"
+                                                    )} />
+                                                    <div className="flex justify-between mt-1.5">
+                                                        <span className="font-medium">{timeStudied} min</span>
+                                                        <span>Meta: {timeGoal} min</span>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
                                         {isEditing && (
                                           <div className='flex gap-1'>
-                                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => moveSequenceItem(index, index - 1)} disabled={index === 0}><ArrowUp className="h-4 w-4"/></Button>
-                                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => moveSequenceItem(index, index + 1)} disabled={index === editingSequence.length - 1}><ArrowDown className="h-4 w-4"/></Button>
-                                            <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => handleDeleteSequenceItem(index)}><Trash2 className="h-4 w-4"/></Button>
+                                            <Button size="icon" variant="ghost" className="h-9 w-9 hover:bg-primary/10 rounded-full" onClick={() => moveSequenceItem(index, index - 1)} disabled={index === 0}><ArrowUp className="h-4 w-4"/></Button>
+                                            <Button size="icon" variant="ghost" className="h-9 w-9 hover:bg-primary/10 rounded-full" onClick={() => moveSequenceItem(index, index + 1)} disabled={index === editingSequence.length - 1}><ArrowDown className="h-4 w-4"/></Button>
+                                            <Button size="icon" variant="ghost" className="h-9 w-9 text-destructive hover:bg-destructive/10 rounded-full" onClick={() => handleDeleteSequenceItem(index)}><Trash2 className="h-4 w-4"/></Button>
                                           </div>
                                         )}
-                                        <Button size="sm" variant="outline" className="flex-shrink-0" onClick={() => openLogForm(subject.id, index)}>
+                                        <Button size="sm" variant="outline" className="flex-shrink-0 shadow-sm hover:shadow-md transition-shadow" onClick={() => openLogForm(subject.id, index)}>
                                             <PlusCircle className="mr-2 h-4 w-4" /> Registrar
                                         </Button>
                                     </div>
@@ -276,16 +339,19 @@ export default function StudySequencePlanningTab() {
                 </CardContent>
             </Card>
         ) : (
-            <Card>
+            <Card className="text-center py-12 border-2 border-dashed hover:border-solid hover:shadow-md transition-all">
                 <CardHeader>
-                  <CardTitle>Crie sua Sequência de Estudos</CardTitle>
-                   <CardDescription>Você ainda não tem um plano de estudos. Crie um para começar.</CardDescription>
+                  <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
+                      <Calendar className="h-10 w-10 text-primary" />
+                  </div>
+                  <CardTitle className="text-2xl">Crie sua Sequência de Estudos</CardTitle>
+                   <CardDescription className="mt-2 text-base">Você ainda não tem um plano de estudos. Crie um para começar.</CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-col sm:flex-row gap-2">
-                      <Button onClick={handleCreateEmptySequence}>
+                <CardContent className="flex flex-col sm:flex-row gap-3 justify-center">
+                      <Button onClick={handleCreateEmptySequence} className="shadow-sm hover:shadow-md transition-shadow">
                         Criar Plano Básico (com todas as matérias)
                       </Button>
-                      <Button variant="outline" onClick={handleCreateEmptyManualSequence}>
+                      <Button variant="outline" onClick={handleCreateEmptyManualSequence} className="shadow-sm hover:shadow-md transition-shadow">
                         Criar Plano Manual Vazio
                       </Button>
                 </CardContent>

@@ -5,6 +5,7 @@ import { useStudy } from '@/contexts/study-context';
 import OverviewTab from '@/components/overview-tab';
 import StudyCycleTab from '@/components/study-cycle-tab';
 import StudySequencePlanningTab from '@/components/study-sequence-planning-tab';
+import SchedulePlanningTab from '@/components/schedule-planning-tab';
 import PomodoroWidget from '@/components/pomodoro-widget';
 import RevisionTab from '@/components/revision-tab';
 import HistoryTab from '@/components/history-tab';
@@ -20,11 +21,14 @@ export default function MainContent() {
                 <header className="fixed top-16 left-0 right-0 z-40 md:relative md:top-auto md:left-auto md:right-auto">
                     <PomodoroWidget />
                 </header>
-                <main className="flex-grow overflow-y-auto">
+                <main className="flex-grow overflow-y-auto pb-20 md:pb-0">
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="flex h-full flex-col">
                         <div className="flex-grow">
                             <TabsContent value="overview" className="p-4 md:p-6 mt-0">
                                 <OverviewTab />
+                            </TabsContent>
+                            <TabsContent value="schedule" className="p-4 md:p-6 mt-0">
+                                <SchedulePlanningTab />
                             </TabsContent>
                              <TabsContent value="planning" className="p-4 md:p-6 mt-0">
                                 <StudySequencePlanningTab />

@@ -103,22 +103,24 @@ export default function PomodoroWidget() {
 
   return (
     <div
-      className={cn("w-full p-2 flex items-center gap-4 cursor-pointer transition-all", getBackgroundColor())}
+      className={cn("w-full p-3 flex items-center gap-4 cursor-pointer transition-all hover:shadow-md border-b-2", getBackgroundColor())}
       onClick={() => setActiveTab('pomodoro')}
     >
-      <Timer className="h-5 w-5 flex-shrink-0" />
-      <div className="flex-grow">
-        <div className="flex justify-between items-center text-sm font-medium mb-1">
-          <span>
-            {getStatusText()}
-            {itemDetails && ` - ${itemDetails.subjectName}`}
-          </span>
-          <span>{`${Math.floor(timeRemaining / 60).toString().padStart(2, '0')}:${Math.round(timeRemaining % 60).toString().padStart(2, '0')}`}</span>
-        </div>
-        <Progress value={progressValue} className={cn("h-1", getProgressIndicatorClass())} />
+      <div className="p-2 rounded-full bg-background/50">
+        <Timer className="h-5 w-5 flex-shrink-0" />
       </div>
-      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleTogglePause}>
-        {status === 'paused' ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+      <div className="flex-grow">
+        <div className="flex justify-between items-center text-sm font-semibold mb-1.5">
+          <span className="truncate">
+            {getStatusText()}
+            {itemDetails && <span className="text-xs font-normal text-muted-foreground ml-1">• {itemDetails.subjectName}</span>}
+          </span>
+          <span className="font-mono text-base ml-2">{`${Math.floor(timeRemaining / 60).toString().padStart(2, '0')}:${Math.round(timeRemaining % 60).toString().padStart(2, '0')}`}</span>
+        </div>
+        <Progress value={progressValue} className={cn("h-2 shadow-inner", getProgressIndicatorClass())} />
+      </div>
+      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-background/80" onClick={handleTogglePause}>
+        {status === 'paused' ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
       </Button>
     </div>
   );
