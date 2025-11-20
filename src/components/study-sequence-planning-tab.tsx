@@ -16,6 +16,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from '@/components/ui/dialog';
 import StudyLogForm from '@/components/study-log-form';
@@ -37,24 +38,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { StudySequenceItem } from '@/lib/types';
+import type { StudySequenceItem, SchedulePlan } from '@/lib/types';
 
+
+import { useAuth } from '@/contexts/auth-context';
 
 export default function StudySequencePlanningTab() {
   const { data, dispatch, setActiveTab } = useStudy();
+  const { user } = useAuth();
   const { subjects, studySequence, sequenceIndex } = data;
   const { toast } = useToast();
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [editingSequence, setEditingSequence] = useState<StudySequenceItem[]>([]);
   const [isLogFormOpen, setIsLogFormOpen] = useState(false);
   const [logInitialData, setLogInitialData] = useState<any>(undefined);
-  
+
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+
   useEffect(() => {
-     if (studySequence) {
+    if (studySequence) {
       setEditingSequence(studySequence.sequence);
     }
   }, [studySequence]);
+
+
 
   const handleEditToggle = () => {
     if (isEditing) {
@@ -93,16 +101,16 @@ export default function StudySequencePlanningTab() {
     newSequence.splice(toIndex, 0, movedItem);
     setEditingSequence(newSequence);
   };
-  
+
   const handleResetSequence = () => {
     dispatch({ type: 'RESET_STUDY_SEQUENCE' });
-    toast({ title: 'Ciclo de estudos reiniciado!'});
+    toast({ title: 'Ciclo de estudos reiniciado!' });
   }
-  
+
   const handleDeleteSequence = () => {
-      dispatch({ type: 'SAVE_STUDY_SEQUENCE', payload: null });
-      toast({ title: "Sequência de estudos apagada."});
-      setIsEditing(false);
+    dispatch({ type: 'SAVE_STUDY_SEQUENCE', payload: null });
+    toast({ title: "Sequência de estudos apagada." });
+    setIsEditing(false);
   }
 
   const handleDeleteSequenceItem = (index: number) => {
@@ -132,21 +140,123 @@ export default function StudySequencePlanningTab() {
     setIsLogFormOpen(true);
   }
 
+  const generateSequenceFromSessions = (sessionsPerSubject: { [id: string]: number }, planName: string) => {
+    const newSequenceItems: StudySequenceItem[] = [];
+    const remainingSessions = { ...sessionsPerSubject };
+
+    let totalSessions = 0;
+    Object.values(remainingSessions).forEach(c => totalSessions += c);
+
+    let lastSubjectId: string | null = null;
+
+    for (let i = 0; i < totalSessions; i++) {
+      const candidates = subjects.filter(s => (remainingSessions[s.id] || 0) > 0);
+
+      if (candidates.length === 0) break;
+
+      candidates.sort((a, b) => {
+        const countA = remainingSessions[a.id];
+        const countB = remainingSessions[b.id];
+
+        const aIsLast = a.id === lastSubjectId;
+        const bIsLast = b.id === lastSubjectId;
+
+        if (aIsLast && !bIsLast) return 1;
+        if (!aIsLast && bIsLast) return -1;
+
+        return countB - countA;
+      });
+
+      const selected = candidates[0];
+
+      newSequenceItems.push({ subjectId: selected.id, totalTimeStudied: 0 });
+      remainingSessions[selected.id]--;
+      lastSubjectId = selected.id;
+    }
+
+    if (newSequenceItems.length === 0) {
+      toast({ title: "Aviso", description: "O cronograma não gerou nenhuma sessão de estudo." });
+      return;
+    }
+
+    const newSequence = {
+      id: `seq-imported-${Date.now()}`,
+      name: planName,
+      sequence: newSequenceItems,
+    };
+
+    dispatch({ type: 'SAVE_STUDY_SEQUENCE', payload: newSequence });
+    toast({ title: "Sucesso", description: `${planName} importado e intercalado!` });
+    setIsImportDialogOpen(false);
+  };
+
+  const handleImportSpecificPlan = (plan: SchedulePlan) => {
+    const sessionsPerSubject = { ...plan.sessoesPorMateria };
+    if (plan.subModoPomodoro === 'manual') {
+      for (const key in sessionsPerSubject) {
+        sessionsPerSubject[key] = Number(sessionsPerSubject[key]) || 0;
+      }
+    }
+    generateSequenceFromSessions(sessionsPerSubject, plan.name);
+  };
+
+  const handleImportFromSchedule = () => {
+    if (!user) {
+      toast({ title: "Erro", description: "Usuário não autenticado.", variant: "destructive" });
+      return;
+    }
+
+    if (data.schedulePlans.length > 0) {
+      setIsImportDialogOpen(true);
+      return;
+    }
+
+    const resultsKey = `estudeaqui_schedule_results_${user.id}`;
+    const savedResults = localStorage.getItem(resultsKey);
+
+    if (!savedResults) {
+      toast({ title: "Nenhum cronograma encontrado", description: "Configure seu cronograma na aba 'Cronograma' primeiro.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const { type, data } = JSON.parse(savedResults);
+      const sessionsPerSubject: { [id: string]: number } = {};
+
+      if (type === 'pomodoro') {
+        Object.assign(sessionsPerSubject, data);
+      } else {
+        Object.entries(data).forEach(([subjectId, val]) => {
+          const h = Number(val);
+          if (h > 0) {
+            sessionsPerSubject[subjectId] = Math.max(1, Math.round(h));
+          }
+        });
+      }
+
+      generateSequenceFromSessions(sessionsPerSubject, "Plano Importado do Cronograma");
+
+    } catch (e) {
+      console.error("Failed to import schedule", e);
+      toast({ title: "Erro ao importar", description: "Falha ao processar dados do cronograma.", variant: "destructive" });
+    }
+  };
+
   const handleCreateEmptySequence = () => {
-      const newSequence = {
-          id: `seq-manual-${Date.now()}`,
-          name: "Plano de Estudos Manual",
-          sequence: subjects.map(s => ({ subjectId: s.id, totalTimeStudied: 0 })),
-      };
-      dispatch({ type: 'SAVE_STUDY_SEQUENCE', payload: newSequence });
-      toast({ title: "Sequência de estudos criada!" });
+    const newSequence = {
+      id: `seq-manual-${Date.now()}`,
+      name: "Plano de Estudos Manual",
+      sequence: subjects.map(s => ({ subjectId: s.id, totalTimeStudied: 0 })),
+    };
+    dispatch({ type: 'SAVE_STUDY_SEQUENCE', payload: newSequence });
+    toast({ title: "Sequência de estudos criada!" });
   }
 
   const handleCreateEmptyManualSequence = () => {
     const newSequence = {
-        id: `seq-manual-empty-${Date.now()}`,
-        name: "Plano de Estudos Manual Vazio",
-        sequence: [],
+      id: `seq-manual-empty-${Date.now()}`,
+      name: "Plano de Estudos Manual Vazio",
+      sequence: [],
     };
     dispatch({ type: 'SAVE_STUDY_SEQUENCE', payload: newSequence });
     toast({ title: "Plano de estudos manual vazio criado!" });
@@ -155,7 +265,6 @@ export default function StudySequencePlanningTab() {
   const handleImportToPlanning = () => {
     if (!studySequence) return;
 
-    // Calcular o tempo total estudado por matéria na sequência
     const timeBySubject: { [subjectId: string]: number } = {};
     studySequence.sequence.forEach(item => {
       const minutes = item.totalTimeStudied || 0;
@@ -166,9 +275,8 @@ export default function StudySequencePlanningTab() {
       }
     });
 
-    // Converter minutos para horas e atualizar as matérias
     Object.entries(timeBySubject).forEach(([subjectId, totalMinutes]) => {
-      const hours = totalMinutes / 60; // converter minutos para horas
+      const hours = totalMinutes / 60;
       dispatch({
         type: 'UPDATE_SUBJECT',
         payload: {
@@ -178,186 +286,255 @@ export default function StudySequencePlanningTab() {
       });
     });
 
-    // Mudar para a aba de planejamento
     setActiveTab('planning');
     toast({ title: "Dados importados para o planejamento semanal!" });
   }
 
-
   return (
-    <Dialog open={isLogFormOpen} onOpenChange={setIsLogFormOpen}>
-      <div className="space-y-6">
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+    <>
+      <Dialog open={isLogFormOpen} onOpenChange={setIsLogFormOpen}>
+        <div className="space-y-6">
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-            <DialogTitle>Registrar Sessão de Estudo</DialogTitle>
+              <DialogTitle>Registrar Sessão de Estudo</DialogTitle>
             </DialogHeader>
-            <StudyLogForm 
-                onSave={() => setIsLogFormOpen(false)} 
-                onCancel={() => setIsLogFormOpen(false)}
-                initialData={logInitialData}
+            <StudyLogForm
+              onSave={() => setIsLogFormOpen(false)}
+              onCancel={() => setIsLogFormOpen(false)}
+              initialData={logInitialData}
             />
-        </DialogContent>
-        
-        {studySequence ? (
+          </DialogContent>
+
+          {studySequence ? (
             <Card className="border-2 shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gradient-to-r from-primary/5 to-transparent">
-                    <div>
-                      <CardTitle className="text-xl">{studySequence.name}</CardTitle>
-                      <CardDescription className="mt-1">Este é o seu plano de estudos ativo. Conclua cada sessão para avançar.</CardDescription>
-                    </div>
-                     <div className="flex flex-col sm:flex-row gap-2">
-                        {isEditing ? (
-                          <>
-                           <Button onClick={handleSaveSequence}><Save className="mr-2 h-4 w-4"/>Salvar</Button>
-                           <Button variant="outline" onClick={handleEditToggle}><X className="mr-2 h-4 w-4"/>Cancelar</Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button onClick={handleImportToPlanning} variant="secondary">
-                              <Upload className="mr-2 h-4 w-4" /> Importar p/ Planejamento
-                            </Button>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="outline"><RotateCcw className="mr-2 h-4 w-4" />Reiniciar Ciclo</Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Reiniciar Ciclo?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Isto irá zerar o progresso de tempo estudado de todas as sessões e voltar ao início da sequência. A ordem das matérias será mantida.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleResetSequence}>Confirmar</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                            <Button onClick={handleEditToggle}><Pencil className="mr-2 h-4 w-4"/>Editar</Button>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Apagar</Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Apagar Sequência?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Tem certeza que deseja apagar sua sequência de estudos atual? Você precisará gerar uma nova.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleDeleteSequence}>Confirmar</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                          </>
-                        )}
-                     </div>
-                </CardHeader>
-                <CardContent className="pt-6">
-                    <div className="mt-4 p-3 border-2 rounded-xl bg-gradient-to-br from-muted/30 to-muted/10 min-h-[60px]">
-                        <div className="space-y-3">
-                            {(isEditing ? editingSequence : studySequence.sequence).map((item, index) => {
-                                const subject = getSubjectById(item.subjectId);
-                                if (!subject) return null;
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gradient-to-r from-primary/5 to-transparent">
+                <div>
+                  <CardTitle className="text-xl">{studySequence.name}</CardTitle>
+                  <CardDescription className="mt-1">Este é o seu plano de estudos ativo. Conclua cada sessão para avançar.</CardDescription>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {isEditing ? (
+                    <>
+                      <Button onClick={handleSaveSequence}><Save className="mr-2 h-4 w-4" />Salvar</Button>
+                      <Button variant="outline" onClick={handleEditToggle}><X className="mr-2 h-4 w-4" />Cancelar</Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button onClick={handleImportToPlanning} variant="secondary">
+                        <Upload className="mr-2 h-4 w-4" /> Importar p/ Planejamento
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline"><RotateCcw className="mr-2 h-4 w-4" />Reiniciar Ciclo</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Reiniciar Ciclo?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Isto irá zerar o progresso de tempo estudado de todas as sessões e voltar ao início da sequência. A ordem das matérias será mantida.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleResetSequence}>Confirmar</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                      <Button onClick={handleEditToggle}><Pencil className="mr-2 h-4 w-4" />Editar</Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Apagar</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Apagar Sequência?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja apagar sua sequência de estudos atual? Você precisará gerar uma nova.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteSequence}>Confirmar</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="mt-4 p-3 border-2 rounded-xl bg-gradient-to-br from-muted/30 to-muted/10 min-h-[60px]">
+                  <div className="space-y-3">
+                    {(isEditing ? editingSequence : studySequence.sequence).map((item, index) => {
+                      const subject = getSubjectById(item.subjectId);
+                      if (!subject) return null;
 
-                                const isCurrent = index === sequenceIndex && !isEditing;
-                                const timeStudied = item.totalTimeStudied || 0;
-                                const timeGoal = subject.studyDuration || 60;
-                                const progress = timeGoal > 0 ? (timeStudied / timeGoal) * 100 : 0;
-                                const isCompleted = timeStudied >= timeGoal;
+                      const isCurrent = index === sequenceIndex && !isEditing;
+                      const timeStudied = item.totalTimeStudied || 0;
+                      const timeGoal = subject.studyDuration || 60;
+                      const progress = timeGoal > 0 ? (timeStudied / timeGoal) * 100 : 0;
+                      const isCompleted = timeStudied >= timeGoal;
 
-                                return (
-                                    <div
-                                        key={`${item.subjectId}-${index}`}
-                                        className={cn(
-                                            "flex items-center gap-3 p-4 rounded-xl bg-card border-2 transition-all duration-300 hover:shadow-md",
-                                            isCurrent && "border-primary ring-4 ring-primary/20 shadow-lg scale-[1.02] z-10",
-                                            isCompleted && !isEditing && "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-900/50"
-                                        )}
-                                    >
-                                        <div className={cn(
-                                            "flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm transition-colors",
-                                            isCurrent ? "bg-primary text-primary-foreground" : 
-                                            isCompleted ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" : 
-                                            "bg-muted text-muted-foreground"
-                                        )}>
-                                            {index + 1}
-                                        </div>
-                                        <div className="w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-offset-2 ring-offset-card" style={{ backgroundColor: subject.color, '--tw-ring-color': subject.color } as React.CSSProperties}></div>
-                                        <div className="flex-grow">
-                                            <span className="font-semibold text-base">{subject.name}</span>
-                                            {subject.studyDuration && (
-                                                <div className="text-xs text-muted-foreground mt-2">
-                                                    <Progress value={progress} className={cn(
-                                                        "h-2 shadow-inner",
-                                                        isCompleted && "[&>div]:bg-green-500"
-                                                    )} />
-                                                    <div className="flex justify-between mt-1.5">
-                                                        <span className="font-medium">{timeStudied} min</span>
-                                                        <span>Meta: {timeGoal} min</span>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                        {isEditing && (
-                                          <div className='flex gap-1'>
-                                            <Button size="icon" variant="ghost" className="h-9 w-9 hover:bg-primary/10 rounded-full" onClick={() => moveSequenceItem(index, index - 1)} disabled={index === 0}><ArrowUp className="h-4 w-4"/></Button>
-                                            <Button size="icon" variant="ghost" className="h-9 w-9 hover:bg-primary/10 rounded-full" onClick={() => moveSequenceItem(index, index + 1)} disabled={index === editingSequence.length - 1}><ArrowDown className="h-4 w-4"/></Button>
-                                            <Button size="icon" variant="ghost" className="h-9 w-9 text-destructive hover:bg-destructive/10 rounded-full" onClick={() => handleDeleteSequenceItem(index)}><Trash2 className="h-4 w-4"/></Button>
-                                          </div>
-                                        )}
-                                        <Button size="sm" variant="outline" className="flex-shrink-0 shadow-sm hover:shadow-md transition-shadow" onClick={() => openLogForm(subject.id, index)}>
-                                            <PlusCircle className="mr-2 h-4 w-4" /> Registrar
-                                        </Button>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                    {isEditing && (
-                        <div className="flex items-end gap-2 mt-4">
-                            <div className="flex-grow">
-                                <Label htmlFor="add-subject-to-sequence">Adicionar Matéria</Label>
-                                <Select onValueChange={handleAddSubjectToSequence}>
-                                    <SelectTrigger id="add-subject-to-sequence">
-                                        <SelectValue placeholder="Selecione uma matéria" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {subjects.map(subject => (
-                                            <SelectItem key={subject.id} value={subject.id}>{subject.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                      return (
+                        <div
+                          key={`${item.subjectId}-${index}`}
+                          className={cn(
+                            "flex items-center gap-3 p-4 rounded-xl bg-card border-2 transition-all duration-300 hover:shadow-md",
+                            isCurrent && "border-primary ring-4 ring-primary/20 shadow-lg scale-[1.02] z-10",
+                            isCompleted && !isEditing && "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-900/50"
+                          )}
+                        >
+                          <div className={cn(
+                            "flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm transition-colors",
+                            isCurrent ? "bg-primary text-primary-foreground" :
+                              isCompleted ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" :
+                                "bg-muted text-muted-foreground"
+                          )}>
+                            {index + 1}
+                          </div>
+                          <div className="w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-offset-2 ring-offset-card" style={{ backgroundColor: subject.color, '--tw-ring-color': subject.color } as React.CSSProperties}></div>
+                          <div className="flex-grow">
+                            <span className="font-semibold text-base">{subject.name}</span>
+                            {subject.studyDuration && (
+                              <div className="text-xs text-muted-foreground mt-2">
+                                <Progress value={progress} className={cn(
+                                  "h-2 shadow-inner",
+                                  isCompleted && "[&>div]:bg-green-500"
+                                )} />
+                                <div className="flex justify-between mt-1.5">
+                                  <span className="font-medium">{timeStudied} min</span>
+                                  <span>Meta: {timeGoal} min</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          {isEditing && (
+                            <div className='flex gap-1'>
+                              <Button size="icon" variant="ghost" className="h-9 w-9 hover:bg-primary/10 rounded-full" onClick={() => moveSequenceItem(index, index - 1)} disabled={index === 0}><ArrowUp className="h-4 w-4" /></Button>
+                              <Button size="icon" variant="ghost" className="h-9 w-9 hover:bg-primary/10 rounded-full" onClick={() => moveSequenceItem(index, index + 1)} disabled={index === editingSequence.length - 1}><ArrowDown className="h-4 w-4" /></Button>
+                              <Button size="icon" variant="ghost" className="h-9 w-9 text-destructive hover:bg-destructive/10 rounded-full" onClick={() => handleDeleteSequenceItem(index)}><Trash2 className="h-4 w-4" /></Button>
                             </div>
-                            <Button onClick={() => handleAddSubjectToSequence(undefined)} disabled={!subjects.length}>
-                                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
-                            </Button>
+                          )}
+                          <Button size="sm" variant="outline" className="flex-shrink-0 shadow-sm hover:shadow-md transition-shadow" onClick={() => openLogForm(subject.id, index)}>
+                            <PlusCircle className="mr-2 h-4 w-4" /> Registrar
+                          </Button>
                         </div>
-                    )}
-                </CardContent>
-            </Card>
-        ) : (
-            <Card className="text-center py-12 border-2 border-dashed hover:border-solid hover:shadow-md transition-all">
-                <CardHeader>
-                  <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
-                      <Calendar className="h-10 w-10 text-primary" />
+                      );
+                    })}
                   </div>
-                  <CardTitle className="text-2xl">Crie sua Sequência de Estudos</CardTitle>
-                   <CardDescription className="mt-2 text-base">Você ainda não tem um plano de estudos. Crie um para começar.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col sm:flex-row gap-3 justify-center">
-                      <Button onClick={handleCreateEmptySequence} className="shadow-sm hover:shadow-md transition-shadow">
-                        Criar Plano Básico (com todas as matérias)
-                      </Button>
-                      <Button variant="outline" onClick={handleCreateEmptyManualSequence} className="shadow-sm hover:shadow-md transition-shadow">
-                        Criar Plano Manual Vazio
-                      </Button>
-                </CardContent>
+                </div>
+                {isEditing && (
+                  <div className="flex items-end gap-2 mt-4">
+                    <div className="flex-grow">
+                      <Label htmlFor="add-subject-to-sequence">Adicionar Matéria</Label>
+                      <Select onValueChange={handleAddSubjectToSequence}>
+                        <SelectTrigger id="add-subject-to-sequence">
+                          <SelectValue placeholder="Selecione uma matéria" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {subjects.map(subject => (
+                            <SelectItem key={subject.id} value={subject.id}>{subject.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button onClick={() => handleAddSubjectToSequence(undefined)} disabled={!subjects.length}>
+                      <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
             </Card>
-        )}
-      </div>
-    </Dialog>
+          ) : (
+            <Card className="text-center py-12 border-2 border-dashed hover:border-solid hover:shadow-md transition-all">
+              <CardHeader>
+                <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
+                  <Calendar className="h-10 w-10 text-primary" />
+                </div>
+                <CardTitle className="text-2xl">Crie sua Sequência de Estudos</CardTitle>
+                <CardDescription className="mt-2 text-base">Você ainda não tem um plano de estudos. Crie um para começar.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button onClick={handleCreateEmptySequence} className="shadow-sm hover:shadow-md transition-shadow">
+                  Criar Plano Básico (com todas as matérias)
+                </Button>
+                <Button variant="secondary" onClick={handleImportFromSchedule} className="shadow-sm hover:shadow-md transition-shadow">
+                  <Upload className="mr-2 h-4 w-4" /> Importar do Cronograma
+                </Button>
+                <Button variant="outline" onClick={handleCreateEmptyManualSequence} className="shadow-sm hover:shadow-md transition-shadow">
+                  Criar Plano Manual Vazio
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </Dialog>
+
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Escolha um Cronograma</DialogTitle>
+            <DialogDescription>
+              Você tem múltiplos cronogramas salvos. Qual deles deseja importar?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {data.schedulePlans.map((plan) => (
+              <Button
+                key={plan.id}
+                variant="outline"
+                className="justify-start h-auto py-3 px-4"
+                onClick={() => handleImportSpecificPlan(plan)}
+              >
+                <div className="flex flex-col items-start text-left">
+                  <span className="font-semibold">{plan.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {plan.totalHorasSemanais}h semanais • {plan.duracaoSessao}min/sessão
+                  </span>
+                </div>
+              </Button>
+            ))}
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Ou</span>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setIsImportDialogOpen(false);
+                // Force import from current/latest result
+                const resultsKey = user ? `estudeaqui_schedule_results_${user.id}` : '';
+                const savedResults = localStorage.getItem(resultsKey);
+                if (savedResults) {
+                  try {
+                    const { type, data } = JSON.parse(savedResults);
+                    const sessionsPerSubject: { [id: string]: number } = {};
+                    if (type === 'pomodoro') {
+                      Object.assign(sessionsPerSubject, data);
+                    } else {
+                      Object.entries(data).forEach(([subjectId, val]) => {
+                        const h = Number(val);
+                        if (h > 0) sessionsPerSubject[subjectId] = Math.max(1, Math.round(h));
+                      });
+                    }
+                    generateSequenceFromSessions(sessionsPerSubject, "Plano Atual (Não Salvo)");
+                  } catch (e) {
+                    toast({ title: "Erro", description: "Falha ao ler cronograma atual." });
+                  }
+                } else {
+                  toast({ title: "Erro", description: "Nenhum cronograma atual encontrado." });
+                }
+              }}
+            >
+              Importar Cronograma Atual (Não Salvo)
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

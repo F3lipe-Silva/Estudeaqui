@@ -1,17 +1,12 @@
-
 "use client";
 
 import React, { createContext, useContext, useReducer, useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { StudyContextType, StudyData, Subject, Topic, PomodoroState, StudyLogEntry, StudySequenceItem, PomodoroSettings, SubjectTemplate } from '@/lib/types';
-import { INITIAL_SUBJECTS } from '@/lib/data';
+import type { StudyContextType, StudyData, Subject, Topic, PomodoroState, StudyLogEntry, StudySequenceItem, PomodoroSettings, SubjectTemplate, StudySequence, SchedulePlan } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, isSameDay, parseISO } from 'date-fns';
 import { REVISION_SEQUENCE } from '@/components/revision-tab';
-// import { db } from '@/lib/firebase';
-// import { doc, getDoc, setDoc, deleteField } from 'firebase/firestore';
 import { useAuth } from './auth-context';
-
-const COLORS = ['#2563EB', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#6B7280', '#EC4899', '#3B82F6'];
+import { createClient } from '@/lib/supabase/client';
 
 const initialPomodoroSettings: PomodoroSettings = {
   tasks: [
@@ -25,7 +20,7 @@ const initialPomodoroSettings: PomodoroSettings = {
 };
 
 const initialState: StudyData = {
-  subjects: INITIAL_SUBJECTS,
+  subjects: [],
   studyLog: [],
   lastStudiedDate: null,
   streak: 0,
@@ -33,6 +28,7 @@ const initialState: StudyData = {
   sequenceIndex: 0,
   pomodoroSettings: initialPomodoroSettings,
   templates: [],
+  schedulePlans: [],
 };
 
 const StudyContext = createContext<StudyContextType | undefined>(undefined);
@@ -48,7 +44,7 @@ function studyReducer(state: StudyData, action: any): StudyData {
       return { ...initialState, ...loadedState };
     case 'ADD_SUBJECT': {
       const newSubject: Subject = {
-        id: `subj-${Date.now()}`,
+        id: action.payload.id || `subj-${Date.now()}`,
         name: action.payload.name,
         color: action.payload.color,
         description: action.payload.description,
@@ -66,17 +62,17 @@ function studyReducer(state: StudyData, action: any): StudyData {
       };
     }
     case 'DELETE_SUBJECT': {
-      return { 
-          ...state, 
-          subjects: state.subjects.filter(s => s.id !== action.payload),
-        };
+      return {
+        ...state,
+        subjects: state.subjects.filter(s => s.id !== action.payload),
+      };
     }
     case 'ADD_TOPIC': {
-      const { subjectId, name } = action.payload;
+      const { subjectId, name, id } = action.payload;
       const subjects = state.subjects.map(s => {
         if (s.id === subjectId) {
           const newTopic: Topic = {
-            id: `topic-${subjectId}-${Date.now()}`,
+            id: id || `topic-${subjectId}-${Date.now()}`,
             subjectId,
             name,
             order: s.topics.length,
@@ -88,7 +84,7 @@ function studyReducer(state: StudyData, action: any): StudyData {
       });
       return { ...state, subjects };
     }
-     case 'TOGGLE_TOPIC_COMPLETED': {
+    case 'TOGGLE_TOPIC_COMPLETED': {
       const { subjectId, topicId } = action.payload;
       return {
         ...state,
@@ -120,7 +116,7 @@ function studyReducer(state: StudyData, action: any): StudyData {
       });
       return { ...state, subjects };
     }
-     case 'SET_REVISION_PROGRESS': {
+    case 'SET_REVISION_PROGRESS': {
       const { subjectId, progress } = action.payload;
       return {
         ...state,
@@ -128,8 +124,8 @@ function studyReducer(state: StudyData, action: any): StudyData {
           if (s.id === subjectId) {
             const completedTopics = s.topics.filter(t => t.isCompleted);
             const relevantSequence = REVISION_SEQUENCE
-                .map(topicOrder => completedTopics.find(t => t.order === topicOrder))
-                .filter((topic): topic is NonNullable<typeof topic> => topic !== undefined);
+              .map(topicOrder => completedTopics.find(t => t.order === topicOrder))
+              .filter((topic): topic is NonNullable<typeof topic> => topic !== undefined);
 
             const newProgress = Math.max(0, Math.min(progress, relevantSequence.length));
             return { ...s, revisionProgress: newProgress };
@@ -146,53 +142,59 @@ function studyReducer(state: StudyData, action: any): StudyData {
 
       const newLog: StudyLogEntry = {
         ...logData,
-        id: `log-${Date.now()}`,
-        date: today.toISOString(),
+        id: logData.id || `log-${Date.now()}`,
+        date: logData.date || today.toISOString(),
       };
-      
+
       const lastDate = state.lastStudiedDate ? parseISO(state.lastStudiedDate) : null;
-      if (!lastDate || !isSameDay(lastDate, today)) {
-          const yesterday = subDays(today, 1);
-          if (lastDate && isSameDay(lastDate, yesterday)) {
-              streak = state.streak + 1;
-          } else {
-              streak = 1;
+      const logDate = parseISO(newLog.date);
+
+      if (!lastDate || !isSameDay(lastDate, logDate)) {
+        const yesterday = subDays(logDate, 1);
+        if (lastDate && isSameDay(lastDate, yesterday)) {
+          streak = state.streak + 1;
+        } else if (!lastDate || !isSameDay(lastDate, logDate)) {
+          if (lastDate && !isSameDay(lastDate, logDate)) {
+            streak = 1;
+          } else if (!lastDate) {
+            streak = 1;
           }
-          lastStudiedDate = today.toISOString();
+        }
+        lastStudiedDate = newLog.date;
       }
 
       // Update study sequence progress
       if (studySequence && newLog.sequenceItemIndex !== undefined && newLog.sequenceItemIndex !== null) {
-          let itemToUpdate = studySequence.sequence[newLog.sequenceItemIndex];
+        let itemToUpdate = studySequence.sequence[newLog.sequenceItemIndex];
 
-          if(itemToUpdate && itemToUpdate.subjectId === newLog.subjectId) {
-            const newTotalTime = (itemToUpdate.totalTimeStudied || 0) + newLog.duration;
-            const newSequence = [...studySequence.sequence];
-            newSequence[newLog.sequenceItemIndex] = { ...itemToUpdate, totalTimeStudied: newTotalTime };
-            studySequence = { ...studySequence, sequence: newSequence };
-            
-            itemToUpdate = newSequence[newLog.sequenceItemIndex];
+        if (itemToUpdate && itemToUpdate.subjectId === newLog.subjectId) {
+          const newTotalTime = (itemToUpdate.totalTimeStudied || 0) + newLog.duration;
+          const newSequence = [...studySequence.sequence];
+          newSequence[newLog.sequenceItemIndex] = { ...itemToUpdate, totalTimeStudied: newTotalTime };
+          studySequence = { ...studySequence, sequence: newSequence };
 
-            // Check if current item is now complete and should advance
-            if (newLog.sequenceItemIndex === sequenceIndex) {
-              const subject = state.subjects.find(s => s.id === itemToUpdate.subjectId);
-              const timeGoal = subject?.studyDuration || 0;
-  
-              if (timeGoal > 0 && newTotalTime >= timeGoal) {
-                  sequenceIndex = (sequenceIndex + 1); // Allow it to go one past the end to show completion
-              }
+          itemToUpdate = newSequence[newLog.sequenceItemIndex];
+
+          // Check if current item is now complete and should advance
+          if (newLog.sequenceItemIndex === sequenceIndex) {
+            const subject = state.subjects.find(s => s.id === itemToUpdate.subjectId);
+            const timeGoal = subject?.studyDuration || 0;
+
+            if (timeGoal > 0 && newTotalTime >= timeGoal) {
+              sequenceIndex = (sequenceIndex + 1);
             }
           }
+        }
       }
-      
-      return { 
-        ...state, 
+
+      return {
+        ...state,
         subjects,
-        studyLog: [newLog, ...state.studyLog].sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()), 
-        streak, 
+        studyLog: [newLog, ...state.studyLog].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()),
+        streak,
         lastStudiedDate,
-        studySequence, 
-        sequenceIndex 
+        studySequence,
+        sequenceIndex
       };
     }
     case 'UPDATE_STUDY_LOG': {
@@ -228,15 +230,15 @@ function studyReducer(state: StudyData, action: any): StudyData {
 
       let { studySequence } = state;
       if (studySequence && logToDelete.sequenceItemIndex !== undefined && logToDelete.sequenceItemIndex !== null) {
-          const itemToUpdate = studySequence.sequence[logToDelete.sequenceItemIndex];
-          if (itemToUpdate && itemToUpdate.subjectId === logToDelete.subjectId) {
-             const newSequence = [...studySequence.sequence];
-             newSequence[logToDelete.sequenceItemIndex] = {
-              ...itemToUpdate,
-              totalTimeStudied: Math.max(0, (itemToUpdate.totalTimeStudied || 0) - logToDelete.duration)
-             };
-             studySequence = { ...studySequence, sequence: newSequence };
-          }
+        const itemToUpdate = studySequence.sequence[logToDelete.sequenceItemIndex];
+        if (itemToUpdate && itemToUpdate.subjectId === logToDelete.subjectId) {
+          const newSequence = [...studySequence.sequence];
+          newSequence[logToDelete.sequenceItemIndex] = {
+            ...itemToUpdate,
+            totalTimeStudied: Math.max(0, (itemToUpdate.totalTimeStudied || 0) - logToDelete.duration)
+          };
+          studySequence = { ...studySequence, sequence: newSequence };
+        }
       }
 
       return {
@@ -246,23 +248,23 @@ function studyReducer(state: StudyData, action: any): StudyData {
       };
     }
     case 'SAVE_STUDY_SEQUENCE': {
-       const newSequence = action.payload;
-       if (newSequence) {
-        const isNew = !state.studySequence || state.studySequence.id !== newSequence.id;
-        if(isNew) {
-            newSequence.sequence = newSequence.sequence.map((item: StudySequenceItem) => ({ ...item, totalTimeStudied: 0 }));
+      const newSequence = action.payload;
+      let isNew = false;
+      if (newSequence) {
+        isNew = !state.studySequence || state.studySequence.id !== newSequence.id;
+        if (isNew) {
+          newSequence.sequence = newSequence.sequence.map((item: StudySequenceItem) => ({ ...item, totalTimeStudied: 0 }));
         }
-       }
+      }
 
-       // Tentar preservar o sequenceIndex se o item atual ainda existir na mesma posição
-       let newSequenceIndex = 0;
-       if (!isNew && state.studySequence && state.sequenceIndex < newSequence.sequence.length) {
-         const currentItem = state.studySequence.sequence[state.sequenceIndex];
-         const newItemAtSameIndex = newSequence.sequence[state.sequenceIndex];
-         if (currentItem && newItemAtSameIndex && currentItem.subjectId === newItemAtSameIndex.subjectId) {
-           newSequenceIndex = state.sequenceIndex;
-         }
-       }
+      let newSequenceIndex = 0;
+      if (newSequence && !isNew && state.studySequence && state.sequenceIndex < newSequence.sequence.length) {
+        const currentItem = state.studySequence.sequence[state.sequenceIndex];
+        const newItemAtSameIndex = newSequence.sequence[state.sequenceIndex];
+        if (currentItem && newItemAtSameIndex && currentItem.subjectId === newItemAtSameIndex.subjectId) {
+          newSequenceIndex = state.sequenceIndex;
+        }
+      }
 
       return { ...state, studySequence: newSequence, sequenceIndex: newSequenceIndex };
     }
@@ -278,7 +280,7 @@ function studyReducer(state: StudyData, action: any): StudyData {
         sequenceIndex: 0,
       };
     }
-     case 'ADVANCE_SEQUENCE': {
+    case 'ADVANCE_SEQUENCE': {
       if (!state.studySequence) return state;
       const nextIndex = state.sequenceIndex + 1;
       return { ...state, sequenceIndex: nextIndex };
@@ -290,22 +292,22 @@ function studyReducer(state: StudyData, action: any): StudyData {
       };
     }
     case 'SAVE_TEMPLATE': {
-      const { name } = action.payload;
-      const templateSubjects: Omit<Subject, 'id'>[] = state.subjects.map(s => ({
+      const { name, id } = action.payload;
+      const templateSubjects: SubjectTemplate['subjects'] = state.subjects.map(s => ({
         name: s.name,
         color: s.color,
         description: s.description,
         studyDuration: s.studyDuration,
         materialUrl: s.materialUrl,
-        revisionProgress: 0, // Reset progress
+        revisionProgress: 0,
         topics: s.topics.map((t: Topic) => ({
           name: t.name,
           order: t.order,
-          isCompleted: false, // Reset completion
+          isCompleted: false,
         })),
       }));
       const newTemplate: SubjectTemplate = {
-        id: `template-${Date.now()}`,
+        id: id || `template-${Date.now()}`,
         name,
         subjects: templateSubjects,
       };
@@ -314,26 +316,10 @@ function studyReducer(state: StudyData, action: any): StudyData {
         templates: [...state.templates, newTemplate],
       };
     }
-    case 'LOAD_TEMPLATE': {
-      const templateId = action.payload;
-      const template = state.templates.find(t => t.id === templateId);
-      if (!template) return state;
-      const newSubjects: Subject[] = template.subjects.map(s => ({
-        id: `subj-${Date.now()}-${Math.random()}`,
-        ...s,
-        topics: s.topics.map((t: any) => ({
-          ...t,
-          id: `topic-${Date.now()}-${Math.random()}`,
-          subjectId: '', // Will be set below
-        })),
-      }));
-      // Set subjectIds in topics
-      newSubjects.forEach(s => {
-        s.topics.forEach((t: Topic) => t.subjectId = s.id);
-      });
+    case 'LOAD_TEMPLATE_SUCCESS': {
       return {
         ...state,
-        subjects: newSubjects,
+        subjects: action.payload.subjects,
       };
     }
     case 'DELETE_TEMPLATE': {
@@ -343,39 +329,27 @@ function studyReducer(state: StudyData, action: any): StudyData {
         templates: state.templates.filter(t => t.id !== templateId),
       };
     }
+    case 'SET_SCHEDULE_PLANS': {
+      return { ...state, schedulePlans: action.payload };
+    }
+    case 'ADD_SCHEDULE_PLAN': {
+      return { ...state, schedulePlans: [...state.schedulePlans, action.payload] };
+    }
+    case 'DELETE_SCHEDULE_PLAN': {
+      return { ...state, schedulePlans: state.schedulePlans.filter(p => p.id !== action.payload) };
+    }
     default:
       return state;
   }
 }
 
-function cleanUndefined(obj: any): any {
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map(v => cleanUndefined(v));
-  }
-  if (typeof obj === 'object') {
-    const newObj: {[key: string]: any} = {};
-    for (const key in obj) {
-      if (obj[key] !== undefined) {
-        newObj[key] = cleanUndefined(obj[key]);
-      }
-    }
-    return newObj;
-  }
-  return obj;
-}
-
-
 export function StudyProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const [state, dispatch] = useReducer(studyReducer, initialState);
+  const [state, originalDispatch] = useReducer(studyReducer, initialState);
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [isLoading, setIsLoading] = useState(true);
-  const isSaving = useRef(false);
-  const saveTimeout = useRef<NodeJS.Timeout | null>(null);
+  const supabase = createClient();
 
   const { pomodoroSettings } = state;
 
@@ -388,82 +362,374 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     currentTaskIndex: 0,
   });
 
-  // Effect to sync pomodoro state when settings change from context
   useEffect(() => {
     setPomodoroState(prev => ({
-        ...prev,
-        status: 'idle',
-        timeRemaining: pomodoroSettings?.tasks?.[0]?.duration || 0,
-        currentTaskIndex: 0,
-        key: prev.key + 1,
+      ...prev,
+      status: 'idle',
+      timeRemaining: pomodoroSettings?.tasks?.[0]?.duration || 0,
+      currentTaskIndex: 0,
+      key: prev.key + 1,
     }));
   }, [pomodoroSettings]);
 
   useEffect(() => {
     if (!user) {
       setIsLoading(false);
-      dispatch({ type: 'SET_STATE', payload: initialState });
+      originalDispatch({ type: 'SET_STATE', payload: initialState });
       return;
     }
 
     const loadData = async () => {
       setIsLoading(true);
-      // const userDocRef = doc(db, "userData", user.uid);
       try {
-        // const docSnap = await getDoc(userDocRef);
-        // if (docSnap.exists()) {
-        //   const data = docSnap.data() as StudyData;
-          dispatch({ type: 'SET_STATE', payload: initialState });
-        // } else {
-        //   // If document doesn't exist (new user), create it and set initial state
-        //   const stateToSave = { ...initialState };
-        //   // await setDoc(userDocRef, stateToSave);
-        //   dispatch({ type: 'SET_STATE', payload: stateToSave });
-        // }
-      } catch (error: any) {
-        console.error("Failed to load or create data in Firestore:", error);
-        let description = "Verifique sua conexão e se o Firestore está ativado no console do Firebase. Usando dados locais por enquanto.";
-        if (error.code === 'permission-denied' || error.code === 'PERMISSION_DENIED') {
-          description = "Permissão negada. Verifique suas Regras de Segurança do Firestore no console do Firebase para permitir leitura e escrita para usuários autenticados.";
+        const [
+          subjectsRes,
+          logsRes,
+          sequenceRes,
+          settingsRes,
+          templatesRes,
+          schedulePlansRes
+        ] = await Promise.all([
+          supabase.from('subjects').select('*, topics(*)').order('created_at'),
+          supabase.from('study_logs').select('*').order('date', { ascending: false }),
+          supabase.from('study_sequences').select('*').order('created_at', { ascending: false }).limit(1).single(),
+          supabase.from('pomodoro_settings').select('*').single(),
+          supabase.from('templates').select('*').order('created_at'),
+          supabase.from('schedule_plans').select('*').order('created_at', { ascending: false })
+        ]);
+
+        if (subjectsRes.error) throw subjectsRes.error;
+
+        const subjects: Subject[] = subjectsRes.data.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          color: s.color,
+          description: s.description,
+          studyDuration: s.study_duration,
+          materialUrl: s.material_url,
+          revisionProgress: s.revision_progress,
+          topics: s.topics.map((t: any) => ({
+            id: t.id,
+            subjectId: t.subject_id,
+            name: t.name,
+            order: t.order,
+            isCompleted: t.is_completed,
+            description: t.description
+          })).sort((a: any, b: any) => a.order - b.order)
+        }));
+
+        const studyLog: StudyLogEntry[] = (logsRes.data || []).map((l: any) => ({
+          id: l.id,
+          subjectId: l.subject_id,
+          topicId: l.topic_id,
+          date: l.date,
+          duration: l.duration,
+          startPage: l.start_page,
+          endPage: l.end_page,
+          questionsTotal: l.questions_total,
+          questionsCorrect: l.questions_correct,
+          source: l.source,
+          sequenceItemIndex: l.sequence_item_index
+        }));
+
+        let studySequence: StudySequence | null = null;
+        if (sequenceRes.data) {
+          studySequence = {
+            id: sequenceRes.data.id,
+            name: sequenceRes.data.name,
+            sequence: sequenceRes.data.sequence
+          };
         }
-        toast({ title: "Erro ao conectar com a nuvem", description, variant: "destructive", duration: 10000 });
-        dispatch({ type: 'SET_STATE', payload: initialState });
+
+        let settings = initialPomodoroSettings;
+        if (settingsRes.data?.settings) {
+          settings = settingsRes.data.settings;
+        }
+
+        const templates: SubjectTemplate[] = (templatesRes.data || []).map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          subjects: t.subjects
+        }));
+
+        const schedulePlans: SchedulePlan[] = (schedulePlansRes.data || []).map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          createdAt: p.created_at,
+          totalHorasSemanais: p.total_horas_semanais,
+          duracaoSessao: p.duracao_sessao,
+          subModoPomodoro: p.sub_modo_pomodoro,
+          sessoesPorMateria: p.sessoes_por_materia
+        }));
+
+        let streak = 0;
+        let lastStudiedDate = null;
+        if (studyLog.length > 0) {
+          lastStudiedDate = studyLog[0].date;
+        }
+
+        originalDispatch({
+          type: 'SET_STATE',
+          payload: {
+            subjects,
+            studyLog,
+            lastStudiedDate,
+            streak,
+            studySequence,
+            sequenceIndex: 0,
+            pomodoroSettings: settings,
+            templates,
+            schedulePlans
+          }
+        });
+
+      } catch (error: any) {
+        console.error("Failed to load data from Supabase:", error);
+        toast({ title: "Erro ao carregar dados", description: "Não foi possível carregar seus dados da nuvem.", variant: "destructive" });
       } finally {
         setIsLoading(false);
       }
     };
 
     loadData();
-  }, [user, toast]);
+  }, [user, toast, supabase]);
 
+  const stateRef = useRef(state);
   useEffect(() => {
-    if (isLoading || isSaving.current || !user) return;
+    stateRef.current = state;
+  }, [state]);
 
-    if (saveTimeout.current) {
-      clearTimeout(saveTimeout.current);
+  const dispatch = async (action: any) => {
+    originalDispatch(action);
+
+    if (!user) return;
+
+    try {
+      switch (action.type) {
+        case 'ADD_SUBJECT': {
+          const { id, name, color, description, studyDuration, materialUrl } = action.payload;
+          await supabase.from('subjects').insert({
+            id,
+            user_id: user.id,
+            name,
+            color,
+            description,
+            study_duration: studyDuration,
+            material_url: materialUrl,
+            revision_progress: 0
+          });
+          break;
+        }
+        case 'UPDATE_SUBJECT': {
+          const { id, data } = action.payload;
+          const updateData: any = {};
+          if (data.name) updateData.name = data.name;
+          if (data.color) updateData.color = data.color;
+          if (data.description) updateData.description = data.description;
+          if (data.studyDuration) updateData.study_duration = data.studyDuration;
+          if (data.materialUrl) updateData.material_url = data.materialUrl;
+          if (data.revisionProgress !== undefined) updateData.revision_progress = data.revisionProgress;
+
+          await supabase.from('subjects').update(updateData).eq('id', id);
+          break;
+        }
+        case 'DELETE_SUBJECT': {
+          await supabase.from('subjects').delete().eq('id', action.payload);
+          break;
+        }
+        case 'ADD_TOPIC': {
+          const { id, subjectId, name } = action.payload;
+          const { count } = await supabase.from('topics').select('*', { count: 'exact', head: true }).eq('subject_id', subjectId);
+          const order = count || 0;
+
+          await supabase.from('topics').insert({
+            id,
+            subject_id: subjectId,
+            name,
+            order,
+            is_completed: false
+          });
+          break;
+        }
+        case 'TOGGLE_TOPIC_COMPLETED': {
+          const { topicId } = action.payload;
+          const { data } = await supabase.from('topics').select('is_completed').eq('id', topicId).single();
+          if (data) {
+            await supabase.from('topics').update({ is_completed: !data.is_completed }).eq('id', topicId);
+          }
+          break;
+        }
+        case 'DELETE_TOPIC': {
+          await supabase.from('topics').delete().eq('id', action.payload.topicId);
+          break;
+        }
+        case 'SET_REVISION_PROGRESS': {
+          const { subjectId, progress } = action.payload;
+          await supabase.from('subjects').update({ revision_progress: progress }).eq('id', subjectId);
+          break;
+        }
+        case 'ADD_STUDY_LOG': {
+          const log = action.payload;
+          await supabase.from('study_logs').insert({
+            id: log.id,
+            user_id: user.id,
+            subject_id: log.subjectId,
+            topic_id: log.topicId,
+            date: log.date,
+            duration: log.duration,
+            start_page: log.startPage,
+            end_page: log.endPage,
+            questions_total: log.questionsTotal,
+            questions_correct: log.questionsCorrect,
+            source: log.source,
+            sequence_item_index: log.sequenceItemIndex
+          });
+          break;
+        }
+        case 'UPDATE_STUDY_LOG': {
+          const log = action.payload;
+          await supabase.from('study_logs').update({
+            duration: log.duration,
+            start_page: log.startPage,
+            end_page: log.endPage,
+            questions_total: log.questionsTotal,
+            questions_correct: log.questionsCorrect,
+          }).eq('id', log.id);
+          break;
+        }
+        case 'DELETE_STUDY_LOG': {
+          await supabase.from('study_logs').delete().eq('id', action.payload);
+          break;
+        }
+        case 'SAVE_STUDY_SEQUENCE': {
+          const sequence = action.payload;
+          await supabase.from('study_sequences').insert({
+            id: sequence.id,
+            user_id: user.id,
+            name: sequence.name,
+            sequence: sequence.sequence
+          });
+          break;
+        }
+        case 'UPDATE_POMODORO_SETTINGS': {
+          const settings = action.payload;
+          await supabase.from('pomodoro_settings').upsert({
+            user_id: user.id,
+            settings
+          });
+          break;
+        }
+        case 'SAVE_TEMPLATE': {
+          const { id, name } = action.payload;
+          const currentSubjects = stateRef.current.subjects;
+          const templateSubjects = currentSubjects.map(s => ({
+            name: s.name,
+            color: s.color,
+            description: s.description,
+            studyDuration: s.studyDuration,
+            materialUrl: s.materialUrl,
+            revisionProgress: 0,
+            topics: s.topics.map(t => ({
+              name: t.name,
+              order: t.order,
+              isCompleted: false
+            }))
+          }));
+
+          await supabase.from('templates').insert({
+            id,
+            user_id: user.id,
+            name,
+            subjects: templateSubjects
+          });
+          break;
+        }
+        case 'LOAD_TEMPLATE': {
+          const templateId = action.payload;
+          const template = stateRef.current.templates.find(t => t.id === templateId);
+          if (!template) return;
+
+          await supabase.from('subjects').delete().eq('user_id', user.id);
+
+          const newSubjects: Subject[] = [];
+
+          for (const s of template.subjects) {
+            const subjectId = crypto.randomUUID();
+            const { error: subjError } = await supabase.from('subjects').insert({
+              id: subjectId,
+              user_id: user.id,
+              name: s.name,
+              color: s.color,
+              description: s.description,
+              study_duration: s.studyDuration,
+              material_url: s.materialUrl,
+              revision_progress: 0
+            });
+
+            if (subjError) throw subjError;
+
+            const newTopics: Topic[] = [];
+            for (const t of s.topics) {
+              const topicId = crypto.randomUUID();
+              await supabase.from('topics').insert({
+                id: topicId,
+                subject_id: subjectId,
+                name: t.name,
+                order: t.order,
+                is_completed: false
+              });
+              newTopics.push({
+                id: topicId,
+                subjectId,
+                name: t.name,
+                order: t.order,
+                isCompleted: false
+              });
+            }
+
+            newSubjects.push({
+              id: subjectId,
+              name: s.name,
+              color: s.color,
+              description: s.description,
+              studyDuration: s.studyDuration,
+              materialUrl: s.materialUrl,
+              revisionProgress: 0,
+              topics: newTopics
+            });
+          }
+
+          originalDispatch({ type: 'LOAD_TEMPLATE_SUCCESS', payload: { subjects: newSubjects } });
+          break;
+        }
+        case 'DELETE_TEMPLATE': {
+          await supabase.from('templates').delete().eq('id', action.payload);
+          break;
+        }
+        case 'ADD_SCHEDULE_PLAN': {
+          const plan = action.payload;
+          await supabase.from('schedule_plans').insert({
+            id: plan.id,
+            user_id: user.id,
+            name: plan.name,
+            created_at: plan.createdAt,
+            total_horas_semanais: plan.totalHorasSemanais,
+            duracao_sessao: plan.duracaoSessao,
+            sub_modo_pomodoro: plan.subModoPomodoro,
+            sessoes_por_materia: plan.sessoesPorMateria
+          });
+          break;
+        }
+        case 'DELETE_SCHEDULE_PLAN': {
+          await supabase.from('schedule_plans').delete().eq('id', action.payload);
+          break;
+        }
+      }
+    } catch (error) {
+      console.error("Supabase sync error", error);
+      toast({ title: "Erro de sincronização", description: "Falha ao salvar dados na nuvem.", variant: "destructive" });
     }
-
-    saveTimeout.current = setTimeout(async () => {
-      isSaving.current = true;
-      try {
-        // const userDocRef = doc(db, "userData", user.uid);
-        const stateToSave = cleanUndefined(state);
-
-        // await setDoc(userDocRef, stateToSave, { merge: true });
-      } catch (error) {
-        console.error("Failed to save data to Firestore:", error);
-        toast({ title: "Erro ao salvar na nuvem", description: "Suas alterações podem não ter sido salvas. Verifique a conexão.", variant: "destructive" });
-      } finally {
-        isSaving.current = false;
-      }
-    }, 1500);
-
-    return () => {
-      if (saveTimeout.current) {
-        clearTimeout(saveTimeout.current);
-      }
-    };
-  }, [state, isLoading, toast, user]);
+  };
 
   const getAssociatedTopic = useCallback(() => {
     if (!pomodoroState.associatedItemId) return null;
@@ -472,18 +738,16 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       .find((t: any) => t.id === pomodoroState.associatedItemId);
     return topic || null;
   }, [pomodoroState.associatedItemId, state.subjects]);
-  
+
   const handlePomodoroStateTransition = useCallback((prevState: PomodoroState) => {
     if (!pomodoroSettings) return;
 
     const transition = () => {
-      // FOCUS BLOCK LOGIC
       if (prevState.status === 'focus') {
         const currentTaskIndex = prevState.currentTaskIndex ?? 0;
         const nextTaskIndex = currentTaskIndex + 1;
 
         if (nextTaskIndex < (pomodoroSettings.tasks?.length || 0)) {
-          // Move to the next sub-task
           const nextTask = pomodoroSettings.tasks[nextTaskIndex];
           toast({ title: `Próxima tarefa: ${nextTask.name}` });
           setPomodoroState(prev => ({
@@ -493,7 +757,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             key: prev.key + 1,
           }));
         } else {
-          // Focus block finished, log time and start a break
           const topic = getAssociatedTopic();
           if (topic) {
             const totalFocusDuration = pomodoroSettings.tasks.reduce((sum: number, task: any) => sum + task.duration, 0);
@@ -537,7 +800,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } else if (prevState.status === 'short_break' || prevState.status === 'long_break') {
-        // BREAK BLOCK LOGIC
         toast({ title: "De volta ao foco!", description: "Vamos para o próximo round." });
         const firstTask = pomodoroSettings.tasks?.[0];
         setPomodoroState(prev => ({
@@ -548,16 +810,14 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           key: prev.key + 1,
         }));
       } else {
-        // Fallback to idle
         setPomodoroState(prev => ({ ...prev, status: 'idle' }));
       }
     };
-    
+
     transition();
 
   }, [pomodoroSettings, getAssociatedTopic, toast, state.studySequence, state.sequenceIndex]);
 
-  // Pomodoro Timer Logic
   useEffect(() => {
     if (pomodoroState.status === 'paused' || pomodoroState.status === 'idle') {
       return;
@@ -566,9 +826,9 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     const timer = setInterval(() => {
       setPomodoroState(prev => {
         if (prev.timeRemaining <= 1) {
-          clearInterval(timer); // Stop this interval immediately
+          clearInterval(timer);
           handlePomodoroStateTransition(prev);
-          return prev; // Return previous state to avoid rendering with 0
+          return prev;
         }
         return { ...prev, timeRemaining: prev.timeRemaining - 1 };
       });
@@ -581,30 +841,30 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   const startPomodoroForItem = useCallback((itemId: string, itemType: 'topic' | 'revision') => {
     const topic = state.subjects.flatMap(s => s.topics).find(t => t.id === itemId);
     if (topic) {
-        const subject = state.subjects.find(s => s.id === topic.subjectId);
-        const firstTask = pomodoroSettings?.tasks?.[0];
-        if (subject && firstTask) {
-            setPomodoroState(prev => ({
-                ...prev,
-                status: 'focus',
-                timeRemaining: firstTask.duration,
-                associatedItemId: itemId,
-                associatedItemType: itemType,
-                key: prev.key + 1,
-                currentTaskIndex: 0,
-                currentCycle: 0,
-            }));
-            setActiveTab('pomodoro');
-            toast({
-                title: "Foco no estudo iniciado!",
-                description: `Matéria: ${subject.name}`,
-            });
-        } else {
-            toast({ title: "Erro", description: "Configure pelo menos uma tarefa de foco nas configurações do Pomodoro.", variant: "destructive"});
-        }
+      const subject = state.subjects.find(s => s.id === topic.subjectId);
+      const firstTask = pomodoroSettings?.tasks?.[0];
+      if (subject && firstTask) {
+        setPomodoroState(prev => ({
+          ...prev,
+          status: 'focus',
+          timeRemaining: firstTask.duration,
+          associatedItemId: itemId,
+          associatedItemType: itemType,
+          key: prev.key + 1,
+          currentTaskIndex: 0,
+          currentCycle: 0,
+        }));
+        setActiveTab('pomodoro');
+        toast({
+          title: "Foco no estudo iniciado!",
+          description: `Matéria: ${subject.name}`,
+        });
+      } else {
+        toast({ title: "Erro", description: "Configure pelo menos uma tarefa de foco nas configurações do Pomodoro.", variant: "destructive" });
+      }
     }
   }, [state.subjects, pomodoroSettings, setActiveTab, toast]);
-  
+
   const value = useMemo(() => ({
     data: state,
     dispatch,
@@ -614,13 +874,13 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     setActiveTab,
     startPomodoroForItem,
   }), [state, pomodoroState, activeTab, startPomodoroForItem]);
-  
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen w-full">
         <div className="text-center">
-            <p className="text-lg font-semibold">Carregando seus dados...</p>
-            <p className="text-muted-foreground">Sincronizando com a nuvem.</p>
+          <p className="text-lg font-semibold">Carregando seus dados...</p>
+          <p className="text-muted-foreground">Sincronizando com a nuvem.</p>
         </div>
       </div>
     );

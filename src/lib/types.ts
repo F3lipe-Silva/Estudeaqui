@@ -10,10 +10,25 @@ export interface Topic {
   completionDate?: string; // ISO String
 }
 
+export interface Subject {
+  id: string;
+  name: string;
+  color: string;
+  description?: string;
+  studyDuration?: number;
+  materialUrl?: string;
+  revisionProgress: number;
+  topics: Topic[];
+  peso?: number;
+  nivelConhecimento?: 'iniciante' | 'intermediario' | 'avancado';
+}
+
+export interface TopicTemplate extends Omit<Topic, 'id' | 'subjectId' | 'completionDate'> { }
+
 export interface SubjectTemplate {
   id: string;
   name: string;
-  subjects: Omit<Subject, 'id'>[]; // Without ids, since they'll be regenerated
+  subjects: (Omit<Subject, 'id' | 'topics'> & { topics: TopicTemplate[] })[];
 }
 
 export interface StudyLogEntry {
@@ -69,6 +84,16 @@ export interface StudySequence {
   sequence: StudySequenceItem[];
 }
 
+export interface SchedulePlan {
+  id: string;
+  name: string;
+  createdAt: string; // ISO String
+  totalHorasSemanais: number;
+  duracaoSessao: number; // in minutes
+  subModoPomodoro: 'automatico' | 'manual';
+  sessoesPorMateria: { [subjectId: string]: number };
+}
+
 export interface StudyData {
   subjects: Subject[];
   studyLog: StudyLogEntry[];
@@ -78,6 +103,7 @@ export interface StudyData {
   sequenceIndex: number;
   pomodoroSettings: PomodoroSettings;
   templates: SubjectTemplate[];
+  schedulePlans: SchedulePlan[];
 }
 
 export interface StudyContextType {

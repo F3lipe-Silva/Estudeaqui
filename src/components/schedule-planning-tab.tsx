@@ -1,6 +1,5 @@
-"use client";
-
 import { useStudy } from '@/contexts/study-context';
+import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,22 +14,84 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
+import { useToast } from "@/hooks/use-toast";
+import type { SchedulePlan } from '@/lib/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
 export default function SchedulePlanningTab() {
   const { data, dispatch } = useStudy();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const { subjects } = data;
 
+  // Helper to get storage key
+  const getStorageKey = (key: string) => user ? `estudeaqui_schedule_${key}_${user.id}` : null;
 
   const [totalHorasSemanais, setTotalHorasSemanais] = useState(21); // padrão 3h/dia
-
-  // Novo estado para sessões semanais
   const [sessoesSemanais, setSessoesSemanais] = useState(45); // padrão 45 sessões
-
-  // Novo estado para modo de planejamento unificado
-  const [modoPlanejamento, setModoPlanejamento] = useState<'automatico' | 'manual' | 'manual-com-multiplicadores' | 'pomodoro'>('automatico');
-
-  // Novo estado para sub-modo do pomodoro (automático ou manual)
+  const [modoPlanejamento] = useState<'pomodoro' | 'manual'>('pomodoro');
   const [subModoPomodoro, setSubModoPomodoro] = useState<'automatico' | 'manual'>('manual');
+  const [horasManuais, setHorasManuais] = useState<{ [id: string]: number }>({});
+  const [sessoesManuais, setSessoesManuais] = useState<{ [id: string]: number }>({});
+  const [horasManuaisInput, setHorasManuaisInput] = useState<{ [id: string]: string }>({});
+  const [sessoesManuaisInput, setSessoesManuaisInput] = useState<{ [id: string]: string }>({});
+  const [multiplicadoresInput, setMultiplicadoresInput] = useState<{ [id: string]: string }>({});
+  const [multiplicadorTooltip, setMultiplicadorTooltip] = useState<{ [subjectId: string]: { show: boolean, maxValue: number } }>({});
+
+
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [planNameInput, setPlanNameInput] = useState('');
+
+  // Load settings from localStorage on mount
+  useEffect(() => {
+    if (!user) return;
+
+    const loadSettings = () => {
+      const settingsKey = getStorageKey('settings');
+      if (settingsKey) {
+        const savedSettings = localStorage.getItem(settingsKey);
+        if (savedSettings) {
+          try {
+            const parsed = JSON.parse(savedSettings);
+            if (parsed.totalHorasSemanais) setTotalHorasSemanais(parsed.totalHorasSemanais);
+            if (parsed.sessoesSemanais) setSessoesSemanais(parsed.sessoesSemanais);
+
+            if (parsed.subModoPomodoro) setSubModoPomodoro(parsed.subModoPomodoro);
+            if (parsed.horasManuais) setHorasManuais(parsed.horasManuais);
+            if (parsed.sessoesManuais) setSessoesManuais(parsed.sessoesManuais);
+            if (parsed.multiplicadoresInput) setMultiplicadoresInput(parsed.multiplicadoresInput);
+          } catch (e) {
+            console.error("Failed to parse schedule settings", e);
+          }
+        }
+      }
+    };
+
+    loadSettings();
+
+  }, [user]);
+
+
+
+  // Save settings to localStorage whenever they change
+  useEffect(() => {
+    if (!user) return;
+
+    const settings = {
+      totalHorasSemanais,
+      sessoesSemanais,
+      modoPlanejamento,
+      subModoPomodoro,
+      horasManuais,
+      sessoesManuais,
+      multiplicadoresInput
+    };
+
+    const settingsKey = getStorageKey('settings');
+    if (settingsKey) {
+      localStorage.setItem(settingsKey, JSON.stringify(settings));
+    }
+  }, [user, totalHorasSemanais, sessoesSemanais, modoPlanejamento, subModoPomodoro, horasManuais, sessoesManuais, multiplicadoresInput]);
 
   // Calcular duração da sessão em minutos
   const duracaoSessao = useMemo(() => {
@@ -56,44 +117,22 @@ export default function SchedulePlanningTab() {
     }
   }, [totalHorasSemanais, duracaoSessao, sessoesSemanais, modoPlanejamento]);
 
-  // Função para lidar com mudança de modo de planejamento
-  const handleModoPlanejamentoChange = (novoModo: 'automatico' | 'manual' | 'manual-com-multiplicadores' | 'pomodoro') => {
-    setModoPlanejamento(novoModo);
-  };
+
 
   // Função para aplicar cálculo manual
   const aplicarCalculoManual = () => {
     setHorasManuais(horasBaseMultiplicadoresManual);
-    const novosInputs: {[id: string]: string} = {};
+    const novosInputs: { [id: string]: string } = {};
     Object.entries(horasBaseMultiplicadoresManual).forEach(([subjectId, horas]) => {
       novosInputs[subjectId] = String(horas);
     });
     setHorasManuaisInput(novosInputs);
   };
 
-  // Estado para horas manuais por matéria (modo manual)
-  const [horasManuais, setHorasManuais] = useState<{[id: string]: number}>({});
-
-  // Estado para sessões manuais por matéria (modo pomodoro)
-  const [sessoesManuais, setSessoesManuais] = useState<{[id: string]: number}>({});
-
-  // Estado para controlar valores temporários dos inputs (permite campo vazio)
-  const [horasManuaisInput, setHorasManuaisInput] = useState<{[id: string]: string}>({});
-
-  // Estado para controlar valores temporários dos inputs de sessões
-  const [sessoesManuaisInput, setSessoesManuaisInput] = useState<{[id: string]: string}>({});
-
-  // Multiplicador padrão: 1 para cada matéria
-  // Estado local para inputs de multiplicador
-  const [multiplicadoresInput, setMultiplicadoresInput] = useState<{[id: string]: string}>({});
-
-  // Estado para controlar tooltips de validação
-  const [multiplicadorTooltip, setMultiplicadorTooltip] = useState<{[subjectId: string]: { show: boolean, maxValue: number }}>({});
-
   // Calcular multiplicador máximo permitido para cada matéria no modo automático
   const getMultiplicadorMaximo = useMemo(() => {
     return (subjectId: string) => {
-      if (modoPlanejamento !== 'automatico') return 100; // Sem limite significativo nos outros modos
+      return 100; // Sem limite significativo nos outros modos
 
       const materias = subjects.length;
       if (materias === 0) return 100;
@@ -257,9 +296,10 @@ export default function SchedulePlanningTab() {
         }
       });
     });
-    
+
     // Limpar os estados temporários após salvar
     setHorasManuaisInput({});
+    toast({ title: "Horas salvas com sucesso!" });
   };
 
   // Funções para modo pomodoro
@@ -310,7 +350,7 @@ export default function SchedulePlanningTab() {
   const salvarSessoesManuais = () => {
     // Salvar as sessões no contexto (converter para horas)
     subjects.forEach(subject => {
-      const sessoes = subModoPomodoro === 'automatico' ? getSessoesMateria(subject.id) : (sessoesManuais[subject.id] || 0);
+      const sessoes = subModoPomodoro === 'automatico' ? (sessoesAutomaticas[subject.id] || 0) : (sessoesManuais[subject.id] || 0);
       const horas = sessoes * (duracaoSessao / 60);
       dispatch({
         type: 'UPDATE_SUBJECT',
@@ -320,19 +360,86 @@ export default function SchedulePlanningTab() {
         }
       });
     });
-    
+
     // Limpar os estados temporários após salvar (apenas no modo manual)
     if (subModoPomodoro === 'manual') {
       setSessoesManuaisInput({});
     }
+    toast({ title: "Sessões salvas com sucesso!" });
+  };
+
+  // Save current schedule as a named plan
+  const handleSavePlan = () => {
+    if (!user) return;
+    const trimmedName = planNameInput.trim();
+    if (!trimmedName) {
+      toast({ title: "Erro", description: "Digite um nome para o cronograma", variant: "destructive" });
+      return;
+    }
+
+    const sessoesPorMateria = subModoPomodoro === 'automatico' ? sessoesAutomaticas : sessoesManuais;
+
+    const newPlan: SchedulePlan = {
+      id: `plan-${Date.now()}`,
+      name: trimmedName,
+      createdAt: new Date().toISOString(),
+      totalHorasSemanais,
+      duracaoSessao,
+      subModoPomodoro,
+      sessoesPorMateria
+    };
+
+    dispatch({ type: 'ADD_SCHEDULE_PLAN', payload: newPlan });
+
+    // Also save to results for immediate import
+    const resultsKey = `estudeaqui_schedule_results_${user.id}`;
+    localStorage.setItem(resultsKey, JSON.stringify({
+      type: 'pomodoro',
+      data: sessoesPorMateria,
+      duration: duracaoSessao
+    }));
+
+    toast({ title: "Cronograma salvo!", description: `"${trimmedName}" foi salvo com sucesso.` });
+    setPlanNameInput('');
+    setIsSaveDialogOpen(false);
+  };
+
+  // Load a saved plan
+  const handleLoadPlan = (plan: SchedulePlan) => {
+    setTotalHorasSemanais(plan.totalHorasSemanais);
+    setSessoesSemanais(plan.duracaoSessao);
+    setSubModoPomodoro(plan.subModoPomodoro);
+
+    if (plan.subModoPomodoro === 'manual') {
+      setSessoesManuais(plan.sessoesPorMateria);
+    }
+
+    // Update results for import
+    if (user) {
+      const resultsKey = `estudeaqui_schedule_results_${user.id}`;
+      localStorage.setItem(resultsKey, JSON.stringify({
+        type: 'pomodoro',
+        data: plan.sessoesPorMateria,
+        duration: plan.duracaoSessao
+      }));
+    }
+
+    toast({ title: "Cronograma carregado!", description: `"${plan.name}" foi carregado.` });
+  };
+
+  // Delete a saved plan
+  const handleDeletePlan = (planId: string) => {
+    if (!user) return;
+    dispatch({ type: 'DELETE_SCHEDULE_PLAN', payload: planId });
+    toast({ title: "Cronograma excluído" });
   };
 
   // Calcular sessões restantes no modo pomodoro
   const sessoesRestantesPomodoro = useMemo(() => {
     if (modoPlanejamento !== 'pomodoro') return 0;
-    
+
     const maxSessoes = Math.round(totalHorasSemanais * 60 / duracaoSessao);
-    
+
     let totalDistribuidas = 0;
     if (subModoPomodoro === 'automatico') {
       // Calcular sessões automáticas inline
@@ -363,14 +470,14 @@ export default function SchedulePlanningTab() {
     } else {
       totalDistribuidas = subjects.reduce((sum, subject) => sum + (sessoesManuais[subject.id] || 0), 0);
     }
-    
+
     return Math.max(0, maxSessoes - totalDistribuidas);
   }, [modoPlanejamento, subModoPomodoro, subjects, totalHorasSemanais, duracaoSessao, sessoesManuais]);
 
   // Calcular total de sessões distribuídas no modo pomodoro
   const totalSessoesDistribuidas = useMemo(() => {
     if (modoPlanejamento !== 'pomodoro') return 0;
-    
+
     if (subModoPomodoro === 'automatico') {
       const maxSessoes = Math.round(totalHorasSemanais * 60 / duracaoSessao);
       const materias = subjects.length;
@@ -411,66 +518,7 @@ export default function SchedulePlanningTab() {
     return Math.round(totalHorasSemanais * 60 / duracaoSessao);
   }, [modoPlanejamento, totalHorasSemanais, duracaoSessao]);
 
-  // Função para obter sessões de uma matéria (considerando modo automático ou manual)
-  const getSessoesMateria = (subjectId: string) => {
-    if (modoPlanejamento !== 'pomodoro') return 0;
-    
-    if (subModoPomodoro === 'automatico') {
-      const maxSessoes = Math.round(totalHorasSemanais * 60 / duracaoSessao);
-      if (maxSessoes <= 0) return 0;
 
-      const subject = subjects.find(s => s.id === subjectId);
-      if (!subject) return 0;
-
-      const nivel = subject.nivelConhecimento || 'intermediario';
-      const iniciantes = subjects.filter(s => (s.nivelConhecimento || 'intermediario') === 'iniciante');
-      const intermediarios = subjects.filter(s => (s.nivelConhecimento || 'intermediario') === 'intermediario');
-      const avancados = subjects.filter(s => (s.nivelConhecimento || 'intermediario') === 'avancado');
-
-      if (nivel === 'iniciante' && iniciantes.length > 0) {
-        const sessoesParaIniciantes = Math.ceil(maxSessoes * 0.5);
-        const index = iniciantes.findIndex(s => s.id === subjectId);
-        if (index !== -1) {
-          const sessoesPorMateria = Math.floor(sessoesParaIniciantes / iniciantes.length);
-          const resto = sessoesParaIniciantes % iniciantes.length;
-          return sessoesPorMateria + (index < resto ? 1 : 0);
-        }
-      } else if (nivel === 'intermediario' && intermediarios.length > 0) {
-        let sessoesRestantes = maxSessoes;
-        if (iniciantes.length > 0) {
-          sessoesRestantes -= Math.ceil(maxSessoes * 0.5);
-        }
-        if (sessoesRestantes > 0) {
-          const sessoesParaIntermediarios = Math.ceil(sessoesRestantes * 0.7);
-          const index = intermediarios.findIndex(s => s.id === subjectId);
-          if (index !== -1) {
-            const sessoesPorMateria = Math.floor(sessoesParaIntermediarios / intermediarios.length);
-            const resto = sessoesParaIntermediarios % intermediarios.length;
-            return sessoesPorMateria + (index < resto ? 1 : 0);
-          }
-        }
-      } else if (nivel === 'avancado' && avancados.length > 0) {
-        let sessoesRestantes = maxSessoes;
-        if (iniciantes.length > 0) {
-          sessoesRestantes -= Math.ceil(maxSessoes * 0.5);
-        }
-        if (intermediarios.length > 0 && sessoesRestantes > 0) {
-          sessoesRestantes -= Math.ceil(sessoesRestantes * 0.7);
-        }
-        if (sessoesRestantes > 0) {
-          const index = avancados.findIndex(s => s.id === subjectId);
-          if (index !== -1) {
-            const sessoesPorMateria = Math.floor(sessoesRestantes / avancados.length);
-            const resto = sessoesRestantes % avancados.length;
-            return sessoesPorMateria + (index < resto ? 1 : 0);
-          }
-        }
-      }
-      return 0;
-    } else {
-      return sessoesManuais[subjectId] || 0;
-    }
-  };
 
   // Calcular sessões automáticas baseado no nível de conhecimento
   const sessoesAutomaticas = useMemo(() => {
@@ -487,21 +535,21 @@ export default function SchedulePlanningTab() {
     const intermediarios = subjects.filter(s => (s.nivelConhecimento || 'intermediario') === 'intermediario');
     const avancados = subjects.filter(s => (s.nivelConhecimento || 'intermediario') === 'avancado');
 
-    const resultado: {[id: string]: number} = {};
+    const resultado: { [id: string]: number } = {};
 
     // Distribuição por prioridade: Iniciante > Intermediário > Avançado
     const distribuirSessoes = (materias: typeof subjects, sessoesDisponiveis: number) => {
       if (materias.length === 0 || sessoesDisponiveis <= 0) return 0;
-      
+
       const sessoesPorMateria = Math.floor(sessoesDisponiveis / materias.length);
       const resto = sessoesDisponiveis % materias.length;
-      
+
       // Distribui sessões igualmente, com resto para as primeiras matérias
       materias.forEach((materia, index) => {
         const sessoesExtras = index < resto ? 1 : 0;
         resultado[materia.id] = sessoesPorMateria + sessoesExtras;
       });
-      
+
       return sessoesDisponiveis;
     };
 
@@ -521,15 +569,28 @@ export default function SchedulePlanningTab() {
 
     // Terceiro: Avançados recebem o que sobrar
     if (avancados.length > 0 && sessoesRestantes > 0) {
-      distribuirSessoes(avancados, sessoesRestantes);
+      sessoesRestantes -= distribuirSessoes(avancados, sessoesRestantes);
+    }
+
+    // Quarto: Se ainda sobrarem sessões, distribuir igualmente entre todas as matérias
+    if (sessoesRestantes > 0) {
+      let index = 0;
+      while (sessoesRestantes > 0) {
+        const subject = subjects[index % subjects.length];
+        resultado[subject.id] = (resultado[subject.id] || 0) + 1;
+        sessoesRestantes--;
+        index++;
+      }
     }
 
     return resultado;
   }, [modoPlanejamento, subModoPomodoro, subjects, maxSessoesPossiveis]);
 
+
+
   // Calcular horas restantes no modo manual com validação
   const horasRestantesManual = useMemo(() => {
-    if (modoPlanejamento === 'automatico') return 0;
+    return 0;
     const totalDistribuidas = subjects.reduce((sum, subject) => {
       return sum + (horasManuais[subject.id] || 0);
     }, 0);
@@ -538,7 +599,7 @@ export default function SchedulePlanningTab() {
 
   // Verificar se há problemas no modo manual
   const problemasModoManual = useMemo(() => {
-    if (modoPlanejamento !== 'manual') return null;
+    return null;
 
     const totalDistribuidas = subjects.reduce((sum, subject) => {
       return sum + (horasManuais[subject.id] || 0);
@@ -557,7 +618,7 @@ export default function SchedulePlanningTab() {
 
   // Calcular horas baseadas em multiplicadores para o modo manual
   const horasBaseMultiplicadoresManual = useMemo(() => {
-    if (modoPlanejamento !== 'manual-com-multiplicadores') return {};
+    return {};
 
     const materias = subjects.length;
     if (materias === 0) return {};
@@ -622,7 +683,7 @@ export default function SchedulePlanningTab() {
     }
 
     // Retornar objeto com subjectId -> horas
-    const resultado: {[id: string]: number} = {};
+    const resultado: { [id: string]: number } = {};
     horasEfetivas.forEach(item => {
       resultado[item.subjectId] = Math.round(item.horas * 10) / 10;
     });
@@ -632,14 +693,14 @@ export default function SchedulePlanningTab() {
   // Calcular o máximo possível para cada matéria no modo manual
   const getMaxHorasParaMateria = useMemo(() => {
     return (subjectId: string) => {
-      if (modoPlanejamento === 'automatico') return totalHorasSemanais;
-      
+      return totalHorasSemanais;
+
       const horasAtuaisDestaMateria = horasManuais[subjectId] || 0;
       const totalOutrasMaterias = subjects.reduce((sum, subject) => {
         if (subject.id === subjectId) return sum;
         return sum + (horasManuais[subject.id] || 0);
       }, 0);
-      
+
       // Máximo = horas restantes + horas já alocadas para esta matéria
       return totalHorasSemanais - totalOutrasMaterias;
     };
@@ -647,14 +708,14 @@ export default function SchedulePlanningTab() {
 
   // Efeito para inicializar horas manuais quando ativar multiplicadores
   useEffect(() => {
-    if (modoPlanejamento === 'manual-com-multiplicadores') {
+    if (false) {
       // Verifica se já tem valores significativos definidos
       const hasSignificantValues = Object.values(horasManuais).some(h => h > 0);
 
       if (!hasSignificantValues) {
         // Só inicializa se não há valores significativos
         setHorasManuais(horasBaseMultiplicadoresManual);
-        const novosInputs: {[id: string]: string} = {};
+        const novosInputs: { [id: string]: string } = {};
         Object.entries(horasBaseMultiplicadoresManual).forEach(([subjectId, horas]) => {
           novosInputs[subjectId] = String(horas);
         });
@@ -666,10 +727,7 @@ export default function SchedulePlanningTab() {
 
   // Efeito para limpar estados quando sai do modo manual
   useEffect(() => {
-    if (modoPlanejamento === 'automatico') {
-      setHorasManuais({});
-      setHorasManuaisInput({});
-    } else if (modoPlanejamento === 'pomodoro') {
+    if (true) {
       setHorasManuais({});
       setHorasManuaisInput({});
       setSessoesManuais({});
@@ -779,7 +837,7 @@ export default function SchedulePlanningTab() {
 
   // Verificar se há excesso de horas
   const totalHorasCalculadas = useMemo(() => {
-    if (modoPlanejamento === 'manual-com-multiplicadores') {
+    if (false) {
       return horasPorMateriaManualComMultiplicadores.reduce((sum, item) => sum + item.horas, 0);
     }
     return horasPorMateria.reduce((sum, item) => sum + item.horas, 0);
@@ -790,14 +848,14 @@ export default function SchedulePlanningTab() {
 
   // Verificar se há horas não distribuídas no modo manual-com-multiplicadores
   const horasNaoDistribuidas = useMemo(() => {
-    if (modoPlanejamento !== 'manual-com-multiplicadores') return 0;
+    return 0;
     return Math.max(0, totalHorasSemanais - totalHorasCalculadas);
   }, [modoPlanejamento, totalHorasSemanais, totalHorasCalculadas]);
 
   const temHorasNaoDistribuidas = horasNaoDistribuidas > 0.1; // tolerância de 0.1 hora
 
   const getHorasMateria = (subjectId: string) => {
-    if (modoPlanejamento === 'manual-com-multiplicadores') {
+    if (false) {
       return horasPorMateriaManualComMultiplicadores.find(h => h.subjectId === subjectId)?.horas || 0;
     }
     return horasPorMateria.find(h => h.subjectId === subjectId)?.horas || 0;
@@ -846,8 +904,58 @@ export default function SchedulePlanningTab() {
           </p>
         </div>
 
+        {/* Saved Plans Section */}
+        {data.schedulePlans.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Cronogramas Salvos</CardTitle>
+              <CardDescription>Carregue um cronograma anterior ou crie um novo</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+                {data.schedulePlans.map(plan => (
+                  <Card key={plan.id} className="relative">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold truncate">{plan.name}</h4>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {new Date(plan.createdAt).toLocaleDateString('pt-BR')}
+                          </p>
+                          <div className="text-xs mt-2 space-y-1">
+                            <p>{plan.totalHorasSemanais}h/semana • {plan.duracaoSessao}min/sessão</p>
+                            <p className="capitalize">{plan.subModoPomodoro}</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleLoadPlan(plan)}
+                            className="h-8 px-3"
+                          >
+                            Carregar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeletePlan(plan.id)}
+                            className="h-8 px-2 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
-          <CardContent className="p-4 grid gap-4 md:grid-cols-3 items-end">
+          <CardContent className="p-4 grid gap-4 md:grid-cols-2 items-end">
             <div className="space-y-2">
               <Label htmlFor="total-hours">Horas Semanais</Label>
               <div className="relative">
@@ -866,7 +974,7 @@ export default function SchedulePlanningTab() {
 
             <div className="space-y-2">
               <Label htmlFor="total-sessions">
-                {modoPlanejamento === 'pomodoro' ? 'Duração Sessão (min)' : 'Sessões Semanais'}
+                Duração Sessão (min)
               </Label>
               <div className="relative">
                 <Calculator className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -874,7 +982,7 @@ export default function SchedulePlanningTab() {
                   id="total-sessions"
                   type="number"
                   min="1"
-                  max={modoPlanejamento === 'pomodoro' ? "120" : "200"}
+                  max="120"
                   value={sessoesSemanais}
                   onChange={(e) => setSessoesSemanais(Number(e.target.value))}
                   className="pl-8"
@@ -882,55 +990,40 @@ export default function SchedulePlanningTab() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Modo de Planejamento</Label>
-              <Select value={modoPlanejamento} onValueChange={handleModoPlanejamentoChange}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="automatico">Automático</SelectItem>
-                  <SelectItem value="manual">Manual (Horas)</SelectItem>
-                  <SelectItem value="manual-com-multiplicadores">Manual (Multiplicadores)</SelectItem>
-                  <SelectItem value="pomodoro">Pomodoro</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
 
-        {modoPlanejamento === 'pomodoro' && (
-          <div className="flex items-center gap-4 bg-muted/50 p-3 rounded-lg border">
-            <span className="text-sm font-medium">Distribuição Pomodoro:</span>
-            <div className="flex gap-2">
-              <Button 
-                variant={subModoPomodoro === 'automatico' ? 'default' : 'outline'} 
-                size="sm"
-                onClick={() => setSubModoPomodoro('automatico')}
-                className="h-8"
-              >
-                Automática
-              </Button>
-              <Button 
-                variant={subModoPomodoro === 'manual' ? 'default' : 'outline'} 
-                size="sm"
-                onClick={() => setSubModoPomodoro('manual')}
-                className="h-8"
-              >
-                Manual
-              </Button>
-            </div>
-            <div className="ml-auto text-xs text-muted-foreground">
-              {subModoPomodoro === 'automatico' 
-                ? "Distribui baseado no nível de conhecimento" 
-                : "Você define o número de sessões por matéria"}
-            </div>
+          </CardContent >
+        </Card >
+
+        <div className="flex items-center gap-4 bg-muted/50 p-3 rounded-lg border">
+          <span className="text-sm font-medium">Distribuição Pomodoro:</span>
+          <div className="flex gap-2">
+            <Button
+              variant={subModoPomodoro === 'automatico' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSubModoPomodoro('automatico')}
+              className="h-8"
+            >
+              Automática
+            </Button>
+            <Button
+              variant={subModoPomodoro === 'manual' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSubModoPomodoro('manual')}
+              className="h-8"
+            >
+              Manual
+            </Button>
           </div>
-        )}
-      </div>
+          <div className="ml-auto text-xs text-muted-foreground">
+            {subModoPomodoro === 'automatico'
+              ? "Distribui baseado no nível de conhecimento"
+              : "Você define o número de sessões por matéria"}
+          </div>
+        </div>
+      </div >
 
       {/* Summary Bar */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b py-4 -mx-4 px-4 md:mx-0 md:px-0 md:border-0 md:bg-transparent">
+      < div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b py-4 -mx-4 px-4 md:mx-0 md:px-0 md:border-0 md:bg-transparent" >
         <Card className="border-primary/20 bg-primary/5 shadow-sm">
           <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4 w-full md:w-auto">
@@ -959,84 +1052,82 @@ export default function SchedulePlanningTab() {
                 <span>Progresso da Distribuição</span>
                 <span className={cn(
                   "font-bold",
-                  (modoPlanejamento === 'manual' && horasRestantesManual > 0) || 
-                  (modoPlanejamento === 'pomodoro' && sessoesRestantesPomodoro > 0) 
-                    ? "text-orange-600" 
+                  (modoPlanejamento === 'manual' && horasRestantesManual > 0) ||
+                    (modoPlanejamento === 'pomodoro' && sessoesRestantesPomodoro > 0)
+                    ? "text-orange-600"
                     : "text-green-600"
                 )}>
-                  {modoPlanejamento === 'manual' 
-                    ? `${(totalHorasSemanais - horasRestantesManual).toFixed(1)}h usadas` 
-                    : modoPlanejamento === 'pomodoro'
-                    ? `${totalSessoesDistribuidas}/${maxSessoesPossiveis} sessões`
-                    : "100% Automático"}
+                  {`${totalSessoesDistribuidas}/${maxSessoesPossiveis} sessões`}
                 </span>
               </div>
-              <Progress 
-                value={
-                  modoPlanejamento === 'manual' 
-                    ? ((totalHorasSemanais - horasRestantesManual) / totalHorasSemanais) * 100
-                    : modoPlanejamento === 'pomodoro'
-                    ? (totalSessoesDistribuidas / maxSessoesPossiveis) * 100
-                    : modoPlanejamento === 'manual-com-multiplicadores'
-                    ? (totalHorasCalculadas / totalHorasSemanais) * 100
-                    : 100
-                } 
+              <Progress
+                value={(totalSessoesDistribuidas / maxSessoesPossiveis) * 100}
                 className="h-2"
               />
             </div>
 
             <div className="w-full md:w-auto flex justify-end">
-               {/* Save Button Logic */}
-               {modoPlanejamento === 'manual' && (
-                  <Button 
-                    onClick={salvarHorasManuais}
-                    disabled={horasRestantesManual > 0}
-                    size="sm"
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    Salvar
-                  </Button>
-                )}
-                {modoPlanejamento === 'pomodoro' && (
-                  <Button 
-                    onClick={salvarSessoesManuais}
+              {/* Save Button with Dialog */}
+              <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
                     disabled={subModoPomodoro === 'manual' && totalSessoesDistribuidas > maxSessoesPossiveis}
                     size="sm"
                   >
                     <Save className="h-4 w-4 mr-2" />
-                    Salvar
+                    Salvar Cronograma
                   </Button>
-                )}
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Salvar Cronograma</DialogTitle>
+                    <DialogDescription>
+                      Dê um nome para este cronograma para identificá-lo facilmente depois.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="plan-name">Nome do Cronograma</Label>
+                      <Input
+                        id="plan-name"
+                        placeholder="Ex: Semana Intensiva"
+                        value={planNameInput}
+                        onChange={(e) => setPlanNameInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSavePlan();
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsSaveDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleSavePlan}>
+                      Salvar
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </CardContent>
         </Card>
-      </div>
+      </div >
 
       {/* Warnings */}
-      {problemasModoManual && (
-        <Alert variant={problemasModoManual.severidade === 'error' ? 'destructive' : 'default'}>
-          <AlertTitle>{problemasModoManual.severidade === 'error' ? 'Erro' : 'Aviso'}</AlertTitle>
-          <AlertDescription>{problemasModoManual.mensagem}</AlertDescription>
-        </Alert>
-      )}
-      
-      {temHorasNaoDistribuidas && (
-        <Alert className="bg-orange-50 border-orange-200 text-orange-800">
-          <AlertTitle>Horas Livres</AlertTitle>
-          <AlertDescription>
-            {horasNaoDistribuidas.toFixed(1)}h não distribuídas. Ajuste os multiplicadores para usar todo o tempo.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {modoPlanejamento === 'pomodoro' && totalSessoesDistribuidas > maxSessoesPossiveis && (
-        <Alert variant="destructive">
-          <AlertTitle>Limite Excedido</AlertTitle>
-          <AlertDescription>
-            Você planejou {totalSessoesDistribuidas} sessões, mas só cabem {maxSessoesPossiveis} no seu horário.
-          </AlertDescription>
-        </Alert>
-      )}
+      {
+        totalSessoesDistribuidas > maxSessoesPossiveis && (
+          <Alert variant="destructive">
+            <AlertTitle>Limite Excedido</AlertTitle>
+            <AlertDescription>
+              Você planejou {totalSessoesDistribuidas} sessões, mas só cabem {maxSessoesPossiveis} no seu horário.
+            </AlertDescription>
+          </Alert>
+        )
+      }
 
       {/* Subjects Table */}
       <div className="rounded-md border">
@@ -1058,20 +1149,20 @@ export default function SchedulePlanningTab() {
               </TableRow>
             ) : (
               subjects.map((subject) => {
-                const horas = modoPlanejamento === 'manual' 
+                const horas = modoPlanejamento === 'manual'
                   ? (horasManuais[subject.id] || 0)
                   : getHorasMateria(subject.id);
-                
+
                 const sessoes = modoPlanejamento === 'pomodoro'
-                  ? (subModoPomodoro === 'automatico' ? getSessoesMateria(subject.id) : (sessoesManuais[subject.id] || 0))
+                  ? (subModoPomodoro === 'automatico' ? (sessoesAutomaticas[subject.id] || 0) : (sessoesManuais[subject.id] || 0))
                   : 0;
 
                 return (
                   <TableRow key={subject.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div 
-                          className="w-3 h-3 rounded-full ring-1 ring-offset-1 ring-offset-background" 
+                        <div
+                          className="w-3 h-3 rounded-full ring-1 ring-offset-1 ring-offset-background"
                           style={{ backgroundColor: subject.color }}
                         />
                         <span className="font-medium">{subject.name}</span>
@@ -1093,29 +1184,7 @@ export default function SchedulePlanningTab() {
                       </Select>
                     </TableCell>
                     <TableCell>
-                      {modoPlanejamento === 'manual' ? (
-                        <div className="flex items-center gap-4">
-                          <Input
-                            type="number"
-                            min="0"
-                            max={getMaxHorasParaMateria(subject.id)}
-                            step="0.5"
-                            value={horasManuaisInput[subject.id] !== undefined ? horasManuaisInput[subject.id] : String(horasManuais[subject.id] || 0)}
-                            onChange={(e) => handleHorasManuaisInputChange(subject.id, e.target.value)}
-                            onBlur={() => handleHorasManuaisInputBlur(subject.id)}
-                            className="h-8 w-20"
-                          />
-                          <input
-                            type="range"
-                            min="0"
-                            max={getMaxHorasParaMateria(subject.id)}
-                            step="0.5"
-                            value={horasManuais[subject.id] || 0}
-                            onChange={(e) => handleHorasManuaisChange(subject.id, Number(e.target.value))}
-                            className="w-full max-w-[200px] h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
-                          />
-                        </div>
-                      ) : modoPlanejamento === 'pomodoro' && subModoPomodoro === 'manual' ? (
+                      {subModoPomodoro === 'manual' ? (
                         <div className="flex items-center gap-4">
                           <Input
                             type="number"
@@ -1132,46 +1201,26 @@ export default function SchedulePlanningTab() {
                             step="1"
                             value={sessoesManuais[subject.id] || 0}
                             onChange={(e) => {
-                                const newValue = Number(e.target.value);
-                                const sessoesAtuaisDestaMateria = sessoesManuais[subject.id] || 0;
-                                const maxPermitido = sessoesAtuaisDestaMateria + sessoesRestantesPomodoro;
-                                const sessoesLimitadas = Math.min(newValue, maxPermitido);
-                                setSessoesManuais(prev => ({ ...prev, [subject.id]: sessoesLimitadas }));
-                                setSessoesManuaisInput(prev => ({ ...prev, [subject.id]: String(sessoesLimitadas) }));
+                              const newValue = Number(e.target.value);
+                              const sessoesAtuaisDestaMateria = sessoesManuais[subject.id] || 0;
+                              const maxPermitido = sessoesAtuaisDestaMateria + sessoesRestantesPomodoro;
+                              const sessoesLimitadas = Math.min(newValue, maxPermitido);
+                              setSessoesManuais(prev => ({ ...prev, [subject.id]: sessoesLimitadas }));
+                              setSessoesManuaisInput(prev => ({ ...prev, [subject.id]: String(sessoesLimitadas) }));
                             }}
                             className="w-full max-w-[200px] h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
                           />
                         </div>
-                      ) : modoPlanejamento === 'pomodoro' && subModoPomodoro === 'automatico' ? (
-                        <span className="text-sm text-muted-foreground italic">Calculado automaticamente</span>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Label className="text-xs whitespace-nowrap">Multiplicador:</Label>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Input
-                                type="text"
-                                inputMode="decimal"
-                                value={multiplicadoresInput[subject.id] !== undefined ? multiplicadoresInput[subject.id] : (typeof subject.peso === 'number' ? String(subject.peso) : '')}
-                                onChange={e => handleInputChange(subject.id, e.target.value)}
-                                onBlur={() => handleInputCommit(subject.id)}
-                                onKeyDown={e => { if (e.key === 'Enter') handleInputCommit(subject.id); }}
-                                className={cn("h-8 w-20", modoPlanejamento === 'automatico' && temExcesso && "border-red-300")}
-                              />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Ajuste o peso desta matéria</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      )}
+                      ) : subModoPomodoro === 'automatico' ? (
+                        <span className="text-sm text-muted-foreground italic">Calculado automaticamente ({sessoesAutomaticas[subject.id] || 0})</span>
+                      ) : null}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex flex-col items-end">
                         <span className="font-bold text-primary">
-                          {modoPlanejamento === 'pomodoro' ? `${sessoes} sessões` : `${horas}h`}
+                          {`${sessoes} sessões`}
                         </span>
-                        {modoPlanejamento === 'pomodoro' && duracaoSessao > 0 && (
+                        {duracaoSessao > 0 && (
                           <span className="text-xs text-muted-foreground">
                             ~{formatarTempo(sessoes * duracaoSessao / 60)}
                           </span>
@@ -1185,6 +1234,29 @@ export default function SchedulePlanningTab() {
           </TableBody>
         </Table>
       </div>
-    </div>
+    </div >
   );
+
+  // Save calculated results to localStorage for import in Planning tab
+  // This effect is placed here to ensure all dependencies are defined
+  useEffect(() => {
+    if (!user) return;
+
+    const resultsKey = `estudeaqui_schedule_results_${user.id}`;
+    if (!resultsKey) return;
+
+    let resultsToSave: any = null;
+
+    if (modoPlanejamento === 'pomodoro') {
+      if (subModoPomodoro === 'automatico') {
+        resultsToSave = { type: 'pomodoro', data: sessoesAutomaticas, duration: duracaoSessao };
+      } else {
+        resultsToSave = { type: 'pomodoro', data: sessoesManuais, duration: duracaoSessao };
+      }
+    }
+
+    if (resultsToSave) {
+      localStorage.setItem(resultsKey, JSON.stringify(resultsToSave));
+    }
+  }, [user, modoPlanejamento, subModoPomodoro, sessoesAutomaticas, sessoesManuais, horasManuais, horasPorMateriaManualComMultiplicadores, horasPorMateria, duracaoSessao]);
 }

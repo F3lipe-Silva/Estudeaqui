@@ -18,13 +18,17 @@ const navItems = [
     { id: 'history', label: 'Histórico', icon: History },
 ];
 
+import { SettingsDialog } from './settings-dialog';
+
+// ... (existing imports)
+
 export default function AppHeader() {
     const { activeTab, setActiveTab } = useStudy();
-    
+
     return (
         <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur-sm lg:px-6">
             <div className="flex items-center gap-4">
-                 <div className="hidden md:block lg:hidden">
+                <div className="hidden md:block lg:hidden">
                     <Sheet>
                         <SheetTrigger asChild>
                             <Button variant="ghost" size="icon">
@@ -32,15 +36,15 @@ export default function AppHeader() {
                             </Button>
                         </SheetTrigger>
                         <SheetContent side="left" className="p-0">
-                           <SheetHeader className="p-4 border-b sr-only">
-                             <SheetTitle>Menu de Navegação</SheetTitle>
-                           </SheetHeader>
-                           <Sidebar isSheet={true}/>
+                            <SheetHeader className="p-4 border-b sr-only">
+                                <SheetTitle>Menu de Navegação</SheetTitle>
+                            </SheetHeader>
+                            <Sidebar isSheet={true} />
                         </SheetContent>
                     </Sheet>
-                 </div>
+                </div>
                 <h1 className="text-xl font-bold">Estudaqui</h1>
-                 <nav className="hidden lg:flex items-center gap-2">
+                <nav className="hidden lg:flex items-center gap-2">
                     {navItems.map((item) => (
                         <Button
                             key={item.id}
@@ -55,6 +59,7 @@ export default function AppHeader() {
                 </nav>
             </div>
             <div className="flex items-center gap-2">
+                <SettingsDialog />
                 <ThemeToggle />
             </div>
         </header>
