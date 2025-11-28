@@ -44,7 +44,7 @@ function studyReducer(state: StudyData, action: any): StudyData {
       return { ...initialState, ...loadedState };
     case 'ADD_SUBJECT': {
       const newSubject: Subject = {
-        id: action.payload.id || `subj-${Date.now()}`,
+        id: action.payload.id || crypto.randomUUID(),
         name: action.payload.name,
         color: action.payload.color,
         description: action.payload.description,
@@ -72,7 +72,7 @@ function studyReducer(state: StudyData, action: any): StudyData {
       const subjects = state.subjects.map(s => {
         if (s.id === subjectId) {
           const newTopic: Topic = {
-            id: id || `topic-${subjectId}-${Date.now()}`,
+            id: id || crypto.randomUUID(),
             subjectId,
             name,
             order: s.topics.length,
@@ -142,7 +142,7 @@ function studyReducer(state: StudyData, action: any): StudyData {
 
       const newLog: StudyLogEntry = {
         ...logData,
-        id: logData.id || `log-${Date.now()}`,
+        id: logData.id || crypto.randomUUID(),
         date: logData.date || today.toISOString(),
       };
 
@@ -307,7 +307,7 @@ function studyReducer(state: StudyData, action: any): StudyData {
         })),
       }));
       const newTemplate: SubjectTemplate = {
-        id: id || `template-${Date.now()}`,
+        id: id || crypto.randomUUID(),
         name,
         subjects: templateSubjects,
       };

@@ -42,10 +42,12 @@ import type { StudySequenceItem, SchedulePlan } from '@/lib/types';
 
 
 import { useAuth } from '@/contexts/auth-context';
+import { createClient } from '@/lib/supabase/client';
 
 export default function StudySequencePlanningTab() {
   const { data, dispatch, setActiveTab } = useStudy();
   const { user } = useAuth();
+  const supabase = createClient();
   const { subjects, studySequence, sequenceIndex } = data;
   const { toast } = useToast();
 
@@ -180,7 +182,7 @@ export default function StudySequencePlanningTab() {
     }
 
     const newSequence = {
-      id: `seq-imported-${Date.now()}`,
+      id: crypto.randomUUID(),
       name: planName,
       sequence: newSequenceItems,
     };
@@ -211,40 +213,12 @@ export default function StudySequencePlanningTab() {
       return;
     }
 
-    const resultsKey = `estudeaqui_schedule_results_${user.id}`;
-    const savedResults = localStorage.getItem(resultsKey);
-
-    if (!savedResults) {
-      toast({ title: "Nenhum cronograma encontrado", description: "Configure seu cronograma na aba 'Cronograma' primeiro.", variant: "destructive" });
-      return;
-    }
-
-    try {
-      const { type, data } = JSON.parse(savedResults);
-      const sessionsPerSubject: { [id: string]: number } = {};
-
-      if (type === 'pomodoro') {
-        Object.assign(sessionsPerSubject, data);
-      } else {
-        Object.entries(data).forEach(([subjectId, val]) => {
-          const h = Number(val);
-          if (h > 0) {
-            sessionsPerSubject[subjectId] = Math.max(1, Math.round(h));
-          }
-        });
-      }
-
-      generateSequenceFromSessions(sessionsPerSubject, "Plano Importado do Cronograma");
-
-    } catch (e) {
-      console.error("Failed to import schedule", e);
-      toast({ title: "Erro ao importar", description: "Falha ao processar dados do cronograma.", variant: "destructive" });
-    }
+    toast({ title: "Nenhum cronograma encontrado", description: "Configure seu cronograma na aba 'Cronograma' primeiro.", variant: "destructive" });
   };
 
   const handleCreateEmptySequence = () => {
     const newSequence = {
-      id: `seq-manual-${Date.now()}`,
+      id: crypto.randomUUID(),
       name: "Plano de Estudos Manual",
       sequence: subjects.map(s => ({ subjectId: s.id, totalTimeStudied: 0 })),
     };
@@ -254,7 +228,7 @@ export default function StudySequencePlanningTab() {
 
   const handleCreateEmptyManualSequence = () => {
     const newSequence = {
-      id: `seq-manual-empty-${Date.now()}`,
+      id: crypto.randomUUID(),
       name: "Plano de Estudos Manual Vazio",
       sequence: [],
     };
@@ -494,44 +468,6 @@ export default function StudySequencePlanningTab() {
                 </div>
               </Button>
             ))}
-            <div className="relative my-2">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Ou</span>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setIsImportDialogOpen(false);
-                // Force import from current/latest result
-                const resultsKey = user ? `estudeaqui_schedule_results_${user.id}` : '';
-                const savedResults = localStorage.getItem(resultsKey);
-                if (savedResults) {
-                  try {
-                    const { type, data } = JSON.parse(savedResults);
-                    const sessionsPerSubject: { [id: string]: number } = {};
-                    if (type === 'pomodoro') {
-                      Object.assign(sessionsPerSubject, data);
-                    } else {
-                      Object.entries(data).forEach(([subjectId, val]) => {
-                        const h = Number(val);
-                        if (h > 0) sessionsPerSubject[subjectId] = Math.max(1, Math.round(h));
-                      });
-                    }
-                    generateSequenceFromSessions(sessionsPerSubject, "Plano Atual (Não Salvo)");
-                  } catch (e) {
-                    toast({ title: "Erro", description: "Falha ao ler cronograma atual." });
-                  }
-                } else {
-                  toast({ title: "Erro", description: "Nenhum cronograma atual encontrado." });
-                }
-              }}
-            >
-              Importar Cronograma Atual (Não Salvo)
-            </Button>
           </div>
         </DialogContent>
       </Dialog>

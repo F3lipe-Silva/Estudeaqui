@@ -1,5 +1,6 @@
 import { useStudy } from '@/contexts/study-context';
 import { useAuth } from '@/contexts/auth-context';
+import { createClient } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 export default function SchedulePlanningTab() {
   const { data, dispatch } = useStudy();
   const { user } = useAuth();
+  const supabase = createClient();
   const { toast } = useToast();
   const { subjects } = data;
 
@@ -42,28 +44,25 @@ export default function SchedulePlanningTab() {
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [planNameInput, setPlanNameInput] = useState('');
 
-  // Load settings from localStorage on mount
+  // Load settings from Supabase on mount
   useEffect(() => {
     if (!user) return;
 
-    const loadSettings = () => {
-      const settingsKey = getStorageKey('settings');
-      if (settingsKey) {
-        const savedSettings = localStorage.getItem(settingsKey);
-        if (savedSettings) {
-          try {
-            const parsed = JSON.parse(savedSettings);
-            if (parsed.totalHorasSemanais) setTotalHorasSemanais(parsed.totalHorasSemanais);
-            if (parsed.sessoesSemanais) setSessoesSemanais(parsed.sessoesSemanais);
-
-            if (parsed.subModoPomodoro) setSubModoPomodoro(parsed.subModoPomodoro);
-            if (parsed.horasManuais) setHorasManuais(parsed.horasManuais);
-            if (parsed.sessoesManuais) setSessoesManuais(parsed.sessoesManuais);
-            if (parsed.multiplicadoresInput) setMultiplicadoresInput(parsed.multiplicadoresInput);
-          } catch (e) {
-            console.error("Failed to parse schedule settings", e);
-          }
-        }
+    const loadSettings = async () => {
+      const { data, error } = await supabase.from('user_settings').select('settings').eq('user_id', user.id).single();
+      if (error && error.code !== 'PGRST116') {
+        console.error("Failed to load settings", error);
+        return;
+      }
+      if (data?.settings) {
+        const parsed = data.settings;
+        if (parsed.totalHorasSemanais) setTotalHorasSemanais(parsed.totalHorasSemanais);
+        if (parsed.sessoesSemanais) setSessoesSemanais(parsed.sessoesSemanais);
+        if (parsed.modoPlanejamento) setModoPlanejamento(parsed.modoPlanejamento);
+        if (parsed.subModoPomodoro) setSubModoPomodoro(parsed.subModoPomodoro);
+        if (parsed.horasManuais) setHorasManuais(parsed.horasManuais);
+        if (parsed.sessoesManuais) setSessoesManuais(parsed.sessoesManuais);
+        if (parsed.multiplicadoresInput) setMultiplicadoresInput(parsed.multiplicadoresInput);
       }
     };
 
@@ -73,7 +72,7 @@ export default function SchedulePlanningTab() {
 
 
 
-  // Save settings to localStorage whenever they change
+  // Save settings to Supabase whenever they change
   useEffect(() => {
     if (!user) return;
 
@@ -87,11 +86,11 @@ export default function SchedulePlanningTab() {
       multiplicadoresInput
     };
 
-    const settingsKey = getStorageKey('settings');
-    if (settingsKey) {
-      localStorage.setItem(settingsKey, JSON.stringify(settings));
-    }
-  }, [user, totalHorasSemanais, sessoesSemanais, modoPlanejamento, subModoPomodoro, horasManuais, sessoesManuais, multiplicadoresInput]);
+    supabase.from('user_settings').upsert({
+      user_id: user.id,
+      settings
+    });
+  }, [user, totalHorasSemanais, sessoesSemanais, modoPlanejamento, subModoPomodoro, horasManuais, sessoesManuais, multiplicadoresInput, supabase]);
 
   // Calcular duração da sessão em minutos
   const duracaoSessao = useMemo(() => {
@@ -380,7 +379,7 @@ export default function SchedulePlanningTab() {
     const sessoesPorMateria = subModoPomodoro === 'automatico' ? sessoesAutomaticas : sessoesManuais;
 
     const newPlan: SchedulePlan = {
-      id: `plan-${Date.now()}`,
+      id: crypto.randomUUID(),
       name: trimmedName,
       createdAt: new Date().toISOString(),
       totalHorasSemanais,
@@ -390,14 +389,6 @@ export default function SchedulePlanningTab() {
     };
 
     dispatch({ type: 'ADD_SCHEDULE_PLAN', payload: newPlan });
-
-    // Also save to results for immediate import
-    const resultsKey = `estudeaqui_schedule_results_${user.id}`;
-    localStorage.setItem(resultsKey, JSON.stringify({
-      type: 'pomodoro',
-      data: sessoesPorMateria,
-      duration: duracaoSessao
-    }));
 
     toast({ title: "Cronograma salvo!", description: `"${trimmedName}" foi salvo com sucesso.` });
     setPlanNameInput('');
@@ -412,16 +403,6 @@ export default function SchedulePlanningTab() {
 
     if (plan.subModoPomodoro === 'manual') {
       setSessoesManuais(plan.sessoesPorMateria);
-    }
-
-    // Update results for import
-    if (user) {
-      const resultsKey = `estudeaqui_schedule_results_${user.id}`;
-      localStorage.setItem(resultsKey, JSON.stringify({
-        type: 'pomodoro',
-        data: plan.sessoesPorMateria,
-        duration: plan.duracaoSessao
-      }));
     }
 
     toast({ title: "Cronograma carregado!", description: `"${plan.name}" foi carregado.` });
@@ -1236,27 +1217,6 @@ export default function SchedulePlanningTab() {
       </div>
     </div >
   );
-
-  // Save calculated results to localStorage for import in Planning tab
-  // This effect is placed here to ensure all dependencies are defined
-  useEffect(() => {
-    if (!user) return;
-
-    const resultsKey = `estudeaqui_schedule_results_${user.id}`;
-    if (!resultsKey) return;
-
-    let resultsToSave: any = null;
-
-    if (modoPlanejamento === 'pomodoro') {
-      if (subModoPomodoro === 'automatico') {
-        resultsToSave = { type: 'pomodoro', data: sessoesAutomaticas, duration: duracaoSessao };
-      } else {
-        resultsToSave = { type: 'pomodoro', data: sessoesManuais, duration: duracaoSessao };
-      }
-    }
-
-    if (resultsToSave) {
-      localStorage.setItem(resultsKey, JSON.stringify(resultsToSave));
-    }
-  }, [user, modoPlanejamento, subModoPomodoro, sessoesAutomaticas, sessoesManuais, horasManuais, horasPorMateriaManualComMultiplicadores, horasPorMateria, duracaoSessao]);
 }
+
+
