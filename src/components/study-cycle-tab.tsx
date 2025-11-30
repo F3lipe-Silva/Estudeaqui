@@ -96,7 +96,8 @@ export default function StudyCycleTab() {
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
 
   const handleAddSubject = (data: any) => {
-    dispatch({ type: 'ADD_SUBJECT', payload: data });
+    const subjectData = { ...data, id: crypto.randomUUID() };
+    dispatch({ type: 'ADD_SUBJECT', payload: subjectData });
   };
 
   const handleUpdateSubject = (data: any) => {
@@ -112,7 +113,8 @@ export default function StudyCycleTab() {
 
   const handleAddTopic = (subjectId: string) => {
     if (newTopicName.trim()) {
-      dispatch({ type: 'ADD_TOPIC', payload: { subjectId, name: newTopicName } });
+      const topicData = { subjectId, name: newTopicName, id: crypto.randomUUID() };
+      dispatch({ type: 'ADD_TOPIC', payload: topicData });
       setNewTopicName('');
       setAddingTopicTo(null);
     }
@@ -128,7 +130,8 @@ export default function StudyCycleTab() {
 
   const handleSaveTemplate = () => {
     if (saveTemplateName.trim()) {
-      dispatch({ type: 'SAVE_TEMPLATE', payload: { name: saveTemplateName } });
+      const templateData = { id: crypto.randomUUID(), name: saveTemplateName };
+      dispatch({ type: 'SAVE_TEMPLATE', payload: templateData });
       setSaveTemplateName('');
       setIsSaveDialogOpen(false);
     }

@@ -28,7 +28,7 @@ export default function AppHeader() {
     const { logOut } = useAuth();
 
     return (
-        <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur-sm lg:px-6">
+        <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur-sm lg:px-6 pt-[env(safe-area-inset-top)]">
             <div className="flex items-center gap-4">
                 <div className="hidden md:block lg:hidden">
                     <Sheet>
@@ -45,7 +45,7 @@ export default function AppHeader() {
                         </SheetContent>
                     </Sheet>
                 </div>
-                <h1 className="text-xl font-bold">Estudaqui</h1>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent truncate max-w-[200px] md:max-w-none">Estudaqui</h1>
                 <nav className="hidden lg:flex items-center gap-2">
                     {navItems.map((item) => (
                         <Button

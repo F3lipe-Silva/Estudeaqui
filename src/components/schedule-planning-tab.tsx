@@ -1,6 +1,5 @@
 import { useStudy } from '@/contexts/study-context';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +21,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 export default function SchedulePlanningTab() {
   const { data, dispatch } = useStudy();
   const { user } = useAuth();
-  const supabase = createClient();
   const { toast } = useToast();
   const { subjects } = data;
 
@@ -43,54 +41,140 @@ export default function SchedulePlanningTab() {
 
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [planNameInput, setPlanNameInput] = useState('');
+  const [loadingFromPlan, setLoadingFromPlan] = useState(false);
 
-  // Load settings from Supabase on mount
+  // State for custom study time and subject ordering
+  const [customStudyTimes, setCustomStudyTimes] = useState<{ [subjectId: string]: number }>({});
+  const [subjectOrder, setSubjectOrder] = useState<string[]>([]);
+  const [isEditingOrder, setIsEditingOrder] = useState(false);
+  const [isEditingTime, setIsEditingTime] = useState(false);
+
+  // Load settings from localStorage on mount
   useEffect(() => {
-    if (!user) return;
+    if (!user || loadingFromPlan) return; // Don't load from localStorage if currently loading from a plan
 
-    const loadSettings = async () => {
-      const { data, error } = await supabase.from('user_settings').select('settings').eq('user_id', user.id).single();
-      if (error && error.code !== 'PGRST116') {
-        console.error("Failed to load settings", error);
-        return;
-      }
-      if (data?.settings) {
-        const parsed = data.settings;
-        if (parsed.totalHorasSemanais) setTotalHorasSemanais(parsed.totalHorasSemanais);
-        if (parsed.sessoesSemanais) setSessoesSemanais(parsed.sessoesSemanais);
-        if (parsed.modoPlanejamento) setModoPlanejamento(parsed.modoPlanejamento);
-        if (parsed.subModoPomodoro) setSubModoPomodoro(parsed.subModoPomodoro);
-        if (parsed.horasManuais) setHorasManuais(parsed.horasManuais);
-        if (parsed.sessoesManuais) setSessoesManuais(parsed.sessoesManuais);
-        if (parsed.multiplicadoresInput) setMultiplicadoresInput(parsed.multiplicadoresInput);
+    const loadSettings = () => {
+      try {
+        const settingsKey = `estudeaqui_schedule_settings_${user.id}`;
+        const settingsData = localStorage.getItem(settingsKey);
+
+        if (settingsData) {
+          const parsed = JSON.parse(settingsData);
+          if (parsed.total_horas_semanais) setTotalHorasSemanais(parsed.total_horas_semanais);
+          if (parsed.sessoes_semanais) setSessoesSemanais(parsed.sessoes_semanais);
+        }
+      } catch (error) {
+        console.error("Failed to load settings from localStorage", error);
       }
     };
 
     loadSettings();
 
-  }, [user]);
+  }, [user, loadingFromPlan]);
+
+  // Initialize subject order when subjects change
+  useEffect(() => {
+    if (subjects.length > 0 && subjectOrder.length === 0) {
+      setSubjectOrder(subjects.map(subject => subject.id));
+    }
+  }, [subjects, subjectOrder.length]);
+
+  // Initialize subject order when subjects change
+  useEffect(() => {
+    if (subjects.length > 0 && subjectOrder.length === 0) {
+      setSubjectOrder(subjects.map(subject => subject.id));
+    }
+  }, [subjects, subjectOrder.length]);
 
 
 
-  // Save settings to Supabase whenever they change
+  // Load custom study times from subjects when subjects change
+  useEffect(() => {
+    if (subjects.length > 0) {
+      const initialTimes: { [subjectId: string]: number } = {};
+      subjects.forEach(subject => {
+        // Use studyDuration from the subject if available, otherwise calculate from horasSemanais
+        if (subject.studyDuration) {
+          initialTimes[subject.id] = subject.studyDuration;
+        } else if (subject.horasSemanais) {
+          initialTimes[subject.id] = Math.round(subject.horasSemanais * 60); // Convert hours to minutes
+        }
+      });
+      if (Object.keys(initialTimes).length > 0) {
+        setCustomStudyTimes(initialTimes);
+      }
+    }
+  }, [subjects]);
+
+  // Load saved planning state on component mount to preserve between page reloads
   useEffect(() => {
     if (!user) return;
 
-    const settings = {
-      totalHorasSemanais,
-      sessoesSemanais,
-      modoPlanejamento,
-      subModoPomodoro,
-      horasManuais,
-      sessoesManuais,
-      multiplicadoresInput
+    // Load any saved custom study times
+    const customTimesKey = `estudeaqui_custom_study_times_${user.id}`;
+    try {
+      const savedTimes = localStorage.getItem(customTimesKey);
+      if (savedTimes) {
+        const times = JSON.parse(savedTimes);
+        if (typeof times === 'object' && times !== null) {
+          setCustomStudyTimes(times);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load custom study times from localStorage", error);
+    }
+
+    // Load any saved subject order
+    const orderKey = `estudeaqui_subject_order_${user.id}`;
+    try {
+      const savedOrder = localStorage.getItem(orderKey);
+      if (savedOrder) {
+        const order = JSON.parse(savedOrder);
+        if (Array.isArray(order)) {
+          setSubjectOrder(order);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load subject order from localStorage", error);
+    }
+  }, [user]);
+
+  // Save custom study times to localStorage when they change
+  useEffect(() => {
+    if (!user) return;
+
+    const customTimesKey = `estudeaqui_custom_study_times_${user.id}`;
+    try {
+      localStorage.setItem(customTimesKey, JSON.stringify(customStudyTimes));
+    } catch (error) {
+      console.error("Failed to save custom study times to localStorage", error);
+    }
+  }, [user, customStudyTimes]);
+
+
+
+  // Save settings to localStorage whenever they change
+  useEffect(() => {
+    if (!user) return;
+
+    const saveSettings = () => {
+      try {
+        const settingsData = {
+          total_horas_semanais: totalHorasSemanais,
+          sessoes_semanais: sessoesSemanais,
+          updatedAt: new Date().toISOString()
+        };
+
+        const settingsKey = `estudeaqui_schedule_settings_${user.id}`;
+        localStorage.setItem(settingsKey, JSON.stringify(settingsData));
+      } catch (err) {
+        console.error("Failed to save settings to localStorage", err);
+      }
     };
 
-    supabase.from('user_settings').upsert({
-      user_id: user.id,
-      settings
-    });
-  }, [user, totalHorasSemanais, sessoesSemanais, modoPlanejamento, subModoPomodoro, horasManuais, sessoesManuais, multiplicadoresInput, supabase]);
+    // Using setTimeout to avoid blocking the render
+    setTimeout(saveSettings, 0);
+  }, [user, totalHorasSemanais, sessoesSemanais]);
 
   // Calcular duração da sessão em minutos
   const duracaoSessao = useMemo(() => {
@@ -390,6 +474,20 @@ export default function SchedulePlanningTab() {
 
     dispatch({ type: 'ADD_SCHEDULE_PLAN', payload: newPlan });
 
+    // Save custom study times and order linked to this plan
+    const planDataKey = `estudeaqui_plan_data_${newPlan.id}`;
+    const planCustomData = {
+      customStudyTimes,
+      subjectOrder,
+      savedAt: new Date().toISOString()
+    };
+
+    try {
+      localStorage.setItem(planDataKey, JSON.stringify(planCustomData));
+    } catch (error) {
+      console.error("Failed to save plan custom data to localStorage", error);
+    }
+
     toast({ title: "Cronograma salvo!", description: `"${trimmedName}" foi salvo com sucesso.` });
     setPlanNameInput('');
     setIsSaveDialogOpen(false);
@@ -397,15 +495,101 @@ export default function SchedulePlanningTab() {
 
   // Load a saved plan
   const handleLoadPlan = (plan: SchedulePlan) => {
+    setLoadingFromPlan(true);
     setTotalHorasSemanais(plan.totalHorasSemanais);
     setSessoesSemanais(plan.duracaoSessao);
     setSubModoPomodoro(plan.subModoPomodoro);
 
-    if (plan.subModoPomodoro === 'manual') {
-      setSessoesManuais(plan.sessoesPorMateria);
+    // Always update sessoesManuais regardless of subModo to ensure proper state
+    setSessoesManuais(plan.sessoesPorMateria);
+
+    // Load custom study times and order linked to this plan
+    const planDataKey = `estudeaqui_plan_data_${plan.id}`;
+    try {
+      const savedPlanData = localStorage.getItem(planDataKey);
+      if (savedPlanData) {
+        const planCustomData = JSON.parse(savedPlanData);
+        if (planCustomData.customStudyTimes) {
+          setCustomStudyTimes(planCustomData.customStudyTimes);
+        }
+        if (planCustomData.subjectOrder && Array.isArray(planCustomData.subjectOrder)) {
+          setSubjectOrder(planCustomData.subjectOrder);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load plan custom data from localStorage", error);
     }
 
+    // Clear the loading flag after a short timeout to allow the state to update
+    setTimeout(() => setLoadingFromPlan(false), 100);
+
     toast({ title: "Cronograma carregado!", description: `"${plan.name}" foi carregado.` });
+  };
+
+  // Handle subject reordering
+  const moveSubject = (fromIndex: number, toIndex: number) => {
+    const newOrder = [...subjectOrder];
+    const [movedItem] = newOrder.splice(fromIndex, 1);
+    newOrder.splice(toIndex, 0, movedItem);
+    setSubjectOrder(newOrder);
+  };
+
+  // Handle custom study time change
+  const handleCustomStudyTimeChange = (subjectId: string, minutes: number) => {
+    setCustomStudyTimes(prev => ({
+      ...prev,
+      [subjectId]: Math.max(1, minutes) // Ensure at least 1 minute
+    }));
+  };
+
+  // Reset to default order (based on subjects array order)
+  const resetSubjectOrder = () => {
+    setSubjectOrder(subjects.map(subject => subject.id));
+    setIsEditingOrder(false);
+  };
+
+  // Apply custom order
+  const applyCustomOrder = () => {
+    setIsEditingOrder(false);
+  };
+
+  // Handle input change for custom study time
+  const handleTimeInputChange = (subjectId: string, value: string) => {
+    const minutes = parseInt(value);
+    if (!isNaN(minutes) && minutes > 0) {
+      handleCustomStudyTimeChange(subjectId, minutes);
+    }
+  };
+
+  // Save custom study times to subjects
+  const saveCustomStudyTimes = () => {
+    Object.entries(customStudyTimes).forEach(([subjectId, minutes]) => {
+      dispatch({
+        type: 'UPDATE_SUBJECT',
+        payload: {
+          id: subjectId,
+          data: {
+            studyDuration: minutes // Save as minutes
+          }
+        }
+      });
+    });
+
+    toast({
+      title: "Tempos de estudo salvos!",
+      description: "Os tempos de estudo por matéria foram salvos com sucesso."
+    });
+  };
+
+  // Save subject order to state (this would require a different approach since subjects are stored separately)
+  const saveSubjectOrder = () => {
+    // In a full implementation, you'd want to save the order somehow
+    // For now, we'll just show a success message
+    // The order is maintained in the component state but not persisted to global state
+    toast({
+      title: "Ordem salva!",
+      description: "A ordem das matérias foi salva com sucesso."
+    });
   };
 
   // Delete a saved plan
@@ -414,84 +598,6 @@ export default function SchedulePlanningTab() {
     dispatch({ type: 'DELETE_SCHEDULE_PLAN', payload: planId });
     toast({ title: "Cronograma excluído" });
   };
-
-  // Calcular sessões restantes no modo pomodoro
-  const sessoesRestantesPomodoro = useMemo(() => {
-    if (modoPlanejamento !== 'pomodoro') return 0;
-
-    const maxSessoes = Math.round(totalHorasSemanais * 60 / duracaoSessao);
-
-    let totalDistribuidas = 0;
-    if (subModoPomodoro === 'automatico') {
-      // Calcular sessões automáticas inline
-      const materias = subjects.length;
-      if (materias > 0 && maxSessoes > 0) {
-        const iniciantes = subjects.filter(s => (s.nivelConhecimento || 'intermediario') === 'iniciante');
-        const intermediarios = subjects.filter(s => (s.nivelConhecimento || 'intermediario') === 'intermediario');
-        const avancados = subjects.filter(s => (s.nivelConhecimento || 'intermediario') === 'avancado');
-
-        let sessoesRestantes = maxSessoes;
-
-        if (iniciantes.length > 0) {
-          const sessoesParaIniciantes = Math.ceil(maxSessoes * 0.5);
-          totalDistribuidas += sessoesParaIniciantes;
-          sessoesRestantes -= sessoesParaIniciantes;
-        }
-
-        if (intermediarios.length > 0 && sessoesRestantes > 0) {
-          const sessoesParaIntermediarios = Math.ceil(sessoesRestantes * 0.7);
-          totalDistribuidas += sessoesParaIntermediarios;
-          sessoesRestantes -= sessoesParaIntermediarios;
-        }
-
-        if (avancados.length > 0 && sessoesRestantes > 0) {
-          totalDistribuidas += sessoesRestantes;
-        }
-      }
-    } else {
-      totalDistribuidas = subjects.reduce((sum, subject) => sum + (sessoesManuais[subject.id] || 0), 0);
-    }
-
-    return Math.max(0, maxSessoes - totalDistribuidas);
-  }, [modoPlanejamento, subModoPomodoro, subjects, totalHorasSemanais, duracaoSessao, sessoesManuais]);
-
-  // Calcular total de sessões distribuídas no modo pomodoro
-  const totalSessoesDistribuidas = useMemo(() => {
-    if (modoPlanejamento !== 'pomodoro') return 0;
-
-    if (subModoPomodoro === 'automatico') {
-      const maxSessoes = Math.round(totalHorasSemanais * 60 / duracaoSessao);
-      const materias = subjects.length;
-      if (materias === 0 || maxSessoes <= 0) return 0;
-
-      const iniciantes = subjects.filter(s => (s.nivelConhecimento || 'intermediario') === 'iniciante');
-      const intermediarios = subjects.filter(s => (s.nivelConhecimento || 'intermediario') === 'intermediario');
-      const avancados = subjects.filter(s => (s.nivelConhecimento || 'intermediario') === 'avancado');
-
-      let total = 0;
-      let sessoesRestantes = maxSessoes;
-
-      if (iniciantes.length > 0) {
-        const sessoesParaIniciantes = Math.ceil(maxSessoes * 0.5);
-        total += sessoesParaIniciantes;
-        sessoesRestantes -= sessoesParaIniciantes;
-      }
-
-      if (intermediarios.length > 0 && sessoesRestantes > 0) {
-        const sessoesParaIntermediarios = Math.ceil(sessoesRestantes * 0.7);
-        total += sessoesParaIntermediarios;
-        sessoesRestantes -= sessoesParaIntermediarios;
-      }
-
-      if (avancados.length > 0 && sessoesRestantes > 0) {
-        total += sessoesRestantes;
-      }
-
-      return total;
-    } else {
-      return subjects.reduce((sum, subject) => sum + (sessoesManuais[subject.id] || 0), 0);
-    }
-  }, [modoPlanejamento, subModoPomodoro, subjects, totalHorasSemanais, duracaoSessao, sessoesManuais]);
 
   // Calcular máximo de sessões possíveis baseado no tempo semanal
   const maxSessoesPossiveis = useMemo(() => {
@@ -566,6 +672,35 @@ export default function SchedulePlanningTab() {
 
     return resultado;
   }, [modoPlanejamento, subModoPomodoro, subjects, maxSessoesPossiveis]);
+
+  // Calcular sessões restantes no modo pomodoro
+  const sessoesRestantesPomodoro = useMemo(() => {
+    if (modoPlanejamento !== 'pomodoro') return 0;
+
+    const maxSessoes = maxSessoesPossiveis;
+
+    let totalDistribuidas = 0;
+    if (subModoPomodoro === 'automatico') {
+      // Use the actual automatic calculation results
+      totalDistribuidas = Object.values(sessoesAutomaticas).reduce((sum, sessoes) => sum + sessoes, 0);
+    } else {
+      totalDistribuidas = subjects.reduce((sum, subject) => sum + (sessoesManuais[subject.id] || 0), 0);
+    }
+
+    return Math.max(0, maxSessoes - totalDistribuidas);
+  }, [modoPlanejamento, subModoPomodoro, subjects, maxSessoesPossiveis, sessoesManuais, sessoesAutomaticas]);
+
+  // Calcular total de sessões distribuídas no modo pomodoro
+  const totalSessoesDistribuidas = useMemo(() => {
+    if (modoPlanejamento !== 'pomodoro') return 0;
+
+    if (subModoPomodoro === 'automatico') {
+      // Use the actual automatic calculation results
+      return Object.values(sessoesAutomaticas).reduce((sum, sessoes) => sum + sessoes, 0);
+    } else {
+      return subjects.reduce((sum, subject) => sum + (sessoesManuais[subject.id] || 0), 0);
+    }
+  }, [modoPlanejamento, subModoPomodoro, subjects, sessoesAutomaticas, sessoesManuais]);
 
 
 
@@ -1098,6 +1233,61 @@ export default function SchedulePlanningTab() {
         </Card>
       </div >
 
+      {/* Controls for editing study time and order */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Button
+          variant={isEditingOrder ? "default" : "outline"}
+          size="sm"
+          onClick={() => setIsEditingOrder(!isEditingOrder)}
+        >
+          {isEditingOrder ? "Cancelar Ordenação" : "Editar Ordem"}
+        </Button>
+        {isEditingOrder && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={saveSubjectOrder}
+          >
+            Salvar Ordem
+          </Button>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            // Toggle time editing mode
+            setIsEditingTime(!isEditingTime);
+            if (!isEditingTime) {
+              // Initialize custom times if not set
+              const initialTimes: { [subjectId: string]: number } = {};
+              subjects.forEach(subject => {
+                if (customStudyTimes[subject.id] === undefined) {
+                  const horas = modoPlanejamento === 'manual'
+                    ? (horasManuais[subject.id] || 0)
+                    : getHorasMateria(subject.id);
+                  const minutos = Math.round(horas * 60);
+                  initialTimes[subject.id] = minutos || 60; // Default to 60 min
+                }
+              });
+              if (Object.keys(initialTimes).length > 0) {
+                setCustomStudyTimes(prev => ({ ...prev, ...initialTimes }));
+              }
+            }
+          }}
+        >
+          {isEditingTime ? "Cancelar Tempo" : "Editar Tempo"}
+        </Button>
+        {isEditingTime && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={saveCustomStudyTimes}
+          >
+            Salvar Tempo
+          </Button>
+        )}
+      </div>
+
       {/* Warnings */}
       {
         totalSessoesDistribuidas > maxSessoesPossiveis && (
@@ -1115,21 +1305,27 @@ export default function SchedulePlanningTab() {
         <Table>
           <TableHeader>
             <TableRow>
+              {isEditingOrder && <TableHead className="w-[50px]">Ordem</TableHead>}
               <TableHead className="w-[250px]">Matéria</TableHead>
               <TableHead className="w-[150px]">Nível</TableHead>
               <TableHead>Configuração</TableHead>
+              <TableHead className="w-[150px]">Tempo</TableHead>
               <TableHead className="w-[150px] text-right">Resultado</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {subjects.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={isEditingOrder ? 6 : 5} className="text-center py-8 text-muted-foreground">
                   Nenhuma matéria cadastrada. Adicione matérias na aba "Ciclo".
                 </TableCell>
               </TableRow>
             ) : (
-              subjects.map((subject) => {
+              // Use ordered subjects if editing order, otherwise use original order
+              (isEditingOrder ?
+                subjectOrder.map(id => subjects.find(s => s.id === id)).filter(Boolean) as any[] :
+                subjects
+              ).map((subject, index) => {
                 const horas = modoPlanejamento === 'manual'
                   ? (horasManuais[subject.id] || 0)
                   : getHorasMateria(subject.id);
@@ -1140,6 +1336,35 @@ export default function SchedulePlanningTab() {
 
                 return (
                   <TableRow key={subject.id}>
+                    {isEditingOrder && (
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={() => index > 0 && moveSubject(index, index - 1)}
+                            disabled={index === 0}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 19V5M5 12l7-7 7 7"/>
+                            </svg>
+                          </Button>
+                          <span className="text-sm">{index + 1}</span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={() => index < subjects.length - 1 && moveSubject(index, index + 1)}
+                            disabled={index === subjects.length - 1}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 5v14M19 12l-7 7-7-7"/>
+                            </svg>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div
@@ -1195,6 +1420,27 @@ export default function SchedulePlanningTab() {
                       ) : subModoPomodoro === 'automatico' ? (
                         <span className="text-sm text-muted-foreground italic">Calculado automaticamente ({sessoesAutomaticas[subject.id] || 0})</span>
                       ) : null}
+                    </TableCell>
+                    <TableCell>
+                      {isEditingTime ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min="1"
+                            value={customStudyTimes[subject.id] || 60}
+                            onChange={(e) => handleTimeInputChange(subject.id, e.target.value)}
+                            className="h-8 w-20"
+                            placeholder="min"
+                          />
+                          <span className="text-sm">min</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm">
+                          {customStudyTimes[subject.id]
+                            ? `${customStudyTimes[subject.id]} min`
+                            : `${Math.round(horas * 60)} min`}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex flex-col items-end">

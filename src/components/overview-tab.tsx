@@ -44,7 +44,7 @@ export default function OverviewTab() {
     const m = minutes % 60;
     return `${h}h ${m}m`;
   };
-  
+
   const getNextStudyInfo = () => {
     if (!studySequence || studySequence.sequence.length === 0) {
       return { nextSubject: null, sequenceItem: null, pendingRevisionTopic: null };
@@ -58,22 +58,22 @@ export default function OverviewTab() {
     const completedTopicsInSubject = nextSubject.topics.filter(t => t.isCompleted);
     let pendingRevisionTopic: TopicType | null = null;
     if (completedTopicsInSubject.length > 0) {
-        const relevantSequence = REVISION_SEQUENCE.filter(topicOrder => completedTopicsInSubject.find(t => t.order === topicOrder));
-        if (nextSubject.revisionProgress < relevantSequence.length) {
-            const currentTopicOrder = relevantSequence[nextSubject.revisionProgress];
-            pendingRevisionTopic = completedTopicsInSubject.find(t => t.order === currentTopicOrder) || null;
-        }
+      const relevantSequence = REVISION_SEQUENCE.filter(topicOrder => completedTopicsInSubject.find(t => t.order === topicOrder));
+      if (nextSubject.revisionProgress < relevantSequence.length) {
+        const currentTopicOrder = relevantSequence[nextSubject.revisionProgress];
+        pendingRevisionTopic = completedTopicsInSubject.find(t => t.order === currentTopicOrder) || null;
+      }
     }
 
     return { nextSubject, sequenceItem, pendingRevisionTopic };
   };
 
   const { nextSubject, sequenceItem, pendingRevisionTopic } = getNextStudyInfo();
-  
+
   const timeStudied = sequenceItem?.totalTimeStudied || 0;
   const timeGoal = nextSubject?.studyDuration || 0;
   const progress = timeGoal > 0 ? (timeStudied / timeGoal) * 100 : 0;
-  
+
   const handleOpenLogForm = (subjectId?: string, topicId?: string) => {
     if (subjectId && topicId) {
       setInitialLogData({ subjectId, topicId });
@@ -93,230 +93,255 @@ export default function OverviewTab() {
       fill: subject.color,
     };
   });
-  
+
   const accuracyChartData = useMemo(() => {
     return subjects.map(subject => {
-        const relevantLogs = studyLog.filter(log => log.subjectId === subject.id && log.questionsTotal > 0);
-        if (relevantLogs.length === 0) {
-            return { name: subject.name, accuracy: 0, fill: subject.color };
-        }
-        const totalCorrect = relevantLogs.reduce((acc, log) => acc + log.questionsCorrect, 0);
-        const totalQuestions = relevantLogs.reduce((acc, log) => acc + log.questionsTotal, 0);
-        const accuracy = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
-        return { name: subject.name, accuracy: Math.round(accuracy), fill: subject.color };
+      const relevantLogs = studyLog.filter(log => log.subjectId === subject.id && log.questionsTotal > 0);
+      if (relevantLogs.length === 0) {
+        return { name: subject.name, accuracy: 0, fill: subject.color };
+      }
+      const totalCorrect = relevantLogs.reduce((acc, log) => acc + log.questionsCorrect, 0);
+      const totalQuestions = relevantLogs.reduce((acc, log) => acc + log.questionsTotal, 0);
+      const accuracy = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
+      return { name: subject.name, accuracy: Math.round(accuracy), fill: subject.color };
     }).filter(d => d.accuracy > 0);
   }, [studyLog, subjects]);
 
+  const today = new Date();
+  const dateOptions: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
+  const formattedDate = today.toLocaleDateString('pt-BR', dateOptions);
 
   return (
     <Dialog open={isLogFormOpen} onOpenChange={setIsLogFormOpen}>
-      <div className="space-y-6">
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
-          <Card className="col-span-1 hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tempo (Hoje)</CardTitle>
+      <div className="space-y-6 pb-20 md:pb-0">
+        {/* Header com Saudação */}
+        <div className="flex flex-col space-y-1 px-1">
+          <h2 className="text-2xl font-bold tracking-tight">Olá, Estudante! 👋</h2>
+          <p className="text-muted-foreground capitalize">{formattedDate}</p>
+        </div>
+
+        {/* Métricas - Scroll Horizontal no Mobile */}
+        <div className="flex overflow-x-auto pb-4 gap-3 -mx-4 px-4 scrollbar-hide md:grid md:grid-cols-4 md:gap-4 md:mx-0 md:px-0 md:overflow-visible">
+          <Card className="min-w-[130px] md:min-w-0 flex-shrink-0 hover:shadow-md transition-shadow border-l-4 border-l-primary">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+              <CardTitle className="text-sm font-medium">Hoje</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 pt-0">
               <div className="text-2xl font-bold">{formatTime(timeToday)}</div>
             </CardContent>
           </Card>
-          <Card className="col-span-1 hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tempo (Semana)</CardTitle>
+          <Card className="min-w-[130px] md:min-w-0 flex-shrink-0 hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+              <CardTitle className="text-sm font-medium">Semana</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 pt-0">
               <div className="text-2xl font-bold">{formatTime(timeThisWeek)}</div>
             </CardContent>
           </Card>
-          <Card className="col-span-1 hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Card className="min-w-[130px] md:min-w-0 flex-shrink-0 hover:shadow-md transition-shadow border-l-4 border-l-yellow-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
               <CardTitle className="text-sm font-medium">Streak</CardTitle>
               <Zap className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 pt-0">
               <div className="text-2xl font-bold">{streak} dias</div>
             </CardContent>
           </Card>
-          <Card className="col-span-1 hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Card className="min-w-[130px] md:min-w-0 flex-shrink-0 hover:shadow-md transition-shadow border-l-4 border-l-green-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
               <CardTitle className="text-sm font-medium">Tópicos</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 pt-0">
               <div className="text-2xl font-bold">{completedTopics}/{totalTopics}</div>
             </CardContent>
           </Card>
         </div>
-        
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
-          <Card className="md:col-span-2 hover:shadow-md transition-shadow">
-              <CardHeader>
-                  <CardTitle className="text-lg font-bold text-primary">Próximo Passo</CardTitle>
-              </CardHeader>
-              <CardContent>
-                  <div className="space-y-4 rounded-lg bg-card-foreground/5 p-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                          <div className="flex items-center gap-4">
-                              <BookOpen className="h-8 w-8 text-primary" />
-                              <div>
-                                  {nextSubject ? (
-                                      <>
-                                        <div className="text-xl font-bold">{nextSubject.name}</div>
-                                        {pendingRevisionTopic && (
-                                           <div className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
-                                                <Repeat className="h-4 w-4" />
-                                                Revisão: {pendingRevisionTopic.name}
-                                           </div>
-                                        )}
-                                      </>
-                                  ) : (
-                                      <div className="text-lg font-semibold text-muted-foreground">Crie sua sequência no Planejamento!</div>
-                                  )}
-                              </div>
-                          </div>
-                          {nextSubject && (
-                            <DialogTrigger asChild>
-                              <Button 
-                                onClick={() => handleOpenLogForm(nextSubject.id, pendingRevisionTopic?.id)}
-                                className="w-full sm:w-auto" 
-                                >
-                                  <PlusCircle className="mr-2 h-4 w-4" /> Registrar
-                              </Button>
-                            </DialogTrigger>
-                          )}
-                      </div>
-                      {nextSubject && timeGoal > 0 && (
-                          <div className="mt-2">
-                            <Progress value={progress} className="h-2" />
-                            <div className="flex justify-between text-sm text-muted-foreground mt-2">
-                              <span>{timeStudied} min</span>
-                              <span>Meta: {timeGoal} min</span>
-                            </div>
-                          </div>
-                      )}
-                  </div>
-              </CardContent>
-          </Card>
 
+        {/* Próximo Passo - Destaque */}
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold px-1">Continuar Estudando</h3>
+          <Card className="hover:shadow-lg transition-all border-primary/20 bg-gradient-to-br from-card to-primary/5">
+            <CardContent className="pt-6">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-full bg-primary/10 text-primary">
+                      <BookOpen className="h-8 w-8" />
+                    </div>
+                    <div>
+                      {nextSubject ? (
+                        <>
+                          <div className="text-xl font-bold">{nextSubject.name}</div>
+                          {pendingRevisionTopic ? (
+                            <div className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
+                              <Repeat className="h-3 w-3" />
+                              Revisão: {pendingRevisionTopic.name}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground mt-1">
+                              Sequência de Estudo
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="text-lg font-semibold text-muted-foreground">Crie sua sequência no Planejamento!</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {nextSubject && timeGoal > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Progresso da Sessão</span>
+                      <span className="font-medium">{Math.round(progress)}%</span>
+                    </div>
+                    <Progress value={progress} className="h-3" />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{timeStudied} min estudados</span>
+                      <span>Meta: {timeGoal} min</span>
+                    </div>
+                  </div>
+                )}
+
+                {nextSubject && (
+                  <DialogTrigger asChild>
+                    <Button
+                      onClick={() => handleOpenLogForm(nextSubject.id, pendingRevisionTopic?.id)}
+                      className="w-full h-12 text-base font-semibold shadow-sm"
+                    >
+                      <PlusCircle className="mr-2 h-5 w-5" />
+                      {progress > 0 ? 'Continuar Sessão' : 'Iniciar Sessão'}
+                    </Button>
+                  </DialogTrigger>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Cards de análise */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Progresso por Matéria */}
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
-              <CardTitle>Progresso por Matéria</CardTitle>
-              <CardDescription>Visão geral do avanço em cada matéria do ciclo.</CardDescription>
+              <CardTitle className="text-lg">Progresso por Matéria</CardTitle>
+              <CardDescription>Avanço geral nos conteúdos</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {subjects.map(subject => {
+              {subjects.slice(0, 5).map(subject => {
                 const completed = subject.topics.filter(t => t.isCompleted).length;
                 const total = subject.topics.length;
                 const progress = total > 0 ? (completed / total) * 100 : 0;
                 return (
-                  <div key={subject.id}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium">{subject.name}</span>
-                      <span className="text-muted-foreground">{completed}/{total}</span>
+                  <div key={subject.id} className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium truncate">{subject.name}</span>
+                      <span className="text-muted-foreground">{Math.round(progress)}%</span>
                     </div>
-                    <Progress value={progress} style={{'--subject-color': subject.color} as React.CSSProperties} className="h-2 [&>div]:bg-[var(--subject-color)]" />
+                    <Progress value={progress} style={{ '--subject-color': subject.color } as React.CSSProperties} className="h-2 [&>div]:bg-[var(--subject-color)]" />
                   </div>
                 );
               })}
+              {subjects.length > 5 && (
+                <Button variant="link" className="w-full text-xs text-muted-foreground h-auto p-0 pt-2">
+                  Ver mais {subjects.length - 5} matérias
+                </Button>
+              )}
             </CardContent>
           </Card>
 
+          {/* Tempo por Matéria */}
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
-              <CardTitle>Tempo por Matéria</CardTitle>
-              <CardDescription>Distribuição do tempo de estudo focado.</CardDescription>
+              <CardTitle className="text-lg">Tempo Dedicado</CardTitle>
+              <CardDescription>Distribuição por matéria</CardDescription>
             </CardHeader>
             <CardContent>
-               <ChartContainer config={{}} className="h-[250px] w-full">
+              <ChartContainer config={{}} className="h-[250px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={chartData}
+                    layout="vertical"
+                    margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+                    <XAxis type="number" hide />
+                    <YAxis
+                      dataKey="name"
+                      type="category"
+                      tickLine={false}
+                      axisLine={false}
+                      width={100}
+                      tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <ChartTooltip
+                      cursor={{ fill: 'hsl(var(--muted)/0.2)' }}
+                      content={<ChartTooltipContent
+                        formatter={(value) => `${value} min`}
+                      />}
+                    />
+                    <Bar dataKey="minutes" radius={[0, 4, 4, 0]} barSize={20} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+
+          {/* Percentual de Acertos */}
+          {accuracyChartData.length > 0 && (
+            <Card className="md:col-span-2 hover:shadow-md transition-shadow">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Percent className="h-5 w-5" /> Desempenho
+                </CardTitle>
+                <CardDescription>Taxa de acertos por matéria</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={{}} className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={chartData}
+                      data={accuracyChartData}
                       layout="vertical"
-                      margin={{ left: 10, right: 10, top: 10, bottom: 10 }}
-                      accessibilityLayer
+                      margin={{ left: 0, right: 30, top: 0, bottom: 0 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" hide />
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+                      <XAxis type="number" domain={[0, 100]} hide />
                       <YAxis
                         dataKey="name"
                         type="category"
                         tickLine={false}
                         axisLine={false}
-                        width={120}
-                        tick={{ fontSize: 12 }}
+                        width={100}
+                        tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                       />
                       <ChartTooltip
-                        cursor={false}
+                        cursor={{ fill: 'hsl(var(--muted)/0.2)' }}
                         content={<ChartTooltipContent
-                          formatter={(value) => `${value} min`}
-                          labelClassName="font-bold"
-                          indicator="dot"
+                          formatter={(value) => `${value}%`}
                         />}
                       />
-                      <Bar dataKey="minutes" radius={5} />
+                      <Bar dataKey="accuracy" radius={[0, 4, 4, 0]} barSize={20} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartContainer>
-            </CardContent>
-          </Card>
-          
-          <Card className="md:col-span-2 hover:shadow-md transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Percent className="h-5 w-5"/> Percentual de Acertos por Matéria</CardTitle>
-              <CardDescription>Desempenho geral nas questões registradas.</CardDescription>
-            </CardHeader>
-            <CardContent>
-               {accuracyChartData.length > 0 ? (
-                 <ChartContainer config={{}} className="h-[250px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={accuracyChartData}
-                        layout="vertical"
-                        margin={{ left: 10, right: 30, top: 10, bottom: 10 }}
-                        accessibilityLayer
-                      >
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                        <XAxis type="number" domain={[0, 100]} unit="%" />
-                        <YAxis
-                          dataKey="name"
-                          type="category"
-                          tickLine={false}
-                          axisLine={false}
-                          width={120}
-                          tick={{ fontSize: 12 }}
-                        />
-                        <ChartTooltip
-                          cursor={false}
-                          content={<ChartTooltipContent
-                            formatter={(value) => `${value}%`}
-                            labelClassName="font-bold"
-                            indicator="dot"
-                          />}
-                        />
-                        <Bar dataKey="accuracy" radius={5} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-               ) : (
-                 <div className="flex items-center justify-center h-[250px] text-muted-foreground text-center">
-                   <p>Nenhum registro de questões encontrado para exibir o desempenho.</p>
-                 </div>
-               )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
         </div>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-            <DialogTitle>Registrar Nova Sessão de Estudo</DialogTitle>
-            </DialogHeader>
-            <StudyLogForm 
-                onSave={() => setIsLogFormOpen(false)} 
-                onCancel={() => setIsLogFormOpen(false)} 
-                initialData={initialLogData}
-             />
+          <DialogHeader>
+            <DialogTitle>Registrar Sessão</DialogTitle>
+          </DialogHeader>
+          <StudyLogForm
+            onSave={() => setIsLogFormOpen(false)}
+            onCancel={() => setIsLogFormOpen(false)}
+            initialData={initialLogData}
+          />
         </DialogContent>
       </div>
     </Dialog>

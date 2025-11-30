@@ -6,7 +6,6 @@ import { useToast } from "@/hooks/use-toast";
 import { format, subDays, isSameDay, parseISO } from 'date-fns';
 import { REVISION_SEQUENCE } from '@/components/revision-tab';
 import { useAuth } from './auth-context';
-import { createClient } from '@/lib/supabase/client';
 
 const initialPomodoroSettings: PomodoroSettings = {
   tasks: [
@@ -349,7 +348,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [isLoading, setIsLoading] = useState(true);
-  const supabase = createClient();
 
   const { pomodoroSettings } = state;
 
@@ -379,356 +377,65 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const loadData = async () => {
+    const loadData = () => {
       setIsLoading(true);
       try {
-        const [
-          subjectsRes,
-          logsRes,
-          sequenceRes,
-          settingsRes,
-          templatesRes,
-          schedulePlansRes
-        ] = await Promise.all([
-          supabase.from('subjects').select('*, topics(*)').order('created_at'),
-          supabase.from('study_logs').select('*').order('date', { ascending: false }),
-          supabase.from('study_sequences').select('*').order('created_at', { ascending: false }).limit(1).single(),
-          supabase.from('pomodoro_settings').select('*').single(),
-          supabase.from('templates').select('*').order('created_at'),
-          supabase.from('schedule_plans').select('*').order('created_at', { ascending: false })
-        ]);
+        const key = `estudeaqui_user_data_${user.id}`;
+        const savedData = localStorage.getItem(key);
 
-        if (subjectsRes.error) throw subjectsRes.error;
-
-        const subjects: Subject[] = subjectsRes.data.map((s: any) => ({
-          id: s.id,
-          name: s.name,
-          color: s.color,
-          description: s.description,
-          studyDuration: s.study_duration,
-          materialUrl: s.material_url,
-          revisionProgress: s.revision_progress,
-          topics: s.topics.map((t: any) => ({
-            id: t.id,
-            subjectId: t.subject_id,
-            name: t.name,
-            order: t.order,
-            isCompleted: t.is_completed,
-            description: t.description
-          })).sort((a: any, b: any) => a.order - b.order)
-        }));
-
-        const studyLog: StudyLogEntry[] = (logsRes.data || []).map((l: any) => ({
-          id: l.id,
-          subjectId: l.subject_id,
-          topicId: l.topic_id,
-          date: l.date,
-          duration: l.duration,
-          startPage: l.start_page,
-          endPage: l.end_page,
-          questionsTotal: l.questions_total,
-          questionsCorrect: l.questions_correct,
-          source: l.source,
-          sequenceItemIndex: l.sequence_item_index
-        }));
-
-        let studySequence: StudySequence | null = null;
-        if (sequenceRes.data) {
-          studySequence = {
-            id: sequenceRes.data.id,
-            name: sequenceRes.data.name,
-            sequence: sequenceRes.data.sequence
-          };
+        if (savedData) {
+          const parsedData = JSON.parse(savedData);
+          // Remove the metadata we added when saving
+          const { lastSaved, ...stateData } = parsedData;
+          originalDispatch({
+            type: 'SET_STATE',
+            payload: stateData as StudyData
+          });
+        } else {
+          // If no data in localStorage, initialize with empty state
+          originalDispatch({ type: 'SET_STATE', payload: initialState });
         }
 
-        let settings = initialPomodoroSettings;
-        if (settingsRes.data?.settings) {
-          settings = settingsRes.data.settings;
-        }
-
-        const templates: SubjectTemplate[] = (templatesRes.data || []).map((t: any) => ({
-          id: t.id,
-          name: t.name,
-          subjects: t.subjects
-        }));
-
-        const schedulePlans: SchedulePlan[] = (schedulePlansRes.data || []).map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          createdAt: p.created_at,
-          totalHorasSemanais: p.total_horas_semanais,
-          duracaoSessao: p.duracao_sessao,
-          subModoPomodoro: p.sub_modo_pomodoro,
-          sessoesPorMateria: p.sessoes_por_materia
-        }));
-
-        let streak = 0;
-        let lastStudiedDate = null;
-        if (studyLog.length > 0) {
-          lastStudiedDate = studyLog[0].date;
-        }
-
-        originalDispatch({
-          type: 'SET_STATE',
-          payload: {
-            subjects,
-            studyLog,
-            lastStudiedDate,
-            streak,
-            studySequence,
-            sequenceIndex: 0,
-            pomodoroSettings: settings,
-            templates,
-            schedulePlans
-          }
-        });
-
-      } catch (error: any) {
-        console.error("Failed to load data from Supabase:", error);
-        toast({ title: "Erro ao carregar dados", description: "Não foi possível carregar seus dados da nuvem.", variant: "destructive" });
+      } catch (error) {
+        console.error("Failed to load from localStorage:", error);
+        // If there's an error loading, continue with empty state
+        originalDispatch({ type: 'SET_STATE', payload: initialState });
       } finally {
         setIsLoading(false);
       }
     };
 
     loadData();
-  }, [user, toast, supabase]);
+  }, [user]);
 
   const stateRef = useRef(state);
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
 
-  const dispatch = async (action: any) => {
+  // Function to save state to localStorage
+  const saveStateToLocalStorage = useCallback((stateToSave: StudyData) => {
+    if (user) {
+      try {
+        const key = `estudeaqui_user_data_${user.id}`;
+        const dataToSave = {
+          ...stateToSave,
+          lastSaved: new Date().toISOString()
+        };
+        localStorage.setItem(key, JSON.stringify(dataToSave));
+      } catch (error) {
+        console.error("Failed to save to localStorage", error);
+      }
+    }
+  }, [user]);
+
+  const dispatch = (action: any) => {
     originalDispatch(action);
 
-    if (!user) return;
-
-    try {
-      switch (action.type) {
-        case 'ADD_SUBJECT': {
-          const { id, name, color, description, studyDuration, materialUrl } = action.payload;
-          await supabase.from('subjects').insert({
-            id,
-            user_id: user.id,
-            name,
-            color,
-            description,
-            study_duration: studyDuration,
-            material_url: materialUrl,
-            revision_progress: 0
-          });
-          break;
-        }
-        case 'UPDATE_SUBJECT': {
-          const { id, data } = action.payload;
-          const updateData: any = {};
-          if (data.name) updateData.name = data.name;
-          if (data.color) updateData.color = data.color;
-          if (data.description) updateData.description = data.description;
-          if (data.studyDuration) updateData.study_duration = data.studyDuration;
-          if (data.materialUrl) updateData.material_url = data.materialUrl;
-          if (data.revisionProgress !== undefined) updateData.revision_progress = data.revisionProgress;
-
-          await supabase.from('subjects').update(updateData).eq('id', id);
-          break;
-        }
-        case 'DELETE_SUBJECT': {
-          await supabase.from('subjects').delete().eq('id', action.payload);
-          break;
-        }
-        case 'ADD_TOPIC': {
-          const { id, subjectId, name } = action.payload;
-          const { count } = await supabase.from('topics').select('*', { count: 'exact', head: true }).eq('subject_id', subjectId);
-          const order = count || 0;
-
-          await supabase.from('topics').insert({
-            id,
-            subject_id: subjectId,
-            name,
-            order,
-            is_completed: false
-          });
-          break;
-        }
-        case 'TOGGLE_TOPIC_COMPLETED': {
-          const { topicId } = action.payload;
-          const { data } = await supabase.from('topics').select('is_completed').eq('id', topicId).single();
-          if (data) {
-            await supabase.from('topics').update({ is_completed: !data.is_completed }).eq('id', topicId);
-          }
-          break;
-        }
-        case 'DELETE_TOPIC': {
-          await supabase.from('topics').delete().eq('id', action.payload.topicId);
-          break;
-        }
-        case 'SET_REVISION_PROGRESS': {
-          const { subjectId, progress } = action.payload;
-          await supabase.from('subjects').update({ revision_progress: progress }).eq('id', subjectId);
-          break;
-        }
-        case 'ADD_STUDY_LOG': {
-          const log = action.payload;
-          await supabase.from('study_logs').insert({
-            id: log.id,
-            user_id: user.id,
-            subject_id: log.subjectId,
-            topic_id: log.topicId,
-            date: log.date,
-            duration: log.duration,
-            start_page: log.startPage,
-            end_page: log.endPage,
-            questions_total: log.questionsTotal,
-            questions_correct: log.questionsCorrect,
-            source: log.source,
-            sequence_item_index: log.sequenceItemIndex
-          });
-          break;
-        }
-        case 'UPDATE_STUDY_LOG': {
-          const log = action.payload;
-          await supabase.from('study_logs').update({
-            duration: log.duration,
-            start_page: log.startPage,
-            end_page: log.endPage,
-            questions_total: log.questionsTotal,
-            questions_correct: log.questionsCorrect,
-          }).eq('id', log.id);
-          break;
-        }
-        case 'DELETE_STUDY_LOG': {
-          await supabase.from('study_logs').delete().eq('id', action.payload);
-          break;
-        }
-        case 'SAVE_STUDY_SEQUENCE': {
-          const sequence = action.payload;
-          await supabase.from('study_sequences').insert({
-            id: sequence.id,
-            user_id: user.id,
-            name: sequence.name,
-            sequence: sequence.sequence
-          });
-          break;
-        }
-        case 'UPDATE_POMODORO_SETTINGS': {
-          const settings = action.payload;
-          await supabase.from('pomodoro_settings').upsert({
-            user_id: user.id,
-            settings
-          });
-          break;
-        }
-        case 'SAVE_TEMPLATE': {
-          const { id, name } = action.payload;
-          const currentSubjects = stateRef.current.subjects;
-          const templateSubjects = currentSubjects.map(s => ({
-            name: s.name,
-            color: s.color,
-            description: s.description,
-            studyDuration: s.studyDuration,
-            materialUrl: s.materialUrl,
-            revisionProgress: 0,
-            topics: s.topics.map(t => ({
-              name: t.name,
-              order: t.order,
-              isCompleted: false
-            }))
-          }));
-
-          await supabase.from('templates').insert({
-            id,
-            user_id: user.id,
-            name,
-            subjects: templateSubjects
-          });
-          break;
-        }
-        case 'LOAD_TEMPLATE': {
-          const templateId = action.payload;
-          const template = stateRef.current.templates.find(t => t.id === templateId);
-          if (!template) return;
-
-          await supabase.from('subjects').delete().eq('user_id', user.id);
-
-          const newSubjects: Subject[] = [];
-
-          for (const s of template.subjects) {
-            const subjectId = crypto.randomUUID();
-            const { error: subjError } = await supabase.from('subjects').insert({
-              id: subjectId,
-              user_id: user.id,
-              name: s.name,
-              color: s.color,
-              description: s.description,
-              study_duration: s.studyDuration,
-              material_url: s.materialUrl,
-              revision_progress: 0
-            });
-
-            if (subjError) throw subjError;
-
-            const newTopics: Topic[] = [];
-            for (const t of s.topics) {
-              const topicId = crypto.randomUUID();
-              await supabase.from('topics').insert({
-                id: topicId,
-                subject_id: subjectId,
-                name: t.name,
-                order: t.order,
-                is_completed: false
-              });
-              newTopics.push({
-                id: topicId,
-                subjectId,
-                name: t.name,
-                order: t.order,
-                isCompleted: false
-              });
-            }
-
-            newSubjects.push({
-              id: subjectId,
-              name: s.name,
-              color: s.color,
-              description: s.description,
-              studyDuration: s.studyDuration,
-              materialUrl: s.materialUrl,
-              revisionProgress: 0,
-              topics: newTopics
-            });
-          }
-
-          originalDispatch({ type: 'LOAD_TEMPLATE_SUCCESS', payload: { subjects: newSubjects } });
-          break;
-        }
-        case 'DELETE_TEMPLATE': {
-          await supabase.from('templates').delete().eq('id', action.payload);
-          break;
-        }
-        case 'ADD_SCHEDULE_PLAN': {
-          const plan = action.payload;
-          await supabase.from('schedule_plans').insert({
-            id: plan.id,
-            user_id: user.id,
-            name: plan.name,
-            created_at: plan.createdAt,
-            total_horas_semanais: plan.totalHorasSemanais,
-            duracao_sessao: plan.duracaoSessao,
-            sub_modo_pomodoro: plan.subModoPomodoro,
-            sessoes_por_materia: plan.sessoesPorMateria
-          });
-          break;
-        }
-        case 'DELETE_SCHEDULE_PLAN': {
-          await supabase.from('schedule_plans').delete().eq('id', action.payload);
-          break;
-        }
-      }
-    } catch (error) {
-      console.error("Supabase sync error", error);
-      toast({ title: "Erro de sincronização", description: "Falha ao salvar dados na nuvem.", variant: "destructive" });
-    }
+    // Save updated state to localStorage after state update
+    setTimeout(() => {
+      saveStateToLocalStorage(stateRef.current);
+    }, 0);
   };
 
   const getAssociatedTopic = useCallback(() => {

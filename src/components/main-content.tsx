@@ -14,23 +14,23 @@ import Sidebar from './sidebar';
 
 export default function MainContent() {
     const { activeTab, setActiveTab } = useStudy();
-    
+
     return (
         <div className="flex flex-1 pt-16">
             <div className="flex flex-col flex-1">
                 <header className="fixed top-16 left-0 right-0 z-40 md:relative md:top-auto md:left-auto md:right-auto">
                     <PomodoroWidget />
                 </header>
-                <main className="flex-grow overflow-y-auto pb-20 md:pb-0">
+                <main className="flex-grow overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="flex h-full flex-col">
                         <div className="flex-grow">
-                            <TabsContent value="overview" className="p-4 md:p-6 mt-0">
+                            <TabsContent value="overview" className="p-3 md:p-6 mt-0">
                                 <OverviewTab />
                             </TabsContent>
                             <TabsContent value="schedule" className="p-4 md:p-6 mt-0">
                                 <SchedulePlanningTab />
                             </TabsContent>
-                             <TabsContent value="planning" className="p-4 md:p-6 mt-0">
+                            <TabsContent value="planning" className="p-4 md:p-6 mt-0">
                                 <StudySequencePlanningTab />
                             </TabsContent>
                             <TabsContent value="cycle" className="p-4 md:p-6 mt-0">

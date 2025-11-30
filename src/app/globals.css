@@ -4,26 +4,31 @@
 
 @layer base {
   :root {
-    --background: 187 67% 95%; /* Very light cyan - lighter */
+    --background: 187 67% 95%;
+    /* Very light cyan - lighter */
     --foreground: 210 20% 20%;
-    --card: 0 0% 100%; /* Pure white for cards */
+    --card: 0 0% 100%;
+    /* Pure white for cards */
     --card-foreground: 210 20% 20%;
     --popover: 0 0% 100%;
     --popover-foreground: 210 20% 20%;
-    --primary: 174 40% 50%; /* Sky blue - more vibrant */
+    --primary: 174 40% 50%;
+    /* Sky blue - more vibrant */
     --primary-foreground: 0 0% 100%;
     --secondary: 187 50% 90%;
     --secondary-foreground: 210 20% 20%;
     --muted: 187 30% 92%;
     --muted-foreground: 210 15% 50%;
-    --accent: 124 40% 65%; /* Mellow green - more vibrant */
+    --accent: 124 40% 65%;
+    /* Mellow green - more vibrant */
     --accent-foreground: 210 15% 15%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 187 20% 88%;
     --input: 187 20% 88%;
     --ring: 174 40% 50%;
-    --radius: 0.75rem; /* Increased border radius */
+    --radius: 0.75rem;
+    /* Increased border radius */
     --chart-1: 174 40% 50%;
     --chart-2: 124 40% 65%;
     --chart-3: 187 50% 88%;
@@ -33,9 +38,11 @@
   }
 
   .dark {
-    --background: 210 25% 10%; /* Darker and richer */
+    --background: 210 25% 10%;
+    /* Darker and richer */
     --foreground: 187 67% 95%;
-    --card: 210 25% 13%; /* Slightly lighter than background */
+    --card: 210 25% 13%;
+    /* Slightly lighter than background */
     --card-foreground: 187 67% 95%;
     --popover: 210 25% 13%;
     --popover-foreground: 187 67% 95%;
@@ -65,8 +72,24 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+
+  /* Mobile optimizations */
+  @media (max-width: 768px) {
+    * {
+      user-select: none;
+    }
+
+    input,
+    textarea,
+    [contenteditable] {
+      user-select: text;
+    }
   }
 }
 
@@ -76,16 +99,25 @@
     width: 8px;
     height: 8px;
   }
-  
+
   .scrollbar-thin::-webkit-scrollbar-track {
     @apply bg-transparent;
   }
-  
+
   .scrollbar-thin::-webkit-scrollbar-thumb {
     @apply bg-muted-foreground/30 rounded-full;
   }
-  
+
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     @apply bg-muted-foreground/50;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
