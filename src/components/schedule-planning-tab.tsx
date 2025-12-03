@@ -1301,7 +1301,7 @@ export default function SchedulePlanningTab() {
       }
 
       {/* Subjects Table */}
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -1347,7 +1347,7 @@ export default function SchedulePlanningTab() {
                             disabled={index === 0}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M12 19V5M5 12l7-7 7 7"/>
+                              <path d="M12 19V5M5 12l7-7 7 7" />
                             </svg>
                           </Button>
                           <span className="text-sm">{index + 1}</span>
@@ -1359,7 +1359,7 @@ export default function SchedulePlanningTab() {
                             disabled={index === subjects.length - 1}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M12 5v14M19 12l-7 7-7-7"/>
+                              <path d="M12 5v14M19 12l-7 7-7-7" />
                             </svg>
                           </Button>
                         </div>

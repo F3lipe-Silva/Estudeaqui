@@ -104,22 +104,22 @@ export default function PomodoroWidget() {
   return (
     <div
       className={cn("w-full p-3 flex items-center gap-4 cursor-pointer transition-all hover:shadow-md border-b-2", getBackgroundColor())}
-      onClick={() => setActiveTab('pomodoro')}
+      onClick={() => setActiveTab('planning')}
     >
-      <div className="p-2 rounded-full bg-background/50">
-        <Timer className="h-5 w-5 flex-shrink-0" />
+      <div className="p-2 rounded-full bg-background/50 flex-shrink-0">
+        <Timer className="h-5 w-5" />
       </div>
-      <div className="flex-grow">
+      <div className="flex-grow min-w-0"> {/* Garantir que o conteúdo central possa truncar */}
         <div className="flex justify-between items-center text-sm font-semibold mb-1.5">
-          <span className="truncate">
+          <span className="truncate mr-2"> {/* Adicionar margem direita para espaçamento */}
             {getStatusText()}
             {itemDetails && <span className="text-xs font-normal text-muted-foreground ml-1">• {itemDetails.subjectName}</span>}
           </span>
-          <span className="font-mono text-base ml-2">{`${Math.floor(timeRemaining / 60).toString().padStart(2, '0')}:${Math.round(timeRemaining % 60).toString().padStart(2, '0')}`}</span>
+          <span className="font-mono text-base whitespace-nowrap">{`${Math.floor(timeRemaining / 60).toString().padStart(2, '0')}:${Math.round(timeRemaining % 60).toString().padStart(2, '0')}`}</span>
         </div>
         <Progress value={progressValue} className={cn("h-2 shadow-inner", getProgressIndicatorClass())} />
       </div>
-      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-background/80" onClick={handleTogglePause}>
+      <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-background/80 flex-shrink-0" onClick={handleTogglePause}>
         {status === 'paused' ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
       </Button>
     </div>

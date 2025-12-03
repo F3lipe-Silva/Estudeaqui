@@ -91,6 +91,10 @@ export default function StudyCycleTab() {
   const [newTopicName, setNewTopicName] = useState('');
   const [addingTopicTo, setAddingTopicTo] = useState<string | null>(null);
   const [editingSubject, setEditingSubject] = useState(null);
+  const [editingTopic, setEditingTopic] = useState(null);
+  const [editingTopicName, setEditingTopicName] = useState('');
+  const [isEditingTopicOpen, setIsEditingTopicOpen] = useState(false);
+  const [subjectToDelete, setSubjectToDelete] = useState<{id: string, name: string} | null>(null);
   const [saveTemplateName, setSaveTemplateName] = useState('');
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
@@ -105,10 +109,6 @@ export default function StudyCycleTab() {
       // @ts-ignore
       dispatch({ type: 'UPDATE_SUBJECT', payload: { id: editingSubject.id, data } });
     }
-  };
-
-  const handleDeleteSubject = (id: string) => {
-    dispatch({ type: 'DELETE_SUBJECT', payload: id });
   };
 
   const handleAddTopic = (subjectId: string) => {
@@ -127,6 +127,45 @@ export default function StudyCycleTab() {
   const handleDeleteTopic = (subjectId: string, topicId: string) => {
     dispatch({ type: 'DELETE_TOPIC', payload: { subjectId, topicId } });
   }
+
+  const handleEditTopic = (topic: any) => {
+    setEditingTopic(topic);
+    setEditingTopicName(topic.name);
+    setIsEditingTopicOpen(true);
+  };
+
+  const handleSaveTopic = () => {
+    if (editingTopicName.trim() && editingTopic) {
+      const updatedSubject = {
+        ...data.subjects.find((s: any) => s.id === editingTopic.subjectId),
+        topics: data.subjects
+          .find((s: any) => s.id === editingTopic.subjectId)
+          .topics.map((t: any) =>
+            t.id === editingTopic.id ? { ...t, name: editingTopicName.trim() } : t
+          )
+      };
+
+      dispatch({
+        type: 'UPDATE_SUBJECT',
+        payload: { id: editingTopic.subjectId, data: { topics: updatedSubject.topics } }
+      });
+
+      setIsEditingTopicOpen(false);
+      setEditingTopic(null);
+      setEditingTopicName('');
+    }
+  };
+
+  const handleDeleteSubject = (id: string, name: string) => {
+    setSubjectToDelete({ id, name });
+  };
+
+  const confirmDeleteSubject = () => {
+    if (subjectToDelete) {
+      dispatch({ type: 'DELETE_SUBJECT', payload: subjectToDelete.id });
+      setSubjectToDelete(null);
+    }
+  };
 
   const handleSaveTemplate = () => {
     if (saveTemplateName.trim()) {
@@ -157,14 +196,14 @@ export default function StudyCycleTab() {
             </CardTitle>
             <CardDescription className="mt-1">Gerencie suas matérias e assuntos de forma organizada.</CardDescription>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" className="shadow-sm hover:shadow-md transition-shadow">
+                <Button variant="outline" className="shadow-sm hover:shadow-md transition-shadow w-full sm:w-auto">
                   <Save className="mr-2 h-4 w-4" /> Salvar Template
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-[90vw]">
                 <DialogHeader>
                   <DialogTitle>Salvar Template de Matérias</DialogTitle>
                   <DialogDescription>Digite o nome do concurso para salvar as matérias atuais como template.</DialogDescription>
@@ -183,11 +222,11 @@ export default function StudyCycleTab() {
             </Dialog>
             <Dialog open={isLoadDialogOpen} onOpenChange={setIsLoadDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" className="shadow-sm hover:shadow-md transition-shadow">
+                <Button variant="outline" className="shadow-sm hover:shadow-md transition-shadow w-full sm:w-auto">
                   <FolderOpen className="mr-2 h-4 w-4" /> Carregar Template
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-[90vw]">
                 <DialogHeader>
                   <DialogTitle>Carregar Template de Matérias</DialogTitle>
                   <DialogDescription>Selecione um template para carregar as matérias.</DialogDescription>
@@ -248,7 +287,7 @@ export default function StudyCycleTab() {
                   <Plus className="mr-2 h-4 w-4" /> Nova Matéria
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-h-[90vh] overflow-y-auto">
+              <DialogContent className="max-h-[90vh] overflow-y-auto max-w-[90vw]">
                 <DialogHeader><DialogTitle>Adicionar Nova Matéria</DialogTitle></DialogHeader>
                 <SubjectForm onSave={handleAddSubject} onCancel={() => {}} />
               </DialogContent>
@@ -280,40 +319,47 @@ export default function StudyCycleTab() {
                 <AccordionContent className="px-4 pb-4 bg-muted/10">
                   {subject.description && <p className="text-sm text-muted-foreground mb-4 italic bg-muted/50 p-3 rounded-md">{subject.description}</p>}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4 pb-4 border-b">
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-2">
                         {subject.materialUrl && (
                            <a href={subject.materialUrl} target="_blank" rel="noopener noreferrer">
-                             <Button variant="outline" size="sm"><FolderKanban className="mr-2 h-3 w-3" /> Abrir Material</Button>
+                             <Button variant="outline" size="sm" className="w-full sm:w-auto"><FolderKanban className="mr-2 h-3 w-3" /> Abrir Material</Button>
                            </a>
                         )}
                         <Dialog>
                             <DialogTrigger asChild>
-                                <Button variant="outline" size="sm" onClick={() => setEditingSubject(subject as any)}><Edit className="mr-2 h-3 w-3" /> Editar</Button>
+                                <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setEditingSubject(subject as any)}><Edit className="mr-2 h-3 w-3" /> Editar</Button>
                             </DialogTrigger>
                             {editingSubject && (
-                                <DialogContent>
+                                <DialogContent className="max-w-[90vw]">
                                     <DialogHeader><DialogTitle>Editar Matéria</DialogTitle></DialogHeader>
                                     <SubjectForm subject={editingSubject} onSave={handleUpdateSubject} onCancel={() => setEditingSubject(null)}/>
                                 </DialogContent>
                             )}
                         </Dialog>
-                        <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm"><Trash2 className="mr-2 h-3 w-3" /> Remover</Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                            <AlertDialogTitle>Remover matéria?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Isso removerá "{subject.name}" e todos os seus {subject.topics.length} assuntos. Essa ação não pode ser desfeita.
-                            </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteSubject(subject.id)}>Confirmar</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                        </AlertDialog>
+                        <Dialog open={subjectToDelete?.id === subject.id} onOpenChange={() => setSubjectToDelete(null)}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="w-full sm:w-auto"
+                              onClick={() => handleDeleteSubject(subject.id, subject.name)}
+                            >
+                              <Trash2 className="mr-2 h-3 w-3" /> Remover
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                              <DialogHeader>
+                                  <DialogTitle>Remover matéria?</DialogTitle>
+                              </DialogHeader>
+                              <div className="py-4">
+                                  <p>Isso removerá "{subject.name}" e todos os seus {subject.topics.length} assuntos. Essa ação não pode ser desfeita.</p>
+                              </div>
+                              <DialogFooter>
+                                  <Button variant="outline" onClick={() => setSubjectToDelete(null)}>Cancelar</Button>
+                                  <Button variant="destructive" onClick={confirmDeleteSubject}>Remover</Button>
+                              </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
                     </div>
                     {subject.studyDuration && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-1.5 rounded-md">
@@ -331,13 +377,13 @@ export default function StudyCycleTab() {
                       subject.topics.map(topic => (
                       <div key={topic.id} className="flex flex-col">
                         <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-card border transition-all hover:shadow-sm">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             className={cn(
-                              "h-9 w-9 rounded-full transition-all", 
-                              topic.isCompleted 
-                                ? 'text-green-600 hover:text-green-700 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30' 
+                              "h-9 w-9 rounded-full transition-all",
+                              topic.isCompleted
+                                ? 'text-green-600 hover:text-green-700 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30'
                                 : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                             )}
                             onClick={() => handleToggleTopic(subject.id, topic.id)}
@@ -348,34 +394,59 @@ export default function StudyCycleTab() {
                               <span className="font-mono text-sm font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded">{topic.order.toString().padStart(2, '0')}</span>
                               <span className={cn("text-sm font-medium", topic.isCompleted && "line-through text-muted-foreground")}>{topic.name}</span>
                           </div>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-9 w-9 text-primary hover:text-primary hover:bg-primary/10 rounded-full transition-all" 
-                            onClick={() => startPomodoroForItem(topic.id, 'topic')}
-                            title="Iniciar Pomodoro"
-                          >
-                            <PlayCircle className="h-5 w-5" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
+                          <Dialog open={isEditingTopicOpen} onOpenChange={setIsEditingTopicOpen}>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 text-primary hover:text-primary hover:bg-primary/10 rounded-full transition-all"
+                                onClick={() => handleEditTopic(topic)}
+                                title="Editar assunto"
+                              >
+                                <Edit className="h-5 w-5" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-[90vw]">
+                              <DialogHeader>
+                                <DialogTitle>Editar Assunto</DialogTitle>
+                              </DialogHeader>
+                              <div className="grid gap-4 py-4">
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                  <Label htmlFor="topic-name" className="text-right">Nome</Label>
+                                  <Input
+                                    id="topic-name"
+                                    value={editingTopicName}
+                                    onChange={(e) => setEditingTopicName(e.target.value)}
+                                    className="col-span-3"
+                                    placeholder="Nome do assunto..."
+                                  />
+                                </div>
+                              </div>
+                              <DialogFooter>
+                                <Button variant="outline" onClick={() => setIsEditingTopicOpen(false)}>Cancelar</Button>
+                                <Button onClick={handleSaveTopic}>Salvar</Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                          <Dialog>
+                            <DialogTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8">
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Remover assunto?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que deseja remover "{topic.name}"?
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteTopic(subject.id, topic.id)}>Remover</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Remover assunto?</DialogTitle>
+                              </DialogHeader>
+                              <div className="py-4">
+                                <p>Tem certeza que deseja remover "{topic.name}"?</p>
+                              </div>
+                              <DialogFooter>
+                                <Button variant="outline">Cancelar</Button>
+                                <Button variant="destructive" onClick={() => handleDeleteTopic(subject.id, topic.id)}>Remover</Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
                         </div>
                       </div>
                     ))

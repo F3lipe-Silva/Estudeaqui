@@ -30,7 +30,7 @@ export default function AppHeader() {
     return (
         <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur-sm lg:px-6 pt-[env(safe-area-inset-top)]">
             <div className="flex items-center gap-4">
-                <div className="hidden md:block lg:hidden">
+                <div className="lg:hidden">
                     <Sheet>
                         <SheetTrigger asChild>
                             <Button variant="ghost" size="icon">

@@ -4,7 +4,6 @@ Sistema completo de gestão de estudos para concursos públicos com foco em prod
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript)
-![Supabase](https://img.shields.io/badge/Supabase-✓-green?logo=supabase)
 ![PWA](https://img.shields.io/badge/PWA-Ready-purple)
 
 ## ✨ Funcionalidades
@@ -42,7 +41,6 @@ Sistema completo de gestão de estudos para concursos públicos com foco em prod
 ## 🚀 Tecnologias
 
 - **Frontend**: Next.js 15 (App Router), React 18, TypeScript
-- **Backend**: Supabase (PostgreSQL + Auth + Row Level Security)
 - **UI**: Tailwind CSS, Radix UI, Lucide Icons
 - **Charts**: Recharts
 - **Formulários**: React Hook Form + Zod
@@ -52,7 +50,6 @@ Sistema completo de gestão de estudos para concursos públicos com foco em prod
 
 ### Pré-requisitos
 - Node.js 20+
-- Conta no [Supabase](https://supabase.com)
 
 ### 1. Clone o repositório
 
@@ -67,32 +64,7 @@ cd Estudeaqui
 npm install
 ```
 
-### 3. Configure as variáveis de ambiente
-
-Crie um arquivo `.env.local` na raiz do projeto:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=sua-url-aqui
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sua-chave-anon-aqui
-```
-
-**Onde encontrar essas informações:**
-1. Acesse seu projeto no [Supabase Dashboard](https://supabase.com/dashboard)
-2. Vá em **Settings → API**
-3. Copie a **URL** e a **anon public** key
-
-### 4. Configure o banco de dados
-
-As migrations já foram aplicadas via MCP Supabase. O schema inclui:
-- ✅ Tabelas: `subjects`, `topics`, `study_logs`, `study_sequences`, `pomodoro_settings`, `templates`, `schedule_plans`
-- ✅ Row Level Security (RLS) ativado em todas as tabelas
-- ✅ Políticas de segurança configuradas
-
-**Opcional - Popular com dados de exemplo:**
-1. Acesse o **SQL Editor** no Supabase Dashboard
-2. Execute o script `supabase/seed.sql` (substitua `YOUR_USER_ID_HERE` pelo seu user ID)
-
-### 5. Execute em desenvolvimento
+### 3. Execute em desenvolvimento
 
 ```bash
 npm run dev
@@ -102,7 +74,6 @@ Acesse: `http://localhost:3000`
 
 ## 📖 Documentação Adicional
 
-- [**SUPABASE_INTEGRATION.md**](./SUPABASE_INTEGRATION.md): Guia completo de integração e troubleshooting
 - [**docs/blueprint.md**](./docs/blueprint.md): Blueprint original do projeto
 
 ## 🏗️ Estrutura do Projeto
@@ -122,27 +93,18 @@ Estudeaqui/
 │   │   └── ...
 │   ├── contexts/               # React Context
 │   │   ├── auth-context.tsx    # Autenticação
-│   │   └── study-context.tsx   # Estado global + Supabase sync
+│   │   └── study-context.tsx   # Estado global
 │   └── lib/
-│       ├── supabase/
-│       │   ├── client.ts       # Cliente Supabase
-│       │   └── database.types.ts # TypeScript types gerados
 │       ├── types.ts            # Tipos da aplicação
 │       └── utils.ts            # Utilitários
-├── supabase/
-│   ├── migrations/             # Migrations SQL
-│   └── seed.sql                # Script de dados iniciais
 └── public/
     └── manifest.json           # PWA manifest
 ```
 
 ## 🔐 Segurança
 
-- ✅ Row Level Security (RLS) ativado em todas as tabelas
-- ✅ Políticas baseadas em `auth.uid()` - usuários só veem seus próprios dados
-- ✅ Autenticação via Supabase Auth (email/senha + Google OAuth)
-- ✅ Tokens JWT gerenciados automaticamente
-- ⚠️ **Nunca** commite `.env.local` (já incluído no `.gitignore`)
+- Autenticação local com localStorage
+- Dados armazenados localmente no navegador
 
 ## 🧪 Testes
 
@@ -159,7 +121,7 @@ npm run build
 
 ## 📱 PWA (Progressive Web App)
 
-O app pode ser instalado como aplicativo nativo:
+O app pode ser instalado como aplicativo nativo e é otimizado para dispositivos móveis:
 
 ### Android/Chrome
 1. Acesse o site
@@ -169,6 +131,16 @@ O app pode ser instalado como aplicativo nativo:
 1. Acesse o site
 2. Toque no botão de compartilhar
 3. "Adicionar à Tela de Início"
+
+## 📱 Otimizações Mobile
+
+O aplicativo inclui diversas otimizações para melhor experiência em dispositivos móveis:
+- Design responsivo adaptável a diferentes tamanhos de tela
+- Navegação otimizada com barra inferior para fácil acesso com polegar
+- Componentes ajustados para toque com áreas de toque adequadas
+- Layout mobile-first para melhor experiência em dispositivos móveis
+- PWA com suporte offline para funcionalidades essenciais
+- Desempenho otimizado para redes lentas e dispositivos com recursos limitados
 
 ## 🤝 Contribuindo
 

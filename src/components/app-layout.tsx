@@ -11,30 +11,30 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export default function AppLayout() {
- const { user, loading } = useAuth();
- const router = useRouter();
- 
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
     }
   }, [user, loading, router]);
 
- if (loading || !user) {
+  if (loading || !user) {
     // This can show a loader while auth state is being determined
     return (
-       <div className="flex h-screen items-center justify-center">
-         <div className="text-lg font-semibold">Verificando autenticação...</div>
-       </div>
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-lg font-semibold">Verificando autenticação...</div>
+      </div>
     );
- }
+  }
 
   return (
     <StudyProvider>
       <SidebarProvider>
-        <div className="flex min-h-screen w-full flex-col bg-background font-body">
+        <div className="flex min-h-screen w-full flex-col bg-background font-body overflow-x-hidden">
           <AppHeader />
-          <div className="flex flex-1 w-full">{<MainContent />}</div>
+          <div className="flex flex-1 w-full overflow-x-hidden pb-[5rem] md:pb-0">{<MainContent />}</div> {/* Adiciona padding bottom para acomodar a bottom navigation */}
           <BottomNavigationBar />
         </div>
       </SidebarProvider>

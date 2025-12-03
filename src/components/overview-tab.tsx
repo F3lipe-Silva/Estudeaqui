@@ -120,9 +120,9 @@ export default function OverviewTab() {
           <p className="text-muted-foreground capitalize">{formattedDate}</p>
         </div>
 
-        {/* Métricas - Scroll Horizontal no Mobile */}
-        <div className="flex overflow-x-auto pb-4 gap-3 -mx-4 px-4 scrollbar-hide md:grid md:grid-cols-4 md:gap-4 md:mx-0 md:px-0 md:overflow-visible">
-          <Card className="min-w-[130px] md:min-w-0 flex-shrink-0 hover:shadow-md transition-shadow border-l-4 border-l-primary">
+        {/* Métricas - Grid responsivo */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <Card className="hover:shadow-md transition-shadow border-l-4 border-l-primary">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
               <CardTitle className="text-sm font-medium">Hoje</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
@@ -131,7 +131,7 @@ export default function OverviewTab() {
               <div className="text-2xl font-bold">{formatTime(timeToday)}</div>
             </CardContent>
           </Card>
-          <Card className="min-w-[130px] md:min-w-0 flex-shrink-0 hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
+          <Card className="hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
               <CardTitle className="text-sm font-medium">Semana</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
@@ -140,7 +140,7 @@ export default function OverviewTab() {
               <div className="text-2xl font-bold">{formatTime(timeThisWeek)}</div>
             </CardContent>
           </Card>
-          <Card className="min-w-[130px] md:min-w-0 flex-shrink-0 hover:shadow-md transition-shadow border-l-4 border-l-yellow-500">
+          <Card className="hover:shadow-md transition-shadow border-l-4 border-l-yellow-500">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
               <CardTitle className="text-sm font-medium">Streak</CardTitle>
               <Zap className="h-4 w-4 text-muted-foreground" />
@@ -149,7 +149,7 @@ export default function OverviewTab() {
               <div className="text-2xl font-bold">{streak} dias</div>
             </CardContent>
           </Card>
-          <Card className="min-w-[130px] md:min-w-0 flex-shrink-0 hover:shadow-md transition-shadow border-l-4 border-l-green-500">
+          <Card className="hover:shadow-md transition-shadow border-l-4 border-l-green-50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
               <CardTitle className="text-sm font-medium">Tópicos</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
@@ -235,11 +235,11 @@ export default function OverviewTab() {
               {subjects.slice(0, 5).map(subject => {
                 const completed = subject.topics.filter(t => t.isCompleted).length;
                 const total = subject.topics.length;
-                const progress = total > 0 ? (completed / total) * 100 : 0;
+                const progress = total > 0 ? (completed / total) * 10 : 0;
                 return (
                   <div key={subject.id} className="space-y-1">
                     <div className="flex justify-between text-sm">
-                      <span className="font-medium truncate">{subject.name}</span>
+                      <span className="font-medium truncate max-w-[70%]">{subject.name}</span>
                       <span className="text-muted-foreground">{Math.round(progress)}%</span>
                     </div>
                     <Progress value={progress} style={{ '--subject-color': subject.color } as React.CSSProperties} className="h-2 [&>div]:bg-[var(--subject-color)]" />
@@ -275,8 +275,8 @@ export default function OverviewTab() {
                       type="category"
                       tickLine={false}
                       axisLine={false}
-                      width={100}
-                      tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                      width={80}
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
                     />
                     <ChartTooltip
                       cursor={{ fill: 'hsl(var(--muted)/0.2)' }}
@@ -315,7 +315,7 @@ export default function OverviewTab() {
                         type="category"
                         tickLine={false}
                         axisLine={false}
-                        width={100}
+                        width={80}
                         tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                       />
                       <ChartTooltip

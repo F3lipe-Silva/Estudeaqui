@@ -42,12 +42,10 @@ import type { StudySequenceItem, SchedulePlan } from '@/lib/types';
 
 
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 
 export default function StudySequencePlanningTab() {
   const { data, dispatch, setActiveTab } = useStudy();
   const { user } = useAuth();
-  const supabase = createClient();
   const { subjects, studySequence, sequenceIndex } = data;
   const { toast } = useToast();
 

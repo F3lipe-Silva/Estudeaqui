@@ -21,7 +21,7 @@ export default function MainContent() {
                 <header className="fixed top-16 left-0 right-0 z-40 md:relative md:top-auto md:left-auto md:right-auto">
                     <PomodoroWidget />
                 </header>
-                <main className="flex-grow overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
+                <main className="flex-grow overflow-y-auto overflow-x-hidden pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0 pt-16 md:pt-0"> {/* Adiciona padding top para evitar sobreposição com o PomodoroWidget fixo */}
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="flex h-full flex-col">
                         <div className="flex-grow">
                             <TabsContent value="overview" className="p-3 md:p-6 mt-0">

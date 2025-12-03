@@ -123,33 +123,33 @@ export default function ChatTab() {
               )}
             >
               {message.role === 'model' && (
-                <Avatar className="h-9 w-9 border-2 border-primary/50">
-                  <AvatarFallback><Bot className="h-5 w-5 text-primary" /></AvatarFallback>
+                <Avatar className="h-8 w-8 border-2 border-primary/50 sm:h-9 sm:w-9">
+                  <AvatarFallback><Bot className="h-4 w-4 sm:h-5 sm:w-5 text-primary" /></AvatarFallback>
                 </Avatar>
               )}
               <div
                 className={cn(
-                  'max-w-prose rounded-lg p-3 text-sm whitespace-pre-wrap',
+                  'max-w-[80%] sm:max-w-prose rounded-lg p-3 text-sm whitespace-pre-wrap',
                   message.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
+                    ? 'bg-primary text-primary-foreground rounded-br-none'
+                    : 'bg-muted rounded-bl-none'
                 )}
               >
                 <p>{message.content}</p>
               </div>
               {message.role === 'user' && (
-                <Avatar className="h-9 w-9">
-                  <AvatarFallback><User className="h-5 w-5" /></AvatarFallback>
+                <Avatar className="h-8 w-8 sm:h-9 sm:w-9">
+                  <AvatarFallback><User className="h-4 w-4 sm:h-5 sm:w-5" /></AvatarFallback>
                 </Avatar>
               )}
             </div>
           ))}
           {isLoading && (
             <div className="flex items-start gap-4 justify-start">
-               <Avatar className="h-9 w-9 border-2 border-primary/50">
-                  <AvatarFallback><Bot className="h-5 w-5 text-primary" /></AvatarFallback>
+               <Avatar className="h-8 w-8 sm:h-9 sm:w-9 border-2 border-primary/50">
+                  <AvatarFallback><Bot className="h-4 w-4 sm:h-5 sm:w-5 text-primary" /></AvatarFallback>
                 </Avatar>
-                <div className="bg-muted rounded-lg p-3 text-sm flex items-center justify-center">
+                <div className="bg-muted rounded-lg p-3 text-sm flex items-center justify-center rounded-bl-none">
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
             </div>
@@ -159,12 +159,12 @@ export default function ChatTab() {
       <div className="border-t p-4 bg-background">
         <div className="space-y-3">
              {hasUserMessages && (
-                <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handlePresetAction('anki')} disabled={isLoading}>
+                <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => handlePresetAction('anki')} disabled={isLoading}>
                         <FileText className="mr-2 h-4 w-4" />
                         Gerar CSV para Anki
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handlePresetAction('cespe')} disabled={isLoading}>
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => handlePresetAction('cespe')} disabled={isLoading}>
                         <Repeat className="mr-2 h-4 w-4" />
                         Transformar em Questão CESPE
                     </Button>
@@ -176,13 +176,13 @@ export default function ChatTab() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
                 placeholder="Digite sua dúvida aqui..."
-                className="pr-12"
+                className="pr-12 py-6 h-auto" // Aumentar altura do campo de input
                 disabled={isLoading}
               />
               <Button
                 type="submit"
                 size="icon"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-10"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10" // Aumentar tamanho do botão
                 onClick={() => handleSend()}
                 disabled={isLoading || !input.trim()}
               >

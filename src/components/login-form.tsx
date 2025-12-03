@@ -81,6 +81,7 @@ export default function LoginForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading}
+              className="h-12 text-base" // Aumentar altura e tamanho da fonte
             />
           </div>
           <div className="grid gap-2">
@@ -92,17 +93,18 @@ export default function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
+              className="h-12 text-base" // Aumentar altura e tamanho da fonte
             />
           </div>
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full h-12 text-base" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isSignUp ? 'Cadastrar' : 'Entrar'}
           </Button>
-          <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} type="button" disabled={isLoading}>
+          <Button variant="outline" className="w-full h-12 text-base" onClick={handleGoogleSignIn} type="button" disabled={isLoading}>
             Entrar com Google
           </Button>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex justify-center"> {/* Centralizar o conteúdo do footer */}
           <p className="text-center text-sm text-muted-foreground w-full">
             {isSignUp ? 'Já tem uma conta? ' : 'Não tem uma conta? '}
             <button
