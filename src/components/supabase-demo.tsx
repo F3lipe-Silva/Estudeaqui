@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase/client';
-import { studyService } from '@/lib/supabase/study-service';
+import { studyService } from '@/lib/firebase/study-service';
 
-export default function SupabaseDemo() {
+export default function FirebaseDemo() {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +52,7 @@ export default function SupabaseDemo() {
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-xl font-bold mb-4">Supabase Demo - Study Management</h2>
+      <h2 className="text-xl font-bold mb-4">Firebase Demo - Study Management</h2>
       
       {error && (
         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
@@ -66,8 +65,8 @@ export default function SupabaseDemo() {
       ) : (
         <div>
           <div className="flex justify-between items-center mb-4">
-            <p className="mb-4">Fetched {subjects.length} subjects from Supabase</p>
-            <button 
+            <p className="mb-4">Fetched {subjects.length} subjects from Firebase</p>
+            <button
               onClick={handleAddDemoSubject}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             >
@@ -96,11 +95,11 @@ export default function SupabaseDemo() {
       <div className="mt-6 p-4 bg-blue-50 rounded border border-blue-200">
         <h3 className="font-medium mb-2">Database Schema Information</h3>
         <p className="text-sm">
-          Your Supabase project "Estudeaqui" contains tables for a complete study management system:
+          Your Firebase project "Estudeaqui" contains collections for a complete study management system:
         </p>
         <ul className="list-disc pl-5 mt-2 text-sm space-y-1">
           <li><strong>subjects</strong> - Study subjects with colors and descriptions</li>
-          <li><strong>topics</strong> - Topics within subjects with completion tracking</li>
+          <li><strong>topics</strong> - Topics within subjects with completion tracking (stored as subcollections)</li>
           <li><strong>study_logs</strong> - Detailed logs of study sessions</li>
           <li><strong>study_sequences</strong> - Custom study sequences</li>
           <li><strong>pomodoro_settings</strong> - Pomodoro timer configurations</li>

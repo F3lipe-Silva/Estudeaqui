@@ -365,30 +365,34 @@ export default function StudyCycleTab() {
                                 </DialogContent>
                             )}
                         </Dialog>
-                        <Dialog open={subjectToDelete?.id === subject.id} onOpenChange={() => setSubjectToDelete(null)}>
-                          <DialogTrigger asChild>
+                        <AlertDialog open={subjectToDelete?.id === subject.id} onOpenChange={(open) => !open && setSubjectToDelete(null)}>
+                          <AlertDialogTrigger asChild>
                             <Button
                               variant="destructive"
                               size="sm"
                               className="w-full sm:w-auto"
-                              onClick={() => handleDeleteSubject(subject.id, subject.name)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteSubject(subject.id, subject.name);
+                              }}
+                              title="Remover matéria"
                             >
                               <Trash2 className="mr-2 h-3 w-3" /> Remover
                             </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                              <DialogHeader>
-                                  <DialogTitle>Remover matéria?</DialogTitle>
-                              </DialogHeader>
-                              <div className="py-4">
-                                  <p>Isso removerá "{subject.name}" e todos os seus {subject.topics.length} assuntos. Essa ação não pode ser desfeita.</p>
-                              </div>
-                              <DialogFooter>
-                                  <Button variant="outline" onClick={() => setSubjectToDelete(null)}>Cancelar</Button>
-                                  <Button variant="destructive" onClick={confirmDeleteSubject}>Remover</Button>
-                              </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remover matéria?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Isso removerá "{subject.name}" e todos os seus {subject.topics.length} assuntos. Essa ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel onClick={() => setSubjectToDelete(null)}>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction variant="destructive" onClick={confirmDeleteSubject}>Remover</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                     </div>
                     {subject.studyDuration && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-1.5 rounded-md">

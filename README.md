@@ -173,28 +173,56 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](./LICENSE) para 
 
 ---
 
-## 🚀 Supabase Integration
+## 🚀 Backend Integration
 
-This project is now integrated with Supabase for backend services. The following files handle the Supabase integration:
+This project supports both Firebase and MongoDB for backend services. The following files handle the MongoDB integration:
 
-- `src/lib/supabase/client.ts` - Client-side Supabase client
-- `src/lib/supabase/server.ts` - Server-side Supabase client (requires service role key)
-- `src/lib/supabase/config.ts` - Configuration file
+- `lib/mongodb.js` - MongoDB client configuration
+- `lib/db.js` - Database operations wrapper
+- `src/app/api/test-mongodb/route.ts` - Example API route for MongoDB operations
+- `src/components/MongoDBTest.jsx` - Example component for testing MongoDB connection
 
-### Setup Supabase
+### Setup MongoDB
 
-1. Set up your Supabase environment variables by creating a `.env.local` file:
+1. Set up your MongoDB connection by adding to your `.env.local` file:
    ```bash
-   NEXT_PUBLIC_SUPABASE_URL=https://lbmmhjjbimvslmambprr.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxibW1oampiaW12c2xtYW1icHJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MzQ5MDgsImV4cCI6MjA4MDAxMDkwOH0.VGNjfTwekXUznR04a9UdFDXvc2xWmVELYbV7lqFNJWE
-   SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY_HERE
+   MONGODB_URI=your_mongodb_connection_string_here
    ```
 
-2. Get your SUPABASE_SERVICE_ROLE_KEY from your Supabase dashboard under Project Settings > API
+2. Get your connection string from your MongoDB Atlas dashboard or use a local MongoDB instance
 
-### Database Tables
+### MongoDB Collections
 
-To use Supabase effectively, you may need to create tables in your Supabase dashboard. For example, the demo component tries to access a `users` table.
+The system is designed to work with collections like `users`, `subjects`, `topics`, `study_logs`, etc.
+
+## 🌐 Firebase Integration
+
+This project also supports Firebase for backend services. The following files handle the Firebase integration:
+
+- `src/lib/firebase/client.ts` - Client-side Firebase client
+- `src/lib/firebase/server.ts` - Server-side Firebase client (requires service account key)
+- `src/lib/firebase/config.ts` - Configuration file
+- `src/lib/firebase/study-service.ts` - Study data management service
+
+### Setup Firebase
+
+1. Set up your Firebase environment variables by creating a `.env.local` file:
+   ```bash
+   NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+   NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+   FIREBASE_CLIENT_EMAIL=your_client_email
+   FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_DATA\n-----END PRIVATE KEY-----"
+   ```
+
+2. Get these values from your Firebase project console under Project Settings
+
+### Firestore Collections
+
+To use Firebase effectively, make sure you have the required Firestore collections set up for study management. The service is designed to work with collections like `subjects`, `topics` (as subcollections), `study_logs`, etc.
 
 ### Authentication
 

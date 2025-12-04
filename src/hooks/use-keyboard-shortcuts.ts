@@ -23,11 +23,11 @@ export function useKeyboardShortcuts() {
     { key: '3', ctrlKey: true, action: () => setActiveTab('cycle'), description: 'Ir para Matérias' },
     { key: '4', ctrlKey: true, action: () => setActiveTab('revision'), description: 'Ir para Revisão' },
     { key: '5', ctrlKey: true, action: () => setActiveTab('history'), description: 'Ir para Histórico' },
-    { key: '6', ctrlKey: true, action: () => setActiveTab('pomodoro'), description: 'Ir para Pomodoro' },
+
     { key: 'n', ctrlKey: true, shiftKey: true, action: () => window.dispatchEvent(new CustomEvent('open-new-subject')), description: 'Nova Matéria' },
     { key: 's', ctrlKey: true, shiftKey: true, action: () => window.dispatchEvent(new CustomEvent('save-template')), description: 'Salvar Template' },
     { key: 'l', ctrlKey: true, shiftKey: true, action: () => window.dispatchEvent(new CustomEvent('load-template')), description: 'Carregar Template' },
-    { key: 'p', ctrlKey: true, shiftKey: true, action: () => window.dispatchEvent(new CustomEvent('open-pomodoro-selector')), description: 'Abrir seletor Pomodoro' },
+
     { key: 'd', ctrlKey: true, shiftKey: true, action: () => window.dispatchEvent(new CustomEvent('toggle-theme')), description: 'Alternar Tema' },
     { key: 'q', ctrlKey: true, shiftKey: true, action: () => signOut(), description: 'Sair' }
   ];

@@ -2,11 +2,12 @@
 
 import React, { createContext, useContext, useReducer, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { StudyContextType, StudyData, Subject, Topic, PomodoroState, StudyLogEntry, StudySequenceItem, PomodoroSettings, SubjectTemplate, StudySequence, SchedulePlan } from '@/lib/types';
+import type { User } from '@/models/User';
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, isSameDay, parseISO } from 'date-fns';
 import { REVISION_SEQUENCE } from '@/components/revision-tab';
 import { useAuth } from './auth-context';
-import { studyService } from '@/lib/supabase/study-service';
+import { mongodbStudyService as studyService } from '@/lib/mongodb-study-service';
 
 const initialPomodoroSettings: PomodoroSettings = {
   tasks: [
@@ -343,6 +344,12 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
   const { pomodoroSettings } = state;
 
+  // Create a ref to track current state for use in async functions
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   const [pomodoroState, setPomodoroState] = useState<PomodoroState>({
     status: 'idle',
     timeRemaining: pomodoroSettings?.tasks?.[0]?.duration || 0,
@@ -394,9 +401,10 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const data = await studyService.getAllUserData(user.id);
+        // Verificar se o usuário tem um _id (MongoDB) ou uid (Firebase)
+        const userId = user._id ? user._id.toString() : user.uid;
+        const data = await studyService.getAllUserData(userId);
 
-        // Transform Supabase data to Context state shape
         // Calculate streak and lastStudiedDate from studyLogs
         let streak = 0;
         let lastStudiedDate: string | null = null;
@@ -407,19 +415,9 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
             // Calculate streak
             // Simple logic: check consecutive days backwards
-            // Note: This logic duplicates reducer logic. Ideally should be shared.
             const uniqueDates = Array.from(new Set(
                 data.studyLogs.map(log => format(parseISO(log.date), 'yyyy-MM-dd'))
             ));
-
-            // TODO: Improve streak calculation logic if needed
-            // For now, let's assume we can rely on what we just loaded or simple calculation
-            // If we really want accurate streak from logs, we need to iterate days.
-
-            // Let's re-use the reducer logic by "replaying" logs? No, that's too expensive.
-            // Simplified streak calculation:
-            // Check if today or yesterday is present. If not, streak is 0.
-            // If yes, count consecutive days back.
 
             const todayStr = format(new Date(), 'yyyy-MM-dd');
             const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
@@ -442,40 +440,16 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             }
         }
 
-        // Map subjects to include topics (done in service)
-        // Ensure shapes match
-        const mappedSubjects = data.subjects.map((s: any) => ({
-            ...s,
-            topics: s.topics.map((t: any) => ({
-                ...t,
-                subjectId: t.subject_id, // Map snake_case to camelCase
-                isCompleted: t.is_completed
-            })),
-            studyDuration: s.study_duration,
-            materialUrl: s.material_url,
-            revisionProgress: s.revision_progress
-        }));
-
-        const mappedLogs = data.studyLogs.map(l => ({
-            ...l,
-            subjectId: l.subject_id,
-            topicId: l.topic_id || '',
-            startPage: l.start_page || 0,
-            endPage: l.end_page || 0,
-            questionsTotal: l.questions_total || 0,
-            questionsCorrect: l.questions_correct || 0,
-            sequenceItemIndex: l.sequence_item_index
-        }));
-
+        // The shapes should already match the expected context types
         const loadedState: StudyData = {
-            subjects: mappedSubjects,
-            studyLog: mappedLogs,
+            subjects: data.subjects,
+            studyLog: data.studyLogs,
             lastStudiedDate,
             streak,
-            studySequence: data.studySequence, // Assuming shape matches or is handled
-            sequenceIndex: data.userSettings?.settings?.sequenceIndex || 0, // Load from user settings
+            studySequence: data.studySequence,
+            sequenceIndex: data.userSettings?.settings?.sequenceIndex || 0,
             pomodoroSettings: data.pomodoroSettings?.settings || initialPomodoroSettings,
-            templates: data.templates.map(t => ({...t, subjects: t.subjects})),
+            templates: data.templates,
             schedulePlans: data.schedulePlans
         };
 
@@ -485,7 +459,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         });
 
       } catch (error) {
-        console.error("Failed to load from Supabase:", error);
+        console.error("Failed to load from MongoDB:", error);
         toast({ title: "Erro de sincronização", description: "Não foi possível carregar seus dados da nuvem.", variant: "destructive" });
         // Fallback to empty state or retry logic could be added here
       } finally {
@@ -496,7 +470,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     loadData();
   }, [user]);
 
-  // Intercept dispatch to sync with Supabase
+  // Intercept dispatch to sync with Firebase
   const dispatch = async (action: any) => {
     // 1. Optimistic Update (update local state immediately)
     // Note: We need to ensure we generate IDs here if they are missing in payload
@@ -521,7 +495,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
     originalDispatch(actionToDispatch);
 
-    // 2. Sync with Supabase (fire and forget, or handle error)
+    // 2. Sync with Firebase (fire and forget, or handle error)
     if (!user) return;
 
     try {
@@ -529,13 +503,13 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             case 'ADD_SUBJECT': {
                 const s = actionToDispatch.payload;
                 await studyService.addSubject({
-                    user_id: user.id,
+                    userId: user._id ? user._id.toString() : user.uid,
                     name: s.name,
                     color: s.color,
                     description: s.description,
-                    study_duration: s.studyDuration,
-                    material_url: s.materialUrl,
-                    revision_progress: 0
+                    studyDuration: s.studyDuration,
+                    materialUrl: s.materialUrl,
+                    revisionProgress: 0
                 });
                 break;
             }
@@ -546,9 +520,9 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
                 if (data.name !== undefined) updates.name = data.name;
                 if (data.color !== undefined) updates.color = data.color;
                 if (data.description !== undefined) updates.description = data.description;
-                if (data.studyDuration !== undefined) updates.study_duration = data.studyDuration;
-                if (data.materialUrl !== undefined) updates.material_url = data.materialUrl;
-                if (data.revisionProgress !== undefined) updates.revision_progress = data.revisionProgress;
+                if (data.studyDuration !== undefined) updates.studyDuration = data.studyDuration;
+                if (data.materialUrl !== undefined) updates.materialUrl = data.materialUrl;
+                if (data.revisionProgress !== undefined) updates.revisionProgress = data.revisionProgress;
 
                 await studyService.updateSubject(id, updates);
                 break;
@@ -560,27 +534,15 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             case 'ADD_TOPIC': {
                 const t = actionToDispatch.payload;
                 await studyService.addTopic({
-                    id: t.id,
-                    subject_id: t.subjectId,
-                    user_id: user.id, // Wait, topic table usually doesn't need user_id if linked to subject, but good practice if RLS requires it. Checking service... it inserts without user_id?
-                    // Service: addTopic(topicData)
-                    // Interface Topic has subject_id.
-                    // Usually we don't need user_id on topic if subject has it, but depends on RLS.
-                    // Let's assume subject ownership is enough.
+                    subjectId: t.subjectId,
                     name: t.name,
-                    order: 999, // Should calculate order? Backend or frontend? Frontend 's.topics.length' is used in reducer.
-                    // We can't easily get the length here without accessing state.
-                    // But reducer runs first.
-                    // Ideally we pass order in payload. The reducer calculates it: 'order: s.topics.length'.
-                    // We might need to access the updated state.
-                    is_completed: false
+                    order: t.order || 999, // Use the order calculated in enhancedDispatch
+                    isCompleted: false
                 });
-                // Fix: The reducer calculates 'order'. We need that value.
-                // We can't get it easily unless we read stateRef AFTER dispatch.
                 break;
             }
             case 'TOGGLE_TOPIC_COMPLETED': {
-                const { topicId } = action.payload;
+                const { subjectId, topicId } = action.payload;
                 // We need to know the new status.
                 // Accessing stateRef.current might give us the OLD state before render finishes?
                 // Actually originalDispatch is sync, but React state updates are scheduled.
@@ -594,13 +556,13 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
                 // Or: The reducer does `!isCompleted`. We can do the same here if we find the topic in current state.
                 const topic = stateRef.current.subjects.flatMap(s => s.topics).find(t => t.id === topicId);
                 if (topic) {
-                     await studyService.updateTopic(topicId, { is_completed: !topic.isCompleted });
+                     await studyService.updateTopic(topicId, { isCompleted: !topic.isCompleted }, subjectId);
                 }
                 break;
             }
             case 'DELETE_TOPIC': {
-                const { topicId } = action.payload;
-                await studyService.deleteTopic(topicId);
+                const { topicId, subjectId } = action.payload;
+                await studyService.deleteTopic(topicId, subjectId);
                 break;
             }
             case 'SET_REVISION_PROGRESS': {
@@ -615,18 +577,17 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             case 'ADD_STUDY_LOG': {
                 const l = actionToDispatch.payload;
                 await studyService.addStudyLog({
-                    id: l.id,
-                    user_id: user.id,
-                    subject_id: l.subjectId,
-                    topic_id: l.topicId,
+                    userId: user._id ? user._id.toString() : user.uid,
+                    subjectId: l.subjectId,
+                    topicId: l.topicId,
                     date: l.date,
                     duration: l.duration,
-                    start_page: l.startPage,
-                    end_page: l.endPage,
-                    questions_total: l.questionsTotal,
-                    questions_correct: l.questionsCorrect,
+                    startPage: l.startPage,
+                    endPage: l.endPage,
+                    questionsTotal: l.questionsTotal,
+                    questionsCorrect: l.questionsCorrect,
                     source: l.source,
-                    sequence_item_index: l.sequenceItemIndex
+                    sequenceItemIndex: l.sequenceItemIndex
                 });
 
                 // If sequence updated, we need to save it.
@@ -655,7 +616,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             case 'SAVE_STUDY_SEQUENCE': {
                 const seq = action.payload;
                 await studyService.saveStudySequence({
-                    user_id: user.id,
+                    userId: user._id ? user._id.toString() : user.uid,
                     id: seq.id,
                     name: seq.name,
                     sequence: seq.sequence
@@ -664,7 +625,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             }
             case 'UPDATE_POMODORO_SETTINGS': {
                 await studyService.savePomodoroSettings({
-                    user_id: user.id,
+                    userId: user._id ? user._id.toString() : user.uid,
                     settings: action.payload
                 });
                 break;
@@ -685,14 +646,14 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       const saveSettings = async () => {
           try {
               await studyService.saveUserSettings({
-                  user_id: user.id,
+                  userId: user._id ? user._id.toString() : user.uid,
                   settings: {
-                      sequenceIndex: state.sequenceIndex,
+                      sequenceIndex: stateRef.current.sequenceIndex,
                       // activeTab could be saved here too if we want persistence across devices
                   }
               });
           } catch (e) {
-              console.error("Failed to save user settings", e);
+              console.error("Failed to save user settings", e instanceof Error ? e.message : e);
           }
       };
 
@@ -750,11 +711,10 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             case 'ADD_TOPIC': {
                 const t = actionToDispatch.payload;
                 await studyService.addTopic({
-                    id: t.id,
-                    subject_id: t.subjectId,
+                    subjectId: t.subjectId,
                     name: t.name,
                     order: t.order, // Used here
-                    is_completed: false
+                    isCompleted: false
                 });
                 break;
             }
@@ -762,14 +722,13 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
              case 'ADD_SUBJECT': {
                 const s = actionToDispatch.payload;
                 await studyService.addSubject({
-                    id: s.id, // Pass ID
-                    user_id: user.id,
+                    userId: user._id ? user._id.toString() : user.uid,
                     name: s.name,
                     color: s.color,
                     description: s.description,
-                    study_duration: s.studyDuration,
-                    material_url: s.materialUrl,
-                    revision_progress: 0
+                    studyDuration: s.studyDuration,
+                    materialUrl: s.materialUrl,
+                    revisionProgress: 0
                 });
                 break;
             }
@@ -780,9 +739,9 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
                 if (data.name !== undefined) updates.name = data.name;
                 if (data.color !== undefined) updates.color = data.color;
                 if (data.description !== undefined) updates.description = data.description;
-                if (data.studyDuration !== undefined) updates.study_duration = data.studyDuration;
-                if (data.materialUrl !== undefined) updates.material_url = data.materialUrl;
-                if (data.revisionProgress !== undefined) updates.revision_progress = data.revisionProgress;
+                if (data.studyDuration !== undefined) updates.studyDuration = data.studyDuration;
+                if (data.materialUrl !== undefined) updates.materialUrl = data.materialUrl;
+                if (data.revisionProgress !== undefined) updates.revisionProgress = data.revisionProgress;
 
                 await studyService.updateSubject(id, updates);
                 break;
@@ -792,42 +751,41 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
                 break;
             }
              case 'TOGGLE_TOPIC_COMPLETED': {
-                const { topicId } = action.payload;
+                const { topicId, subjectId } = action.payload; // Get subjectId from action payload
                 // Get current status from ref (pre-update state)
                 const topic = stateRef.current.subjects.flatMap(s => s.topics).find(t => t.id === topicId);
                 if (topic) {
                      // We are toggling, so if it WAS completed, now it is NOT.
-                     await studyService.updateTopic(topicId, { is_completed: !topic.isCompleted });
+                     await studyService.updateTopic(topicId, { isCompleted: !topic.isCompleted }, subjectId);
                 }
                 break;
             }
             case 'DELETE_TOPIC': {
-                const { topicId } = action.payload;
-                await studyService.deleteTopic(topicId);
+                const { topicId, subjectId } = action.payload; // Get subjectId from action payload
+                await studyService.deleteTopic(topicId, subjectId);
                 break;
             }
             case 'SET_REVISION_PROGRESS': {
                 const { subjectId, progress } = action.payload;
                 // We might need to persist this if we store revision progress in DB.
                 // Subject table has 'revision_progress'.
-                await studyService.updateSubject(subjectId, { revision_progress: progress });
+                await studyService.updateSubject(subjectId, { revisionProgress: progress });
                 break;
             }
             case 'ADD_STUDY_LOG': {
                 const l = actionToDispatch.payload;
                 await studyService.addStudyLog({
-                    id: l.id,
-                    user_id: user.id,
-                    subject_id: l.subjectId,
-                    topic_id: l.topicId,
+                    userId: user._id ? user._id.toString() : user.uid,
+                    subjectId: l.subjectId,
+                    topicId: l.topicId,
                     date: l.date,
                     duration: l.duration,
-                    start_page: l.startPage,
-                    end_page: l.endPage,
-                    questions_total: l.questionsTotal,
-                    questions_correct: l.questionsCorrect,
+                    startPage: l.startPage,
+                    endPage: l.endPage,
+                    questionsTotal: l.questionsTotal,
+                    questionsCorrect: l.questionsCorrect,
                     source: l.source,
-                    sequence_item_index: l.sequenceItemIndex
+                    sequenceItemIndex: l.sequenceItemIndex
                 });
 
                 // If this update changed the Sequence Progress, we need to save the Sequence.
@@ -858,7 +816,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
              case 'SAVE_STUDY_SEQUENCE': {
                 const seq = action.payload;
                 await studyService.saveStudySequence({
-                    user_id: user.id,
+                    userId: user._id ? user._id.toString() : user.uid,
                     id: seq.id,
                     name: seq.name,
                     sequence: seq.sequence
@@ -867,7 +825,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             }
              case 'UPDATE_POMODORO_SETTINGS': {
                 await studyService.savePomodoroSettings({
-                    user_id: user.id,
+                    userId: user._id ? user._id.toString() : user.uid,
                     settings: action.payload
                 });
                 break;
@@ -893,8 +851,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
                   }));
 
                  await studyService.addTemplate({
-                     id: id,
-                     user_id: user.id,
+                     userId: user._id.toString(),
                      name,
                      subjects: templateSubjects
                  });
@@ -1034,7 +991,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           currentCycle: 0,
         }));
         if (navigateToPomodoro) {
-          setActiveTab('pomodoro');
+          setActiveTab('planning');
         }
         toast({
           title: "Foco no estudo iniciado!",
@@ -1063,6 +1020,57 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   const showPomodoroTransitionDialog = useCallback((actualTimeSpent: number, topicId?: string, subjectId?: string) => {
     setShowTransitionDialog(true);
   }, []);
+
+  // Function to advance to the next pomodoro cycle
+  const advancePomodoroCycle = useCallback((actualTimeSpent?: number) => {
+    setPomodoroState(prev => {
+      // If we're in focus, move to break
+      if (prev.status === 'focus') {
+        const newCycle = prev.currentCycle + 1;
+        const isLongBreak = newCycle > 0 && pomodoroSettings?.cyclesUntilLongBreak && newCycle % pomodoroSettings.cyclesUntilLongBreak === 0;
+
+        if (isLongBreak) {
+          // Schedule toast after state update
+          setTimeout(() => {
+            toast({ title: "Pausa longa!", description: "Você merece um bom descanso." });
+          }, 0);
+          return {
+            ...prev,
+            status: 'long_break',
+            timeRemaining: pomodoroSettings?.longBreakDuration || 900,
+            currentCycle: newCycle,
+            pomodorosCompletedToday: prev.pomodorosCompletedToday + 1,
+            key: prev.key + 1,
+          };
+        } else {
+          // Schedule toast after state update
+          setTimeout(() => {
+            toast({ title: "Pausa curta!", description: "Respire fundo por alguns minutos." });
+          }, 0);
+          return {
+            ...prev,
+            status: 'short_break',
+            timeRemaining: pomodoroSettings?.shortBreakDuration || 300,
+            currentCycle: newCycle,
+            pomodorosCompletedToday: prev.pomodorosCompletedToday + 1,
+            key: prev.key + 1,
+          };
+        }
+      } else if (prev.status === 'short_break' || prev.status === 'long_break') {
+        // For breaks, transition directly to focus without showing dialog
+        const firstTask = pomodoroSettings?.tasks?.[0];
+        return {
+          ...prev,
+          status: 'focus',
+          timeRemaining: firstTask?.duration || 0,
+          currentCycle: prev.currentCycle,
+          key: prev.key + 1,
+        };
+      }
+      
+      return prev;
+    });
+  }, [pomodoroSettings, toast]);
 
   // Function to reset the manual registration flag
   const resetManualRegistrationFlag = useCallback(() => {

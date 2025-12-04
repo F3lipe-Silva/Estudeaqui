@@ -124,12 +124,6 @@ export default function StudySequencePlanningTab() {
       toast({ title: "Selecione uma matéria para adicionar." });
       return;
     }
-    // Verificar se a matéria já existe na sequência
-    const existingItem = editingSequence.find(item => item.subjectId === subjectId);
-    if (existingItem) {
-      toast({ title: "Esta matéria já está na sequência." });
-      return;
-    }
     setEditingSequence(prev => [...prev, { subjectId, totalTimeStudied: 0 }]);
   };
 
@@ -146,7 +140,7 @@ export default function StudySequencePlanningTab() {
       // Inicia pomodoro com o primeiro assunto da matéria
       const firstTopic = subject.topics[0];
       startPomodoroForItem(firstTopic.id, 'topic', true);
-      setActiveTab('pomodoro');
+      setActiveTab('planning');
     }
   };
 
@@ -398,15 +392,6 @@ export default function StudySequencePlanningTab() {
                             </div>
                           )}
                           <div className="flex gap-2 flex-shrink-0">
-                            <Button
-                              size="sm"
-                              variant="default"
-                              className="shadow-sm hover:shadow-md transition-shadow bg-primary hover:bg-primary/90"
-                              onClick={() => handleStartPomodoro(subject.id)}
-                              title="Iniciar sessão Pomodoro"
-                            >
-                              <Play className="mr-2 h-4 w-4" /> Iniciar
-                            </Button>
                             <Button size="sm" variant="outline" className="shadow-sm hover:shadow-md transition-shadow" onClick={() => openLogForm(subject.id, index)}>
                               <PlusCircle className="mr-2 h-4 w-4" /> Registrar
                             </Button>
@@ -419,15 +404,25 @@ export default function StudySequencePlanningTab() {
                 {isEditing && (
                   <div className="flex items-end gap-2 mt-4">
                     <div className="flex-grow">
-                      <Label htmlFor="add-subject-to-sequence">Adicionar Matéria</Label>
+                      <Label htmlFor="add-subject-to-sequence">Adicionar Matéria (Permite repetição)</Label>
                       <Select onValueChange={handleAddSubjectToSequence}>
                         <SelectTrigger id="add-subject-to-sequence">
                           <SelectValue placeholder="Selecione uma matéria" />
                         </SelectTrigger>
                         <SelectContent>
-                          {subjects.map(subject => (
-                            <SelectItem key={subject.id} value={subject.id}>{subject.name}</SelectItem>
-                          ))}
+                          {subjects.map(subject => {
+                            const isInSequence = editingSequence.some(item => item.subjectId === subject.id);
+                            return (
+                              <SelectItem key={subject.id} value={subject.id}>
+                                <div className="flex items-center">
+                                  <span>{subject.name}</span>
+                                  {isInSequence && (
+                                    <span className="ml-2 text-xs text-muted-foreground">(já adicionada)</span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </div>

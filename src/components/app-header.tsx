@@ -19,6 +19,7 @@ const navItems = [
 ];
 
 import { SettingsDialog } from './settings-dialog';
+import MongoDBStatusIndicator from './mongodb-status-indicator';
 
 // ... (existing imports)
 
@@ -46,7 +47,8 @@ export default function AppHeader() {
                 </div>
                 <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent truncate max-w-[200px] md:max-w-none">Estudaqui</h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+                <MongoDBStatusIndicator />
                 <SettingsDialog />
                 <ThemeToggle />
                 <Button variant="ghost" size="icon" onClick={signOut}>

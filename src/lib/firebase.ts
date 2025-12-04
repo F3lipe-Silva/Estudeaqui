@@ -2,24 +2,37 @@
 import { initializeApp, getApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
-
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  "projectId": "estudaqui-pwa",
-  "appId": "1:269023322689:web:678762d266322eda695cc0",
-  "storageBucket": "estudaqui-pwa.firebasestorage.app",
-  "apiKey": process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  "authDomain": "estudaqui-pwa.firebaseapp.com",
-  "measurementId": "",
-  "messagingSenderId": "269023322689"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: "estudaqui-pwa.firebaseapp.com",
+  projectId: "estudaqui-pwa",
+  storageBucket: "estudaqui-pwa.firebasestorage.app",
+  messagingSenderId: "269023322689",
+  appId: "1:269023322689:web:678762d266322eda695cc0",
+  measurementId: "G-Z6XZ7N223Z"  // Added measurementId if needed
 };
 
-console.log('Firebase API Key:', process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
+let app;
+let db;
+let auth;
+let storage;
 
-// Initialize Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-export const db = getFirestore(app);
-export const auth = getAuth(app);
+// Initialize Firebase only if the API key is present
+if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  db = getFirestore(app);
+  auth = getAuth(app);
+  storage = getStorage(app);
+} else {
+  // Create mock objects when API key is not available
+  console.warn('Firebase API key not found. Some features may be disabled.');
+  app = null;
+  db = null;
+  auth = null;
+  storage = null;
+}
+
+export { db, auth, storage };

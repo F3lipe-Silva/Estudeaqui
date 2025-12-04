@@ -10,8 +10,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider
       attribute="class"
-      defaultTheme="system"
-      enableSystem
+      defaultTheme="light"  // Forçar tema claro como padrão para resolver o problema de texto em branco
+      enableSystem={true}
       disableTransitionOnChange
     >
       <TooltipProvider>

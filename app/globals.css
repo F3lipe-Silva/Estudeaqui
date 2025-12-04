@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 187 67% 95%;
+    /* Very light cyan - lighter */
+    --foreground: 210 20% 20%;
+    --card: 0 0% 100%;
+    /* Pure white for cards */
+    --card-foreground: 210 20% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 20% 20%;
+    --primary: 174 40% 50%;
+    /* Sky blue - more vibrant */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 187 50% 90%;
+    --secondary-foreground: 210 20% 20%;
+    --muted: 187 30% 92%;
+    --muted-foreground: 210 15% 50%;
+    --accent: 124 40% 65%;
+    /* Mellow green - more vibrant */
+    --accent-foreground: 210 15% 15%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 187 20% 88%;
+    --input: 187 20% 88%;
+    --ring: 174 40% 50%;
+    --radius: 0.75rem;
+    /* Increased border radius */
+    --chart-1: 174 40% 50%;
+    --chart-2: 124 40% 65%;
+    --chart-3: 187 50% 88%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --pomodoro-focus: 39 91% 53%;
+  }
+
+  .dark {
+    --background: 210 25% 8%;
+    /* Darker and richer for desktop */
+    --foreground: 187 67% 95%;
+    --card: 210 25% 11%;
+    /* Slightly lighter than background */
+    --card-foreground: 187 67% 95%;
+    --popover: 210 25% 11%;
+    --popover-foreground: 187 67% 95%;
+    --primary: 174 45% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 20% 15%;
+    --secondary-foreground: 187 67% 95%;
+    --muted: 210 20% 15%;
+    --muted-foreground: 187 30% 70%;
+    --accent: 124 40% 65%;
+    --accent-foreground: 210 15% 15%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 210 20% 18%;
+    --input: 210 20% 18%;
+    --ring: 174 45% 55%;
+    --chart-1: 174 45% 55%;
+    --chart-2: 124 40% 65%;
+    --chart-3: 187 50% 88%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --pomodoro-focus: 39 91% 53%;
+  }
+  input,
+  textarea,
+ [contenteditable] {
+    user-select: text;
+  }
+}
+
+/* Custom scrollbar */
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

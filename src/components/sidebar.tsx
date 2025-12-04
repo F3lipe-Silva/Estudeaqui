@@ -2,7 +2,7 @@
 
 import { useStudy } from '@/contexts/study-context';
 import { Button } from '@/components/ui/button';
-import { Home, Timer, BookCopy, Workflow, History, BookCheck } from 'lucide-react';
+import { Home, BookCopy, Workflow, History, BookCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SheetClose } from './ui/sheet';
 
@@ -11,7 +11,6 @@ const navItems = [
     { id: 'planning', label: 'Planejamento', icon: Workflow },
     { id: 'cycle', label: 'Matéria', icon: BookCopy },
     { id: 'revision', label: 'Revisão', icon: BookCheck },
-    { id: 'pomodoro', label: 'Pomodoro', icon: Timer },
     { id: 'history', label: 'Histórico', icon: History },
 ];
 

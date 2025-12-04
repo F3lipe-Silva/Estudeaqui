@@ -10,7 +10,6 @@ import RevisionTab from '@/components/revision-tab';
 import HistoryTab from '@/components/history-tab';
 import Sidebar from './sidebar';
 import { Breadcrumbs } from './breadcrumbs';
-import PomodoroTab from '@/components/pomodoro-tab';
 
 
 export default function MainContent() {
@@ -45,9 +44,6 @@ export default function MainContent() {
                                 </TabsContent>
                                 <TabsContent value="revision" className="mt-0 p-0">
                                     <RevisionTab />
-                                </TabsContent>
-                                <TabsContent value="pomodoro" className="mt-0 p-0">
-                                    <PomodoroTab />
                                 </TabsContent>
                                 <TabsContent value="history" className="mt-0 p-0">
                                     <HistoryTab />

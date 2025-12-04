@@ -17,7 +17,7 @@ export default function Home() {
 
   if (loading || !user) {
     return (
-       <div className="flex h-screen items-center justify-center">
+       <div className="flex h-screen items-center justify-center bg-background text-foreground">
         <div className="text-lg font-semibold">Carregando...</div>
       </div>
     );
