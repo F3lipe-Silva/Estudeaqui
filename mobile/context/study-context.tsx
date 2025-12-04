@@ -1,12 +1,11 @@
-"use client";
 
 import React, { createContext, useContext, useReducer, useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { StudyContextType, StudyData, Subject, Topic, PomodoroState, StudyLogEntry, StudySequenceItem, PomodoroSettings, SubjectTemplate, StudySequence, SchedulePlan } from '@/lib/types';
-import { useToast } from "@/hooks/use-toast";
+import type { StudyContextType, StudyData, Subject, Topic, PomodoroState, StudyLogEntry, StudySequenceItem, PomodoroSettings, SubjectTemplate, StudySequence, SchedulePlan } from '../constants/types';
+import { useToast } from "../hooks/use-toast";
 import { format, subDays, isSameDay, parseISO } from 'date-fns';
-import { REVISION_SEQUENCE } from '@/components/revision-tab';
+import { REVISION_SEQUENCE } from '../components/revision-tab';
 import { useAuth } from './auth-context';
-import { studyService } from '@/lib/supabase/study-service';
+import { studyService } from '../lib/supabase/study-service';
 
 const initialPomodoroSettings: PomodoroSettings = {
   tasks: [
@@ -369,8 +368,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setPomodoroState(prev => {
-      // Only update the initial time if we're in idle state (not running)
-      // If we're in any active state (focus, short_break, long_break, paused), keep the current time
       if (prev.status === 'idle') {
         return {
           ...prev,
@@ -379,7 +376,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           key: prev.key + 1,
         };
       }
-      // For active sessions, preserve the current settings to avoid mid-session changes
       return prev;
     });
   }, [pomodoroSettings]);
@@ -397,29 +393,15 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         const data = await studyService.getAllUserData(user.id);
 
         // Transform Supabase data to Context state shape
-        // Calculate streak and lastStudiedDate from studyLogs
         let streak = 0;
         let lastStudiedDate: string | null = null;
 
         if (data.studyLogs && data.studyLogs.length > 0) {
-            // Logs are already sorted by date desc
             lastStudiedDate = data.studyLogs[0].date;
 
-            // Calculate streak
-            // Simple logic: check consecutive days backwards
-            // Note: This logic duplicates reducer logic. Ideally should be shared.
             const uniqueDates = Array.from(new Set(
                 data.studyLogs.map(log => format(parseISO(log.date), 'yyyy-MM-dd'))
             ));
-
-            // TODO: Improve streak calculation logic if needed
-            // For now, let's assume we can rely on what we just loaded or simple calculation
-            // If we really want accurate streak from logs, we need to iterate days.
-
-            // Let's re-use the reducer logic by "replaying" logs? No, that's too expensive.
-            // Simplified streak calculation:
-            // Check if today or yesterday is present. If not, streak is 0.
-            // If yes, count consecutive days back.
 
             const todayStr = format(new Date(), 'yyyy-MM-dd');
             const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
@@ -428,7 +410,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
                 streak = 1;
                 let currentDate = uniqueDates.includes(todayStr) ? new Date() : subDays(new Date(), 1);
 
-                // Iterate backwards
                 for (let i = 1; i < uniqueDates.length; i++) {
                      const expectedPrev = subDays(currentDate, 1);
                      const expectedPrevStr = format(expectedPrev, 'yyyy-MM-dd');
@@ -442,13 +423,11 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             }
         }
 
-        // Map subjects to include topics (done in service)
-        // Ensure shapes match
         const mappedSubjects = data.subjects.map((s: any) => ({
             ...s,
             topics: s.topics.map((t: any) => ({
                 ...t,
-                subjectId: t.subject_id, // Map snake_case to camelCase
+                subjectId: t.subject_id,
                 isCompleted: t.is_completed
             })),
             studyDuration: s.study_duration,
@@ -472,8 +451,8 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             studyLog: mappedLogs,
             lastStudiedDate,
             streak,
-            studySequence: data.studySequence, // Assuming shape matches or is handled
-            sequenceIndex: data.userSettings?.settings?.sequenceIndex || 0, // Load from user settings
+            studySequence: data.studySequence,
+            sequenceIndex: data.userSettings?.settings?.sequenceIndex || 0,
             pomodoroSettings: data.pomodoroSettings?.settings || initialPomodoroSettings,
             templates: data.templates.map(t => ({...t, subjects: t.subjects})),
             schedulePlans: data.schedulePlans
@@ -487,7 +466,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error("Failed to load from Supabase:", error);
         toast({ title: "Erro de sincronização", description: "Não foi possível carregar seus dados da nuvem.", variant: "destructive" });
-        // Fallback to empty state or retry logic could be added here
       } finally {
         setIsLoading(false);
       }
@@ -496,224 +474,10 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     loadData();
   }, [user]);
 
-  // Intercept dispatch to sync with Supabase
-  const dispatch = async (action: any) => {
-    // 1. Optimistic Update (update local state immediately)
-    // Note: We need to ensure we generate IDs here if they are missing in payload
-    // The reducer handles 'id || crypto.randomUUID()', but for the DB call we need the ID.
-    // So we should pre-generate ID if needed.
-
-    // We'll clone the action to modify payload if needed
-    let actionToDispatch = { ...action };
-
-    // Helper to ensure ID exists
-    const ensureId = () => {
-        if (!actionToDispatch.payload.id) {
-            actionToDispatch.payload.id = crypto.randomUUID();
-        }
-        return actionToDispatch.payload.id;
-    };
-
-    if (action.type === 'ADD_SUBJECT') ensureId();
-    if (action.type === 'ADD_TOPIC') ensureId();
-    if (action.type === 'ADD_STUDY_LOG') ensureId();
-    if (action.type === 'ADD_TEMPLATE') ensureId(); // Assuming ADD_TEMPLATE exists
-
-    originalDispatch(actionToDispatch);
-
-    // 2. Sync with Supabase (fire and forget, or handle error)
-    if (!user) return;
-
-    try {
-        switch (action.type) {
-            case 'ADD_SUBJECT': {
-                const s = actionToDispatch.payload;
-                await studyService.addSubject({
-                    user_id: user.id,
-                    name: s.name,
-                    color: s.color,
-                    description: s.description,
-                    study_duration: s.studyDuration,
-                    material_url: s.materialUrl,
-                    revision_progress: 0
-                });
-                break;
-            }
-            case 'UPDATE_SUBJECT': {
-                const { id, data } = action.payload;
-                // Map camelCase to snake_case for DB
-                const updates: any = {};
-                if (data.name !== undefined) updates.name = data.name;
-                if (data.color !== undefined) updates.color = data.color;
-                if (data.description !== undefined) updates.description = data.description;
-                if (data.studyDuration !== undefined) updates.study_duration = data.studyDuration;
-                if (data.materialUrl !== undefined) updates.material_url = data.materialUrl;
-                if (data.revisionProgress !== undefined) updates.revision_progress = data.revisionProgress;
-
-                await studyService.updateSubject(id, updates);
-                break;
-            }
-            case 'DELETE_SUBJECT': {
-                await studyService.deleteSubject(action.payload);
-                break;
-            }
-            case 'ADD_TOPIC': {
-                const t = actionToDispatch.payload;
-                await studyService.addTopic({
-                    id: t.id,
-                    subject_id: t.subjectId,
-                    user_id: user.id, // Wait, topic table usually doesn't need user_id if linked to subject, but good practice if RLS requires it. Checking service... it inserts without user_id?
-                    // Service: addTopic(topicData)
-                    // Interface Topic has subject_id.
-                    // Usually we don't need user_id on topic if subject has it, but depends on RLS.
-                    // Let's assume subject ownership is enough.
-                    name: t.name,
-                    order: 999, // Should calculate order? Backend or frontend? Frontend 's.topics.length' is used in reducer.
-                    // We can't easily get the length here without accessing state.
-                    // But reducer runs first.
-                    // Ideally we pass order in payload. The reducer calculates it: 'order: s.topics.length'.
-                    // We might need to access the updated state.
-                    is_completed: false
-                });
-                // Fix: The reducer calculates 'order'. We need that value.
-                // We can't get it easily unless we read stateRef AFTER dispatch.
-                break;
-            }
-            case 'TOGGLE_TOPIC_COMPLETED': {
-                const { topicId } = action.payload;
-                // We need to know the new status.
-                // Accessing stateRef.current might give us the OLD state before render finishes?
-                // Actually originalDispatch is sync, but React state updates are scheduled.
-                // However, useReducer hook state update is available in next render.
-                // This is tricky for optimistic updates needing derived values.
-
-                // For Toggle, we can just invert what we know? No, we need absolute truth.
-                // Let's assume we can fetch the topic and toggle it? No, that's slow.
-                // We can assume the UI works and we just want to sync.
-                // Let's defer this specific sync to a "post-state-update" effect?
-                // Or: The reducer does `!isCompleted`. We can do the same here if we find the topic in current state.
-                const topic = stateRef.current.subjects.flatMap(s => s.topics).find(t => t.id === topicId);
-                if (topic) {
-                     await studyService.updateTopic(topicId, { is_completed: !topic.isCompleted });
-                }
-                break;
-            }
-            case 'DELETE_TOPIC': {
-                const { topicId } = action.payload;
-                await studyService.deleteTopic(topicId);
-                break;
-            }
-            case 'SET_REVISION_PROGRESS': {
-                const { subjectId, progress } = action.payload;
-                // Logic in reducer clamps progress.
-                // We'll trust the payload has the intended progress or we should just send it.
-                // But reducer does calculation: Math.max(0, Math.min(progress, relevantSequence.length));
-                // We need to replicate that or just update what we can.
-                // Ideally, we wait for state update.
-                break;
-            }
-            case 'ADD_STUDY_LOG': {
-                const l = actionToDispatch.payload;
-                await studyService.addStudyLog({
-                    id: l.id,
-                    user_id: user.id,
-                    subject_id: l.subjectId,
-                    topic_id: l.topicId,
-                    date: l.date,
-                    duration: l.duration,
-                    start_page: l.startPage,
-                    end_page: l.endPage,
-                    questions_total: l.questionsTotal,
-                    questions_correct: l.questionsCorrect,
-                    source: l.source,
-                    sequence_item_index: l.sequenceItemIndex
-                });
-
-                // If sequence updated, we need to save it.
-                // Reducer modifies studySequence.
-                // We should probably save the whole sequence if it changed.
-                // This is hard to detect here without "diffing".
-                // Strategy: Always save sequence if log has sequenceItemIndex?
-                 if (l.sequenceItemIndex !== undefined) {
-                    // We need the NEW state of sequence.
-                    // This is the limitation of this approach.
-                 }
-                break;
-            }
-            case 'UPDATE_STUDY_LOG': {
-                 const l = action.payload;
-                 await studyService.updateStudyLog(l.id, {
-                    duration: l.duration,
-                    // ... other fields
-                 });
-                 break;
-            }
-            case 'DELETE_STUDY_LOG': {
-                await studyService.deleteStudyLog(action.payload);
-                break;
-            }
-            case 'SAVE_STUDY_SEQUENCE': {
-                const seq = action.payload;
-                await studyService.saveStudySequence({
-                    user_id: user.id,
-                    id: seq.id,
-                    name: seq.name,
-                    sequence: seq.sequence
-                });
-                break;
-            }
-            case 'UPDATE_POMODORO_SETTINGS': {
-                await studyService.savePomodoroSettings({
-                    user_id: user.id,
-                    settings: action.payload
-                });
-                break;
-            }
-            // For state-dependent updates (sequence index, derived values), we might want a separate Effect that watches state changes and syncs specific parts.
-            // E.g. useEffect(() => { saveUserSettings(...) }, [state.sequenceIndex]);
-        }
-    } catch (error) {
-        console.error("Sync error:", error);
-        toast({ title: "Erro de sincronização", description: "Sua alteração pode não ter sido salva na nuvem.", variant: "destructive" });
-    }
-  };
-
-  // Effect to sync sequenceIndex and activeTab (User Settings)
+  const stateRef = useRef(state);
   useEffect(() => {
-      if (!user) return;
-
-      const saveSettings = async () => {
-          try {
-              await studyService.saveUserSettings({
-                  user_id: user.id,
-                  settings: {
-                      sequenceIndex: state.sequenceIndex,
-                      // activeTab could be saved here too if we want persistence across devices
-                  }
-              });
-          } catch (e) {
-              console.error("Failed to save user settings", e);
-          }
-      };
-
-      const timeoutId = setTimeout(saveSettings, 2000); // Debounce
-      return () => clearTimeout(timeoutId);
-  }, [state.sequenceIndex, user]);
-
-  // Effect to sync topics order/completion if we missed it?
-  // Ideally we should be more robust.
-
-  // Re-implementing logic for complex state updates:
-  // When ADD_TOPIC happens, we need the Order.
-  // Instead of complex logic in dispatch, let's trust that 'stateRef' will be updated eventually?
-  // No, dispatch is async in terms of Side Effects.
-
-  // A better pattern for 'ADD_TOPIC' would be to read the state inside the reducer, calculate order, and THEN return new state.
-  // If we want to sync that 'order', we need it.
-  // The reducer is pure.
-
-  // Workaround: We can read `stateRef.current` inside the `dispatch` function *before* calling `originalDispatch` to get the current length.
-  // Then we pass explicit order to payload, so both Reducer and Service use the same Order.
+    stateRef.current = state;
+  }, [state]);
 
   const enhancedDispatch = async (action: any) => {
       let actionToDispatch = { ...action };
@@ -723,16 +487,11 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           return;
       }
 
-      // Pre-calculation for consistency
       if (action.type === 'ADD_TOPIC') {
           if (!actionToDispatch.payload.id) actionToDispatch.payload.id = crypto.randomUUID();
           const subject = stateRef.current.subjects.find(s => s.id === actionToDispatch.payload.subjectId);
           const order = subject ? subject.topics.length : 0;
           actionToDispatch.payload.order = order;
-          // Note: Reducer currently ignores payload.order and uses length.
-          // We should update reducer to prefer payload.order if present?
-          // Or just trust the logic matches.
-          // Let's update the payload to carry 'order' so we can use it for DB.
       }
        if (action.type === 'ADD_SUBJECT') {
           if (!actionToDispatch.payload.id) actionToDispatch.payload.id = crypto.randomUUID();
@@ -741,10 +500,8 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           if (!actionToDispatch.payload.id) actionToDispatch.payload.id = crypto.randomUUID();
       }
 
-      // Update Local State
       originalDispatch(actionToDispatch);
 
-      // Sync
       try {
            switch (action.type) {
             case 'ADD_TOPIC': {
@@ -753,16 +510,15 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
                     id: t.id,
                     subject_id: t.subjectId,
                     name: t.name,
-                    order: t.order, // Used here
+                    order: t.order,
                     is_completed: false
                 });
                 break;
             }
-            // ... (rest of cases as above)
              case 'ADD_SUBJECT': {
                 const s = actionToDispatch.payload;
                 await studyService.addSubject({
-                    id: s.id, // Pass ID
+                    id: s.id,
                     user_id: user.id,
                     name: s.name,
                     color: s.color,
@@ -775,7 +531,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             }
              case 'UPDATE_SUBJECT': {
                 const { id, data } = action.payload;
-                // Map camelCase to snake_case for DB
                 const updates: any = {};
                 if (data.name !== undefined) updates.name = data.name;
                 if (data.color !== undefined) updates.color = data.color;
@@ -793,10 +548,8 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             }
              case 'TOGGLE_TOPIC_COMPLETED': {
                 const { topicId } = action.payload;
-                // Get current status from ref (pre-update state)
                 const topic = stateRef.current.subjects.flatMap(s => s.topics).find(t => t.id === topicId);
                 if (topic) {
-                     // We are toggling, so if it WAS completed, now it is NOT.
                      await studyService.updateTopic(topicId, { is_completed: !topic.isCompleted });
                 }
                 break;
@@ -808,8 +561,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             }
             case 'SET_REVISION_PROGRESS': {
                 const { subjectId, progress } = action.payload;
-                // We might need to persist this if we store revision progress in DB.
-                // Subject table has 'revision_progress'.
                 await studyService.updateSubject(subjectId, { revision_progress: progress });
                 break;
             }
@@ -829,19 +580,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
                     source: l.source,
                     sequence_item_index: l.sequenceItemIndex
                 });
-
-                // If this update changed the Sequence Progress, we need to save the Sequence.
-                // Since calculating the new sequence state here is hard, we can "dirty check" or force save sequence?
-                // Or: We rely on the `useEffect` that watches `state.studySequence`?
-                // That might be too heavy if we save on every change.
-                // Let's add a `saveStudySequence` call if we know we touched it.
-                if (l.sequenceItemIndex !== undefined) {
-                     // We need the NEW sequence from state.
-                     // Since originalDispatch is sync, stateRef.current might not be updated yet until next render?
-                     // Actually in React 18, automatic batching might delay it.
-                     // But we can just re-fetch or re-save later.
-                     // Better: Trigger a "Save Sequence" action after a small delay or use the Effect approach.
-                }
                 break;
             }
              case 'UPDATE_STUDY_LOG': {
@@ -874,10 +612,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             }
             case 'SAVE_TEMPLATE': {
                  const { name, id } = action.payload;
-                 // Need to construct the template object properly to match DB
-                 // The reducer builds it from current subjects.
-                 // We need to do the same or wait for state update.
-                 // Let's rebuild it here.
                   const templateSubjects = stateRef.current.subjects.map(s => ({
                     name: s.name,
                     color: s.color,
@@ -921,9 +655,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   const handlePomodoroStateTransition = useCallback((prevState: PomodoroState) => {
     if (!pomodoroSettings) return;
 
-    // For break periods (short_break, long_break), transition directly without showing dialog
     if (prevState.status === 'short_break' || prevState.status === 'long_break') {
-      // Handle break transitions directly
       const firstTask = pomodoroSettings.tasks?.[0];
       setPomodoroState(prev => ({
         ...prev,
@@ -935,40 +667,27 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // For focus periods, calculate effective time spent and show transition dialog
-    // Use the manual advance time if it was set, otherwise calculate normally
     const effectiveTimeSpent = manualAdvanceTimeRef.current !== null
       ? manualAdvanceTimeRef.current
       : (() => {
           let calculatedTime = 0;
           if (prevState.originalDuration) {
-            // For custom duration sessions
             calculatedTime = prevState.originalDuration - prevState.timeRemaining;
           } else {
-            // For task-based sessions
             const currentTask = prevState.currentTaskIndex !== undefined && pomodoroSettings.tasks?.[prevState.currentTaskIndex];
             if (currentTask) {
               calculatedTime = currentTask.duration - prevState.timeRemaining;
             } else {
-              calculatedTime = (pomodoroSettings.tasks?.[0]?.duration || 1500) - prevState.timeRemaining; // default to 25 mins
+              calculatedTime = (pomodoroSettings.tasks?.[0]?.duration || 1500) - prevState.timeRemaining;
             }
           }
           return calculatedTime;
         })();
 
-    // Reset the ref after using it
     manualAdvanceTimeRef.current = null;
-
     const topic = getAssociatedTopic();
-
-    // Capture current state values to avoid stale closure issues
-    const currentStudySequence = state.studySequence;
-    const currentSequenceIndex = state.sequenceIndex;
-
-    // Set the manual registration flag to true before showing the dialog
     manualRegistrationExpectedRef.current = true;
 
-    // Store transition data and show dialog
     setTransitionData({
       prevState,
       effectiveTimeSpent,
@@ -979,32 +698,26 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   }, [pomodoroSettings, getAssociatedTopic, state.studySequence, state.sequenceIndex]);
 
   useEffect(() => {
-    // Only run timer if status is focus or break (not paused or idle)
     if (pomodoroState.status === 'paused' || pomodoroState.status === 'idle') {
-      return; // Clean up any existing interval when entering paused/idle state
+      return;
     }
 
     const timer = setInterval(() => {
       setPomodoroState(prev => {
-        // Check again inside the interval to ensure we should still be running
         if (prev.status === 'paused' || prev.status === 'idle') {
-          return prev; // Don't update time if we're paused or idle
+          return prev;
         }
 
         if (prev.timeRemaining <= 1) {
-          // Don't immediately transition here - just return a state that will trigger
-          // the transition in the next render cycle to avoid race conditions
           return { ...prev, timeRemaining: 0 };
         }
         return { ...prev, timeRemaining: prev.timeRemaining - 1 };
       });
     }, 1000);
 
-    // Cleanup function will be called when dependencies change (like when status changes to 'paused')
     return () => clearInterval(timer);
   }, [pomodoroState.status, pomodoroState.key, handlePomodoroStateTransition]);
 
-  // Separate effect to handle transitions when time reaches 0
   useEffect(() => {
     if (pomodoroState.timeRemaining <= 0 &&
         pomodoroState.status !== 'idle' &&
@@ -1020,7 +733,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       const subject = state.subjects.find(s => s.id === topic.subjectId);
       const firstTask = pomodoroSettings?.tasks?.[0];
       if (subject && (firstTask || customDuration)) {
-        const duration = customDuration || firstTask?.duration || 25 * 60; // Default to 25 minutes if no task and no custom duration
+        const duration = customDuration || firstTask?.duration || 25 * 60;
         setPomodoroState(prev => ({
           ...prev,
           status: 'focus',
@@ -1028,7 +741,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           associatedItemId: itemId,
           associatedItemType: itemType,
           key: prev.key + 1,
-          currentTaskIndex: customDuration ? undefined : 0, // For custom duration, we might not use task indices
+          currentTaskIndex: customDuration ? undefined : 0,
           isCustomDuration: !!customDuration,
           originalDuration: duration,
           currentCycle: 0,
@@ -1041,7 +754,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           description: `Matéria: ${subject.name}`,
         });
       } else {
-        toast({ title: "Erro", description: "Configure pelo menos uma tarefa de foco nas configurações do Pomodoro.", variant: "destructive" });
+        toast({ title: "Erro", description: "Configure pelo menos uma tarefa de foco.", variant: "destructive" });
       }
     }
   }, [state.subjects, pomodoroSettings, setActiveTab, toast]);
@@ -1049,31 +762,25 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   const pausePomodoroTimer = useCallback(() => {
     setPomodoroState(prev => {
       if (prev.status === 'paused' && prev.previousStatus) {
-        // Resume from paused state - go back to the previous status and increment key to restart timer
         return { ...prev, status: prev.previousStatus, previousStatus: undefined, key: prev.key + 1 };
       } else if (prev.status === 'focus' || prev.status === 'short_break' || prev.status === 'long_break') {
-        // Pause from any running state
         return { ...prev, status: 'paused', previousStatus: prev.status };
       }
       return prev;
     });
   }, []);
 
-  // Function to show transition dialog
   const showPomodoroTransitionDialog = useCallback((actualTimeSpent: number, topicId?: string, subjectId?: string) => {
     setShowTransitionDialog(true);
   }, []);
 
-  // Function to reset the manual registration flag
   const resetManualRegistrationFlag = useCallback(() => {
     manualRegistrationExpectedRef.current = false;
   }, []);
 
-  // Functions to handle transition dialog actions
   const skipToBreak = useCallback(() => {
     if (transitionData) {
       const { prevState } = transitionData;
-      // Skip transition and go directly to break or next phase
       setPomodoroState(prev => {
         if (prev.status === 'focus') {
           const newCycle = prev.currentCycle + 1;
@@ -1088,7 +795,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             key: prev.key + 1
           };
         } else if (prev.status === 'short_break' || prev.status === 'long_break') {
-          // Go back to focus
           const firstTask = pomodoroSettings?.tasks?.[0];
           return {
             ...prev,
@@ -1101,7 +807,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         return prev;
       });
     }
-    // Reset the manual registration flag when skipping
     manualRegistrationExpectedRef.current = false;
     setShowTransitionDialog(false);
   }, [pomodoroSettings, transitionData]);
@@ -1110,18 +815,14 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     if (transitionData) {
       const { prevState, effectiveTimeSpent, topic } = transitionData;
 
-      // Execute the transition logic based on the stored data
       if (prevState.status === 'focus') {
-        // Check if this is a custom duration session
         if (prevState.isCustomDuration) {
-          // For custom duration sessions, go straight to break after one session
-          // Only register automatically if manual registration is not expected
           if (topic && !manualRegistrationExpectedRef.current) {
             const sequenceItemIndex = state.studySequence ? state.studySequence.sequence.findIndex((item: any, index: number) => item.subjectId === topic.subjectId && index === state.sequenceIndex) : -1;
             enhancedDispatch({
               type: 'ADD_STUDY_LOG',
               payload: {
-                duration: Math.floor(effectiveTimeSpent / 60), // Use actual time spent
+                duration: Math.floor(effectiveTimeSpent / 60),
                 subjectId: topic.subjectId,
                 topicId: topic.id,
                 startPage: 0, endPage: 0, questionsTotal: 0, questionsCorrect: 0,
@@ -1156,7 +857,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             }));
           }
         } else {
-          // For normal task-based sessions, follow the existing logic
           const currentTaskIndex = prevState.currentTaskIndex ?? 0;
           const nextTaskIndex = currentTaskIndex + 1;
 
@@ -1170,7 +870,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
               key: prev.key + 1,
             }));
           } else {
-            // Only register automatically if manual registration is not expected
             const topic = getAssociatedTopic();
             if (topic && !manualRegistrationExpectedRef.current) {
               const totalFocusDuration = pomodoroSettings.tasks.reduce((sum: number, task: any) => sum + task.duration, 0);
@@ -1215,7 +914,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } else if (prevState.status === 'short_break' || prevState.status === 'long_break') {
-        // For breaks, transition directly to focus without showing dialog
         const firstTask = pomodoroSettings.tasks?.[0];
         setPomodoroState(prev => ({
           ...prev,
@@ -1228,14 +926,54 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         setPomodoroState(prev => ({ ...prev, status: 'idle' }));
       }
     }
-    // Reset the manual registration flag after completing the transition
     manualRegistrationExpectedRef.current = false;
     setShowTransitionDialog(false);
-  }, [pomodoroSettings, transitionData, state.studySequence, state.sequenceIndex, getAssociatedTopic, toast, dispatch]);
+  }, [pomodoroSettings, transitionData, state.studySequence, state.sequenceIndex, getAssociatedTopic, toast, enhancedDispatch]);
+
+  const advancePomodoroCycle = useCallback(() => {
+    setPomodoroState(prev => {
+      if (prev.status === 'idle') return prev;
+
+      let effectiveTimeSpent = 0;
+      if (prev.originalDuration) {
+        effectiveTimeSpent = prev.originalDuration - prev.timeRemaining;
+      } else {
+        const currentTask = prev.currentTaskIndex !== undefined && pomodoroSettings?.tasks?.[prev.currentTaskIndex];
+        if (currentTask) {
+          effectiveTimeSpent = currentTask.duration - prev.timeRemaining;
+        } else {
+          effectiveTimeSpent = (pomodoroSettings?.tasks?.[0]?.duration || 1500) - prev.timeRemaining;
+        }
+      }
+
+      manualAdvanceTimeRef.current = effectiveTimeSpent;
+      return { ...prev, timeRemaining: 0, key: prev.key + 1 };
+    });
+  }, [pomodoroSettings]);
+
+  useEffect(() => {
+      if (!user) return;
+
+      const saveSettings = async () => {
+          try {
+              await studyService.saveUserSettings({
+                  user_id: user.id,
+                  settings: {
+                      sequenceIndex: state.sequenceIndex,
+                  }
+              });
+          } catch (e) {
+              console.error("Failed to save user settings", e);
+          }
+      };
+
+      const timeoutId = setTimeout(saveSettings, 2000);
+      return () => clearTimeout(timeoutId);
+  }, [state.sequenceIndex, user]);
 
   const value = useMemo(() => ({
     data: state,
-    dispatch: enhancedDispatch, // Use the enhanced dispatch
+    dispatch: enhancedDispatch,
     pomodoroState,
     setPomodoroState,
     activeTab,
@@ -1252,12 +990,8 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen w-full">
-        <div className="text-center">
-          <p className="text-lg font-semibold">Carregando seus dados...</p>
-          <p className="text-muted-foreground">Sincronizando com a nuvem.</p>
-        </div>
-      </div>
+      // You might want a better loading component here
+      <></>
     );
   }
 

@@ -1,4 +1,5 @@
-import { supabase } from '@/lib/supabase/client';
+
+import { supabase } from '../../constants/Supabase';
 
 // Type definitions matching your existing Supabase schema
 export interface Subject {
@@ -102,7 +103,7 @@ export const studyService = {
     return data as Subject[];
   },
 
-  addSubject: async (subjectData: Omit<Subject, 'id' | 'created_at' | 'updated_at'>) => {
+  addSubject: async (subjectData: Omit<Subject, 'created_at' | 'updated_at'>) => {
     const { data, error } = await supabase
       .from('subjects')
       .insert([subjectData])
@@ -147,7 +148,7 @@ export const studyService = {
     return data as Topic[];
   },
 
-  addTopic: async (topicData: Omit<Topic, 'id' | 'created_at' | 'updated_at'>) => {
+  addTopic: async (topicData: Omit<Topic, 'created_at' | 'updated_at'>) => {
     const { data, error } = await supabase
       .from('topics')
       .insert([topicData])
@@ -192,7 +193,7 @@ export const studyService = {
     return data as StudyLog[];
   },
 
-  addStudyLog: async (logData: Omit<StudyLog, 'id' | 'created_at' | 'updated_at'>) => {
+  addStudyLog: async (logData: Omit<StudyLog, 'created_at' | 'updated_at'>) => {
     const { data, error } = await supabase
       .from('study_logs')
       .insert([logData])
@@ -296,7 +297,7 @@ export const studyService = {
       return data as Template[];
   },
 
-  addTemplate: async (templateData: Omit<Template, 'id' | 'created_at' | 'updated_at'>) => {
+  addTemplate: async (templateData: Omit<Template, 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase
           .from('templates')
           .insert([templateData])
@@ -328,7 +329,7 @@ export const studyService = {
       return data as SchedulePlan[];
   },
 
-  addSchedulePlan: async (planData: Omit<SchedulePlan, 'id' | 'created_at' | 'updated_at'>) => {
+  addSchedulePlan: async (planData: Omit<SchedulePlan, 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase
           .from('schedule_plans')
           .insert([planData])
@@ -402,13 +403,27 @@ export const studyService = {
           return { ...subject, topics };
       }));
 
+      // Transform Schedule Plans to match frontend type
+      // The Supabase type (SchedulePlan) has explicit columns: total_horas_semanais, etc.
+      // The Frontend type expects: totalHorasSemanais (camelCase)
+      // We need to map it here.
+      const mappedSchedulePlans = schedulePlans.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          createdAt: p.created_at,
+          totalHorasSemanais: p.total_horas_semanais,
+          duracaoSessao: p.duracao_sessao,
+          subModoPomodoro: p.sub_modo_pomodoro,
+          sessoesPorMateria: p.sessoes_por_materia
+      }));
+
       return {
           subjects: subjectsWithTopics,
           studyLogs,
           studySequence,
           pomodoroSettings,
           templates,
-          schedulePlans,
+          schedulePlans: mappedSchedulePlans,
           userSettings
       };
   }
