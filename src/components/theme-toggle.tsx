@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
+import { useEffect } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -13,7 +14,16 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 export function ThemeToggle() {
-  const { setTheme } = useTheme()
+  const { setTheme, theme } = useTheme()
+
+  useEffect(() => {
+    const handleToggleTheme = () => {
+      setTheme(theme === "dark" ? "light" : "dark");
+    };
+
+    window.addEventListener('toggle-theme', handleToggleTheme);
+    return () => window.removeEventListener('toggle-theme', handleToggleTheme);
+  }, [theme, setTheme]);
 
   return (
     <DropdownMenu>

@@ -20,16 +20,28 @@ import { useToast } from '@/hooks/use-toast';
 import type { StudyLogEntry } from '@/lib/types';
 
 
-export default function StudyLogForm({ onSave, onCancel, existingLog, initialData }: { onSave: () => void, onCancel: () => void, existingLog?: StudyLogEntry, initialData?: { subjectId?: string, topicId?: string, sequenceItemIndex?: number } }) {
+export default function StudyLogForm({ onSave, onCancel, existingLog, initialData }: { onSave: () => void, onCancel: () => void, existingLog?: StudyLogEntry, initialData?: { subjectId?: string, topicId?: string, sequenceItemIndex?: number, duration?: number, source?: string } }) {
   const { data, dispatch } = useStudy();
   const [subjectId, setSubjectId] = useState(existingLog?.subjectId || initialData?.subjectId || '');
   const [topicId, setTopicId] = useState(existingLog?.topicId || initialData?.topicId || '');
-  const [duration, setDuration] = useState(existingLog?.duration || '');
+  const [duration, setDuration] = useState(existingLog?.duration || initialData?.duration || '');
   const [startPage, setStartPage] = useState(existingLog?.startPage || '');
   const [endPage, setEndPage] = useState(existingLog?.endPage || '');
   const [questionsTotal, setQuestionsTotal] = useState(existingLog?.questionsTotal || '');
   const [questionsCorrect, setQuestionsCorrect] = useState(existingLog?.questionsCorrect || '');
-  const [source, setSource] = useState(existingLog?.source || '');
+  const [source, setSource] = useState(existingLog?.source || initialData?.source || '');
+
+  // Track if user has modified the form to prevent overwriting user input
+  const [hasUserModified, setHasUserModified] = useState({
+    subjectId: false,
+    topicId: false,
+    duration: false,
+    startPage: false,
+    endPage: false,
+    questionsTotal: false,
+    questionsCorrect: false,
+    source: false
+  });
 
   const { toast } = useToast();
 
@@ -37,27 +49,28 @@ export default function StudyLogForm({ onSave, onCancel, existingLog, initialDat
 
   useEffect(() => {
     // This effect handles updates for existing logs
+    // Only update if user hasn't modified the field
     if (existingLog) {
-        setSubjectId(existingLog.subjectId);
-        setTopicId(existingLog.topicId);
-        setDuration(existingLog.duration);
-        setStartPage(existingLog.startPage);
-        setEndPage(existingLog.endPage);
-        setQuestionsTotal(existingLog.questionsTotal);
-        setQuestionsCorrect(existingLog.questionsCorrect);
-        setSource(existingLog.source || '');
-    } else {
-        // Reset form for new entries, respecting initialData
-        setSubjectId(initialData?.subjectId || '');
-        setTopicId(initialData?.topicId || '');
-        setDuration('');
-        setStartPage('');
-        setEndPage('');
-        setQuestionsTotal('');
-        setQuestionsCorrect('');
-        setSource('');
+      if (!hasUserModified.subjectId) setSubjectId(existingLog.subjectId);
+      if (!hasUserModified.topicId) setTopicId(existingLog.topicId);
+      if (!hasUserModified.duration) setDuration(existingLog.duration);
+      if (!hasUserModified.startPage) setStartPage(existingLog.startPage);
+      if (!hasUserModified.endPage) setEndPage(existingLog.endPage);
+      if (!hasUserModified.questionsTotal) setQuestionsTotal(existingLog.questionsTotal);
+      if (!hasUserModified.questionsCorrect) setQuestionsCorrect(existingLog.questionsCorrect);
+      if (!hasUserModified.source) setSource(existingLog.source || '');
+    } else if (!existingLog && !hasUserModified.subjectId && !hasUserModified.topicId && !hasUserModified.duration) {
+      // Only reset for new entries if user hasn't modified anything yet
+      setSubjectId(initialData?.subjectId || '');
+      setTopicId(initialData?.topicId || '');
+      setDuration(initialData?.duration || '');
+      setStartPage('');
+      setEndPage('');
+      setQuestionsTotal('');
+      setQuestionsCorrect('');
+      setSource(initialData?.source || '');
     }
-  }, [existingLog, initialData]);
+  }, [existingLog, initialData, hasUserModified]);
 
 
   const handleSubmit = () => {
@@ -104,7 +117,13 @@ export default function StudyLogForm({ onSave, onCancel, existingLog, initialDat
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Matéria</Label>
-          <Select value={subjectId} onValueChange={setSubjectId}>
+          <Select
+            value={subjectId}
+            onValueChange={(value) => {
+              setSubjectId(value);
+              setHasUserModified(prev => ({ ...prev, subjectId: true }));
+            }}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Selecione a matéria" />
             </SelectTrigger>
@@ -119,7 +138,14 @@ export default function StudyLogForm({ onSave, onCancel, existingLog, initialDat
         </div>
         <div className="space-y-2">
           <Label>Assunto</Label>
-          <Select value={topicId} onValueChange={setTopicId} disabled={!subjectId}>
+          <Select
+            value={topicId}
+            onValueChange={(value) => {
+              setTopicId(value);
+              setHasUserModified(prev => ({ ...prev, topicId: true }));
+            }}
+            disabled={!subjectId}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Selecione o assunto" />
             </SelectTrigger>
@@ -136,11 +162,26 @@ export default function StudyLogForm({ onSave, onCancel, existingLog, initialDat
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="duration">Duração (min)</Label>
-          <Input id="duration" type="number" value={duration} onChange={e => setDuration(e.target.value)} placeholder="Ex: 50" />
+          <Input
+            id="duration"
+            type="number"
+            value={duration}
+            onChange={e => {
+              setDuration(e.target.value);
+              setHasUserModified(prev => ({ ...prev, duration: true }));
+            }}
+            placeholder="Ex: 50"
+          />
         </div>
          <div className="space-y-2">
             <Label>Fonte / Revisão</Label>
-            <Select value={source} onValueChange={setSource}>
+            <Select
+              value={source}
+              onValueChange={(value) => {
+                setSource(value);
+                setHasUserModified(prev => ({ ...prev, source: true }));
+              }}
+            >
                 <SelectTrigger>
                     <SelectValue placeholder="Fonte / Revisão" />
                 </SelectTrigger>
@@ -157,21 +198,57 @@ export default function StudyLogForm({ onSave, onCancel, existingLog, initialDat
        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
          <div className="space-y-2">
           <Label htmlFor="startPage">Pág. Início</Label>
-          <Input id="startPage" type="number" value={startPage} onChange={e => setStartPage(e.target.value)} placeholder="Ex: 10"/>
+          <Input
+            id="startPage"
+            type="number"
+            value={startPage}
+            onChange={e => {
+              setStartPage(e.target.value);
+              setHasUserModified(prev => ({ ...prev, startPage: true }));
+            }}
+            placeholder="Ex: 10"
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="endPage">Pág. Fim</Label>
-          <Input id="endPage" type="number" value={endPage} onChange={e => setEndPage(e.target.value)} placeholder="Ex: 25"/>
+          <Input
+            id="endPage"
+            type="number"
+            value={endPage}
+            onChange={e => {
+              setEndPage(e.target.value);
+              setHasUserModified(prev => ({ ...prev, endPage: true }));
+            }}
+            placeholder="Ex: 25"
+          />
         </div>
       </div>
        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="questionsTotal">Questões (Total)</Label>
-          <Input id="questionsTotal" type="number" value={questionsTotal} onChange={e => setQuestionsTotal(e.target.value)} placeholder="Ex: 20"/>
+          <Input
+            id="questionsTotal"
+            type="number"
+            value={questionsTotal}
+            onChange={e => {
+              setQuestionsTotal(e.target.value);
+              setHasUserModified(prev => ({ ...prev, questionsTotal: true }));
+            }}
+            placeholder="Ex: 20"
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="questionsCorrect">Questões (Acertos)</Label>
-          <Input id="questionsCorrect" type="number" value={questionsCorrect} onChange={e => setQuestionsCorrect(e.target.value)} placeholder="Ex: 18"/>
+          <Input
+            id="questionsCorrect"
+            type="number"
+            value={questionsCorrect}
+            onChange={e => {
+              setQuestionsCorrect(e.target.value);
+              setHasUserModified(prev => ({ ...prev, questionsCorrect: true }));
+            }}
+            placeholder="Ex: 18"
+          />
         </div>
       </div>
       <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 pt-4">

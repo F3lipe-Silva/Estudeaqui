@@ -173,4 +173,31 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](./LICENSE) para 
 
 ---
 
+## 🚀 Supabase Integration
+
+This project is now integrated with Supabase for backend services. The following files handle the Supabase integration:
+
+- `src/lib/supabase/client.ts` - Client-side Supabase client
+- `src/lib/supabase/server.ts` - Server-side Supabase client (requires service role key)
+- `src/lib/supabase/config.ts` - Configuration file
+
+### Setup Supabase
+
+1. Set up your Supabase environment variables by creating a `.env.local` file:
+   ```bash
+   NEXT_PUBLIC_SUPABASE_URL=https://lbmmhjjbimvslmambprr.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxibW1oampiaW12c2xtYW1icHJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MzQ5MDgsImV4cCI6MjA4MDAxMDkwOH0.VGNjfTwekXUznR04a9UdFDXvc2xWmVELYbV7lqFNJWE
+   SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY_HERE
+   ```
+
+2. Get your SUPABASE_SERVICE_ROLE_KEY from your Supabase dashboard under Project Settings > API
+
+### Database Tables
+
+To use Supabase effectively, you may need to create tables in your Supabase dashboard. For example, the demo component tries to access a `users` table.
+
+### Authentication
+
+The setup includes both anon key for client-side operations and a service role key for server-side operations, which can be used for authentication functionality.
+
 **Desenvolvido com ❤️ para concurseiros que levam seus estudos a sério**

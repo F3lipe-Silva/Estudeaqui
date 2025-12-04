@@ -1,12 +1,11 @@
 'use client';
 
 import { useStudy } from '@/contexts/study-context';
-import { Home, BookCopy, Workflow, History, BookCheck, CalendarClock } from 'lucide-react';
+import { Home, BookCopy, Workflow, History, BookCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
     { id: 'overview', label: 'Início', icon: Home },
-    { id: 'schedule', label: 'Cronograma', icon: CalendarClock },
     { id: 'planning', label: 'Plano', icon: Workflow },
     { id: 'cycle', label: 'Matéria', icon: BookCopy },
     { id: 'revision', label: 'Revisão', icon: BookCheck },

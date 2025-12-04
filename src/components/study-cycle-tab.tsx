@@ -34,7 +34,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Edit, Trash2, PlayCircle, CheckCircle2, Clock, FolderKanban, Circle, Save, FolderOpen } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 
@@ -53,28 +53,30 @@ function SubjectForm({ subject, onSave, onCancel }: { subject?: any; onSave: (da
   };
 
   return (
-    <div className="grid gap-4 py-4">
-      <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-        <Label htmlFor="name" className="text-left sm:text-right">Nome</Label>
-        <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="col-span-1 sm:col-span-3" />
+    <div className="grid gap-6 py-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="name">Nome</Label>
+          <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome da matéria..." />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="studyDuration">Tempo (min)</Label>
+          <Input id="studyDuration" type="number" value={studyDuration} onChange={(e) => setStudyDuration(Number(e.target.value))} placeholder="60" />
+        </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-4">
-        <Label htmlFor="description" className="text-left sm:text-right pt-2">Descrição</Label>
-        <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="col-span-1 sm:col-span-3" placeholder="Descrição breve da matéria..."/>
+      <div className="space-y-2">
+        <Label htmlFor="description">Descrição</Label>
+        <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição breve da matéria..."/>
       </div>
-       <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-        <Label htmlFor="studyDuration" className="text-left sm:text-right">Tempo (min)</Label>
-        <Input id="studyDuration" type="number" value={studyDuration} onChange={(e) => setStudyDuration(Number(e.target.value))} className="col-span-1 sm:col-span-3" />
+      <div className="space-y-2">
+        <Label htmlFor="materialUrl">URL do Material</Label>
+        <Input id="materialUrl" value={materialUrl} onChange={(e) => setMaterialUrl(e.target.value)} placeholder="https://..."/>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-        <Label htmlFor="materialUrl" className="text-left sm:text-right">URL do Material</Label>
-        <Input id="materialUrl" value={materialUrl} onChange={(e) => setMaterialUrl(e.target.value)} className="col-span-1 sm:col-span-3" placeholder="https://..."/>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-        <Label htmlFor="color" className="text-left sm:text-right">Cor</Label>
-        <div className="col-span-1 sm:col-span-3 flex gap-2 flex-wrap">
+      <div className="space-y-2">
+        <Label>Cor</Label>
+        <div className="flex gap-2 flex-wrap">
           {COLORS.map(c => (
-            <button key={c} onClick={() => setColor(c)} className={`w-8 h-8 rounded-full border-2 ${color === c ? 'border-primary' : 'border-transparent'}`} style={{ backgroundColor: c }} />
+            <button key={c} onClick={() => setColor(c)} className={`w-10 h-10 rounded-full border-2 transition-all hover:scale-110 ${color === c ? 'border-primary ring-2 ring-primary/20' : 'border-transparent'}`} style={{ backgroundColor: c }} />
           ))}
         </div>
       </div>
@@ -91,13 +93,40 @@ export default function StudyCycleTab() {
   const [newTopicName, setNewTopicName] = useState('');
   const [addingTopicTo, setAddingTopicTo] = useState<string | null>(null);
   const [editingSubject, setEditingSubject] = useState(null);
-  const [editingTopic, setEditingTopic] = useState(null);
+  const [editingTopic, setEditingTopic] = useState<any>(null);
   const [editingTopicName, setEditingTopicName] = useState('');
   const [isEditingTopicOpen, setIsEditingTopicOpen] = useState(false);
   const [subjectToDelete, setSubjectToDelete] = useState<{id: string, name: string} | null>(null);
   const [saveTemplateName, setSaveTemplateName] = useState('');
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
+
+  // Efeitos para atalhos de teclado
+  useEffect(() => {
+    const handleOpenNewSubject = () => {
+      // Simular clique no botão de nova matéria
+      const button = document.querySelector('[data-testid="new-subject-button"]') as HTMLButtonElement;
+      if (button) button.click();
+    };
+
+    const handleSaveTemplate = () => {
+      setIsSaveDialogOpen(true);
+    };
+
+    const handleLoadTemplate = () => {
+      setIsLoadDialogOpen(true);
+    };
+
+    window.addEventListener('open-new-subject', handleOpenNewSubject);
+    window.addEventListener('save-template', handleSaveTemplate);
+    window.addEventListener('load-template', handleLoadTemplate);
+
+    return () => {
+      window.removeEventListener('open-new-subject', handleOpenNewSubject);
+      window.removeEventListener('save-template', handleSaveTemplate);
+      window.removeEventListener('load-template', handleLoadTemplate);
+    };
+  }, []);
 
   const handleAddSubject = (data: any) => {
     const subjectData = { ...data, id: crypto.randomUUID() };
@@ -136,19 +165,17 @@ export default function StudyCycleTab() {
 
   const handleSaveTopic = () => {
     if (editingTopicName.trim() && editingTopic) {
-      const updatedSubject = {
-        ...data.subjects.find((s: any) => s.id === editingTopic.subjectId),
-        topics: data.subjects
-          .find((s: any) => s.id === editingTopic.subjectId)
-          .topics.map((t: any) =>
-            t.id === editingTopic.id ? { ...t, name: editingTopicName.trim() } : t
-          )
-      };
+      const subject = data.subjects.find((s: any) => s.id === editingTopic.subjectId);
+      if (subject) {
+        const updatedTopics = subject.topics.map((t: any) =>
+          t.id === editingTopic.id ? { ...t, name: editingTopicName.trim() } : t
+        );
 
-      dispatch({
-        type: 'UPDATE_SUBJECT',
-        payload: { id: editingTopic.subjectId, data: { topics: updatedSubject.topics } }
-      });
+        dispatch({
+          type: 'UPDATE_SUBJECT',
+          payload: { id: editingTopic.subjectId, data: { topics: updatedTopics } }
+        });
+      }
 
       setIsEditingTopicOpen(false);
       setEditingTopic(null);
@@ -196,22 +223,21 @@ export default function StudyCycleTab() {
             </CardTitle>
             <CardDescription className="mt-1">Gerencie suas matérias e assuntos de forma organizada.</CardDescription>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto lg:flex-wrap lg:justify-end">
             <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="shadow-sm hover:shadow-md transition-shadow w-full sm:w-auto">
                   <Save className="mr-2 h-4 w-4" /> Salvar Template
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-[90vw]">
-                <DialogHeader>
-                  <DialogTitle>Salvar Template de Matérias</DialogTitle>
-                  <DialogDescription>Digite o nome do concurso para salvar as matérias atuais como template.</DialogDescription>
-                </DialogHeader>
+                            <DialogContent className="max-w-md">
+                              <DialogHeader>
+                                <DialogTitle>Editar Assunto</DialogTitle>
+                              </DialogHeader>
                 <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="templateName" className="text-right">Nome</Label>
-                    <Input id="templateName" value={saveTemplateName} onChange={(e) => setSaveTemplateName(e.target.value)} className="col-span-3" placeholder="Ex: Concurso XYZ" />
+                  <div className="space-y-2">
+                    <Label htmlFor="templateName">Nome do Template</Label>
+                    <Input id="templateName" value={saveTemplateName} onChange={(e) => setSaveTemplateName(e.target.value)} placeholder="Ex: Concurso XYZ" />
                   </div>
                 </div>
                 <DialogFooter>
@@ -226,7 +252,7 @@ export default function StudyCycleTab() {
                   <FolderOpen className="mr-2 h-4 w-4" /> Carregar Template
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-[90vw]">
+              <DialogContent className="max-w-md">
                 <DialogHeader>
                   <DialogTitle>Carregar Template de Matérias</DialogTitle>
                   <DialogDescription>Selecione um template para carregar as matérias.</DialogDescription>
@@ -283,11 +309,14 @@ export default function StudyCycleTab() {
             </Dialog>
             <Dialog>
               <DialogTrigger asChild>
-                <Button className="w-full sm:w-auto shadow-sm hover:shadow-md transition-shadow">
+                <Button 
+                  data-testid="new-subject-button"
+                  className="w-full sm:w-auto shadow-sm hover:shadow-md transition-shadow"
+                >
                   <Plus className="mr-2 h-4 w-4" /> Nova Matéria
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-h-[90vh] overflow-y-auto max-w-[90vw]">
+              <DialogContent className="max-h-[80vh] overflow-y-auto max-w-md">
                 <DialogHeader><DialogTitle>Adicionar Nova Matéria</DialogTitle></DialogHeader>
                 <SubjectForm onSave={handleAddSubject} onCancel={() => {}} />
               </DialogContent>
@@ -304,10 +333,10 @@ export default function StudyCycleTab() {
               <p className="text-muted-foreground mb-4">Comece adicionando sua primeira matéria para organizar seus estudos.</p>
             </div>
           ) : (
-          <Accordion type="multiple" className="w-full space-y-3">
+          <Accordion type="multiple" className="w-full space-y-4">
             {data.subjects.map(subject => (
-              <AccordionItem key={subject.id} value={subject.id} className="border rounded-lg overflow-hidden bg-card shadow-sm hover:shadow-md transition-shadow">
-                <AccordionTrigger className="hover:bg-muted/50 px-4 transition-colors">
+              <AccordionItem key={subject.id} value={subject.id} className="border rounded-xl overflow-hidden bg-card shadow-sm hover:shadow-lg transition-all duration-200">
+                <AccordionTrigger className="hover:bg-muted/50 px-6 transition-colors">
                   <div className="flex items-center gap-3 flex-1">
                     <div className="w-3 h-3 rounded-full ring-2 ring-offset-2 ring-offset-background" style={{ backgroundColor: subject.color, '--tw-ring-color': subject.color } as React.CSSProperties}></div>
                     <span className="font-semibold text-lg text-left">{subject.name}</span>
@@ -316,10 +345,10 @@ export default function StudyCycleTab() {
                     </span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="px-4 pb-4 bg-muted/10">
+                <AccordionContent className="px-6 pb-6 bg-muted/10">
                   {subject.description && <p className="text-sm text-muted-foreground mb-4 italic bg-muted/50 p-3 rounded-md">{subject.description}</p>}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4 pb-4 border-b">
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+                  <div className="flex flex-col lg:flex-row lg:items-center gap-4 mb-6 pb-4 border-b">
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-2 lg:flex-1">
                         {subject.materialUrl && (
                            <a href={subject.materialUrl} target="_blank" rel="noopener noreferrer">
                              <Button variant="outline" size="sm" className="w-full sm:w-auto"><FolderKanban className="mr-2 h-3 w-3" /> Abrir Material</Button>
@@ -330,7 +359,7 @@ export default function StudyCycleTab() {
                                 <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setEditingSubject(subject as any)}><Edit className="mr-2 h-3 w-3" /> Editar</Button>
                             </DialogTrigger>
                             {editingSubject && (
-                                <DialogContent className="max-w-[90vw]">
+                                <DialogContent className="max-w-md">
                                     <DialogHeader><DialogTitle>Editar Matéria</DialogTitle></DialogHeader>
                                     <SubjectForm subject={editingSubject} onSave={handleUpdateSubject} onCancel={() => setEditingSubject(null)}/>
                                 </DialogContent>
@@ -368,7 +397,7 @@ export default function StudyCycleTab() {
                         </div>
                     )}
                   </div>
-                  <div className="space-y-2 mt-4">
+                   <div className="space-y-3 mt-6">
                     {subject.topics.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground bg-muted/30 rounded-lg">
                         <p className="text-sm">Nenhum assunto cadastrado ainda.</p>
@@ -376,7 +405,7 @@ export default function StudyCycleTab() {
                     ) : (
                       subject.topics.map(topic => (
                       <div key={topic.id} className="flex flex-col">
-                        <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-card border transition-all hover:shadow-sm">
+                         <div className="flex items-center gap-4 p-4 rounded-xl hover:bg-card border transition-all hover:shadow-md">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -390,9 +419,9 @@ export default function StudyCycleTab() {
                           >
                             {topic.isCompleted ? <CheckCircle2 className="h-5 w-5"/> : <Circle className="h-5 w-5"/>}
                           </Button>
-                          <div className="flex-grow flex items-center gap-3">
-                              <span className="font-mono text-sm font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded">{topic.order.toString().padStart(2, '0')}</span>
-                              <span className={cn("text-sm font-medium", topic.isCompleted && "line-through text-muted-foreground")}>{topic.name}</span>
+                           <div className="flex-grow flex items-center gap-4">
+                               <span className="font-mono text-sm font-semibold text-muted-foreground bg-muted px-3 py-1 rounded-lg">{topic.order.toString().padStart(2, '0')}</span>
+                               <span className={cn("text-base font-medium", topic.isCompleted && "line-through text-muted-foreground")}>{topic.name}</span>
                           </div>
                           <Dialog open={isEditingTopicOpen} onOpenChange={setIsEditingTopicOpen}>
                             <DialogTrigger asChild>
@@ -406,18 +435,17 @@ export default function StudyCycleTab() {
                                 <Edit className="h-5 w-5" />
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-[90vw]">
+              <DialogContent className="max-w-md">
                               <DialogHeader>
                                 <DialogTitle>Editar Assunto</DialogTitle>
                               </DialogHeader>
                               <div className="grid gap-4 py-4">
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                  <Label htmlFor="topic-name" className="text-right">Nome</Label>
+                                <div className="space-y-2">
+                                  <Label htmlFor="topic-name">Nome do Assunto</Label>
                                   <Input
                                     id="topic-name"
                                     value={editingTopicName}
                                     onChange={(e) => setEditingTopicName(e.target.value)}
-                                    className="col-span-3"
                                     placeholder="Nome do assunto..."
                                   />
                                 </div>
@@ -452,22 +480,22 @@ export default function StudyCycleTab() {
                     ))
                     )}
                     {addingTopicTo === subject.id ? (
-                       <div className="flex flex-col sm:flex-row gap-2 p-3 bg-muted/50 rounded-lg">
-                         <Input
-                           placeholder="Nome do novo assunto"
-                           value={newTopicName}
-                           onChange={(e) => setNewTopicName(e.target.value)}
-                           onKeyDown={(e) => e.key === 'Enter' && handleAddTopic(subject.id)}
-                           autoFocus
-                           className="border-2"
-                         />
-                         <div className='flex gap-2 justify-end'>
-                            <Button onClick={() => handleAddTopic(subject.id)} className="shadow-sm">Salvar</Button>
-                            <Button variant="outline" onClick={() => setAddingTopicTo(null)}>Cancelar</Button>
-                         </div>
+                       <div className="flex flex-col lg:flex-row gap-3 p-4 bg-muted/50 rounded-xl">
+                           <Input
+                            placeholder="Nome do novo assunto"
+                            value={newTopicName}
+                            onChange={(e) => setNewTopicName(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddTopic(subject.id)}
+                            autoFocus
+                            className="border-2 text-base"
+                          />
+                          <div className='flex gap-2 justify-end lg:justify-start'>
+                             <Button onClick={() => handleAddTopic(subject.id)} className="shadow-sm">Salvar</Button>
+                             <Button variant="outline" onClick={() => setAddingTopicTo(null)}>Cancelar</Button>
+                          </div>
                        </div>
                     ) : (
-                      <Button variant="outline" className="w-full justify-start mt-2 border-dashed hover:border-solid hover:bg-muted/50 transition-all" onClick={() => setAddingTopicTo(subject.id)}>
+                       <Button variant="outline" className="w-full justify-start mt-4 border-dashed hover:border-solid hover:bg-muted/50 transition-all h-12" onClick={() => setAddingTopicTo(subject.id)}>
                         <Plus className="mr-2 h-4 w-4" /> Adicionar Assunto
                       </Button>
                     )}

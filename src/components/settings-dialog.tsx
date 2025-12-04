@@ -10,12 +10,13 @@ import {
     DialogTrigger,
     DialogFooter,
 } from "@/components/ui/dialog";
-import { Settings, Trash2 } from "lucide-react";
+import { Settings, Trash2, Keyboard } from "lucide-react";
 import { useStudy } from "@/contexts/study-context";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { INITIAL_SUBJECTS } from "@/lib/data";
+// import { KeyboardShortcutsHelp } from "@/hooks/use-keyboard-shortcuts";
 
 export function SettingsDialog() {
     const { dispatch } = useStudy();
@@ -52,7 +53,26 @@ export function SettingsDialog() {
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="py-4 space-y-4">
+                <div className="py-4 space-y-6">
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                            <Keyboard className="h-4 w-4" />
+                            <h4 className="text-sm font-medium">Atalhos de Teclado</h4>
+                        </div>
+                        <div className="border rounded-lg p-4 bg-muted/30">
+                            <div className="text-sm text-muted-foreground space-y-1">
+                                <p>• <kbd className="px-1 py-0.5 text-xs bg-muted border rounded">Ctrl+1</kbd> a <kbd className="px-1 py-0.5 text-xs bg-muted border rounded">Ctrl+6</kbd> - Navegar entre abas</p>
+                                <p>• <kbd className="px-1 py-0.5 text-xs bg-muted border rounded">Ctrl+Shift+N</kbd> - Nova matéria</p>
+                                <p>• <kbd className="px-1 py-0.5 text-xs bg-muted border rounded">Ctrl+Shift+S</kbd> - Salvar template</p>
+                                <p>• <kbd className="px-1 py-0.5 text-xs bg-muted border rounded">Ctrl+Shift+L</kbd> - Carregar template</p>
+                                <p>• <kbd className="px-1 py-0.5 text-xs bg-muted border rounded">Ctrl+Shift+D</kbd> - Alternar tema</p>
+                                <p>• <kbd className="px-1 py-0.5 text-xs bg-muted border rounded">Ctrl+Shift+Q</kbd> - Sair</p>
+                                <p>• <kbd className="px-1 py-0.5 text-xs bg-muted border rounded">Ctrl+6</kbd> - Ir para Pomodoro</p>
+                                <p>• <kbd className="px-1 py-0.5 text-xs bg-muted border rounded">Ctrl+Shift+P</kbd> - Abrir seletor Pomodoro</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="flex items-center justify-between p-4 border rounded-lg bg-destructive/10 border-destructive/20">
                         <div className="space-y-1">
                             <h4 className="text-sm font-medium text-destructive">Zona de Perigo</h4>

@@ -60,3 +60,33 @@ Este documento resume todas as alterações realizadas no projeto Estudaqui para
 
 ## Testes Realizados
 O script de verificação de responsividade mostrou que o projeto já implementava 11 de 12 padrões responsivos em 179 arquivos, demonstrando uma base sólida para a experiência mobile.
+
+## Integração Supabase na versão Mobile
+
+- Client mobile com sessão persistente via `AsyncStorage` e cabeçalhos padrão.
+- Serviços expandidos no mobile para equivalência com web: `subjects`, `topics`, `study_logs`, `study_sequences`, `templates`, `schedule_plans`, `pomodoro_settings`, `user_settings`.
+- Sincronização offline/online com batch upsert e reprocesso ao voltar a ficar online.
+- Carregamento de `templates` e `schedule_plans` no contexto para leitura.
+
+## Autenticação Mobile
+
+- Adicionado recuperação de senha (`resetPassword`) com `Linking.createURL('/')` para deep link.
+- Ajustado OAuth Google para usar o esquema do app (`app.json` possui `scheme: "mobile"`).
+- Tela de login atualizada com botões de Google e recuperação de senha e validações de entrada.
+
+## Configuração de Testes no Mobile
+
+- Adicionado `jest-expo` e configuração Jest no `mobile/package.json`.
+- Comando de testes: `npm test` dentro da pasta `mobile`.
+- Teste existente (`components/__tests__/StyledText-test.js`) executado com sucesso.
+
+## Variáveis de Ambiente
+
+- Defina no mobile: `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
+- Para OAuth, o `redirectTo` usa `Linking.createURL('/')` com `scheme` definido em `app.json`.
+
+## Como Rodar
+
+- Instalar dependências do mobile: `npm install` (dentro de `mobile`).
+- Rodar testes: `npm test`.
+- Iniciar web do mobile (para ver navegação/fluxos): `npm run web`.

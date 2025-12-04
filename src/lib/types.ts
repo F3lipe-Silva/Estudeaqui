@@ -72,6 +72,8 @@ export interface PomodoroState {
   previousStatus?: PomodoroStatus; // To know what state to return to from pause
   pausedTime?: number; // To calculate time elapsed during pause
   currentTaskIndex?: number;
+  isCustomDuration?: boolean; // Whether this session is using a custom duration
+  originalDuration?: number; // Original duration for this session (used for custom durations)
 }
 
 export interface StudySequenceItem {
@@ -114,5 +116,12 @@ export interface StudyContextType {
   setPomodoroState: React.Dispatch<React.SetStateAction<PomodoroState>>;
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  startPomodoroForItem: (itemId: string, itemType: 'topic' | 'revision') => void;
+  startPomodoroForItem: (itemId: string, itemType: 'topic' | 'revision', navigateToPomodoro?: boolean, customDuration?: number) => void;
+  pausePomodoroTimer: () => void;
+  advancePomodoroCycle: () => void;
+  skipToBreak: () => void;
+  continueToBreak: () => void;
+  resetManualRegistrationFlag: () => void;
+  showTransitionDialog: boolean;
+  setShowTransitionDialog: (show: boolean) => void;
 }

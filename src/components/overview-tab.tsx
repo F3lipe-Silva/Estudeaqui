@@ -120,8 +120,8 @@ export default function OverviewTab() {
           <p className="text-muted-foreground capitalize">{formattedDate}</p>
         </div>
 
-        {/* Métricas - Grid responsivo */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        {/* Métricas - Grid responsivo otimizado para desktop */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Card className="hover:shadow-md transition-shadow border-l-4 border-l-primary">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
               <CardTitle className="text-sm font-medium">Hoje</CardTitle>
@@ -223,10 +223,10 @@ export default function OverviewTab() {
           </Card>
         </div>
 
-        {/* Cards de análise */}
-        <div className="grid gap-6 md:grid-cols-2">
+        {/* Cards de análise - Layout otimizado para desktop */}
+        <div className="grid gap-6 lg:grid-cols-3 xl:grid-cols-4">
           {/* Progresso por Matéria */}
-          <Card className="hover:shadow-md transition-shadow">
+          <Card className="hover:shadow-md transition-shadow lg:col-span-1 xl:col-span-1">
             <CardHeader>
               <CardTitle className="text-lg">Progresso por Matéria</CardTitle>
               <CardDescription>Avanço geral nos conteúdos</CardDescription>
@@ -255,36 +255,53 @@ export default function OverviewTab() {
           </Card>
 
           {/* Tempo por Matéria */}
-          <Card className="hover:shadow-md transition-shadow">
+          <Card className="hover:shadow-md transition-shadow lg:col-span-1 xl:col-span-1">
             <CardHeader>
               <CardTitle className="text-lg">Tempo Dedicado</CardTitle>
               <CardDescription>Distribuição por matéria</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={{}} className="h-[250px] w-full">
+              <ChartContainer config={{}} className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={chartData}
                     layout="vertical"
-                    margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                    margin={{ left: 10, right: 30, top: 10, bottom: 10 }}
+                    onClick={(data) => {
+                      if (data && data.activePayload) {
+                        const subjectName = data.activePayload[0].payload.name;
+                        // Navegar para a aba de matérias
+                        setActiveTab('cycle');
+                      }
+                    }}
                   >
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
-                    <XAxis type="number" hide />
+                    <XAxis 
+                      type="number" 
+                      tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                      tickFormatter={(value) => `${value}min`}
+                    />
                     <YAxis
                       dataKey="name"
                       type="category"
                       tickLine={false}
                       axisLine={false}
-                      width={80}
-                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      width={90}
+                      tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                     />
                     <ChartTooltip
-                      cursor={{ fill: 'hsl(var(--muted)/0.2)' }}
+                      cursor={{ fill: 'hsl(var(--muted)/0.3)' }}
                       content={<ChartTooltipContent
-                        formatter={(value) => `${value} min`}
+                        formatter={(value) => [`${value} min`, 'Tempo']}
+                        labelFormatter={(label) => `Matéria: ${label}`}
                       />}
                     />
-                    <Bar dataKey="minutes" radius={[0, 4, 4, 0]} barSize={20} />
+                    <Bar 
+                      dataKey="minutes" 
+                      radius={[0, 4, 4, 0]} 
+                      barSize={24}
+                      className="cursor-pointer hover:opacity-80 transition-opacity"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
@@ -293,7 +310,7 @@ export default function OverviewTab() {
 
           {/* Percentual de Acertos */}
           {accuracyChartData.length > 0 && (
-            <Card className="md:col-span-2 hover:shadow-md transition-shadow">
+            <Card className="lg:col-span-1 xl:col-span-2 hover:shadow-md transition-shadow">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Percent className="h-5 w-5" /> Desempenho

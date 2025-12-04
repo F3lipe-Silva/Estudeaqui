@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { PlusCircle, Trash2, Pencil, ArrowUp, ArrowDown, Save, X, RotateCcw, Calendar, Upload } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, ArrowUp, ArrowDown, Save, X, RotateCcw, Calendar, Upload, Play } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -44,7 +44,7 @@ import type { StudySequenceItem, SchedulePlan } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 
 export default function StudySequencePlanningTab() {
-  const { data, dispatch, setActiveTab } = useStudy();
+  const { data, dispatch, setActiveTab, startPomodoroForItem } = useStudy();
   const { user } = useAuth();
   const { subjects, studySequence, sequenceIndex } = data;
   const { toast } = useToast();
@@ -138,7 +138,17 @@ export default function StudySequencePlanningTab() {
   const openLogForm = (subjectId: string, itemSequenceIndex: number) => {
     setLogInitialData({ subjectId, sequenceItemIndex: itemSequenceIndex });
     setIsLogFormOpen(true);
-  }
+  };
+
+  const handleStartPomodoro = (subjectId: string) => {
+    const subject = subjects.find(s => s.id === subjectId);
+    if (subject && subject.topics.length > 0) {
+      // Inicia pomodoro com o primeiro assunto da matéria
+      const firstTopic = subject.topics[0];
+      startPomodoroForItem(firstTopic.id, 'topic', true);
+      setActiveTab('pomodoro');
+    }
+  };
 
   const generateSequenceFromSessions = (sessionsPerSubject: { [id: string]: number }, planName: string) => {
     const newSequenceItems: StudySequenceItem[] = [];
@@ -387,9 +397,20 @@ export default function StudySequencePlanningTab() {
                               <Button size="icon" variant="ghost" className="h-9 w-9 text-destructive hover:bg-destructive/10 rounded-full" onClick={() => handleDeleteSequenceItem(index)}><Trash2 className="h-4 w-4" /></Button>
                             </div>
                           )}
-                          <Button size="sm" variant="outline" className="flex-shrink-0 shadow-sm hover:shadow-md transition-shadow" onClick={() => openLogForm(subject.id, index)}>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Registrar
-                          </Button>
+                          <div className="flex gap-2 flex-shrink-0">
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="shadow-sm hover:shadow-md transition-shadow bg-primary hover:bg-primary/90"
+                              onClick={() => handleStartPomodoro(subject.id)}
+                              title="Iniciar sessão Pomodoro"
+                            >
+                              <Play className="mr-2 h-4 w-4" /> Iniciar
+                            </Button>
+                            <Button size="sm" variant="outline" className="shadow-sm hover:shadow-md transition-shadow" onClick={() => openLogForm(subject.id, index)}>
+                              <PlusCircle className="mr-2 h-4 w-4" /> Registrar
+                            </Button>
+                          </div>
                         </div>
                       );
                     })}

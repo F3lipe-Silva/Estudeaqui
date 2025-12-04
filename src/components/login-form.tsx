@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -9,13 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 export default function LoginForm() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-  const { logIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithGoogle } = useAuth();
   const { toast } = useToast();
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -23,19 +24,25 @@ export default function LoginForm() {
     setIsLoading(true);
     try {
       if (isSignUp) {
-        await signUp({ email, password });
+        const { error } = await signUp(email, password);
+        if (error) throw error;
         toast({
           title: 'Conta Criada!',
           description: 'Verifique seu e-mail para confirmar o cadastro.',
         });
         setIsSignUp(false);
       } else {
-        await logIn({ email, password });
+        const { error, data } = await signIn(email, password);
+        if (error) throw error;
+        if (data?.user) {
+          // Redirecionar após login bem-sucedido
+          router.push('/');
+        }
       }
     } catch (error: any) {
       toast({
         title: isSignUp ? 'Erro no Cadastro' : 'Erro de Login',
-        description: error.message || 'Ocorreu um erro inesperado.',
+        description: error.error_description || error.message || 'Ocorreu um erro inesperado.',
         variant: 'destructive',
       });
     } finally {
@@ -46,18 +53,22 @@ export default function LoginForm() {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      await logIn({ isGoogle: true });
+      const { error, data } = await signInWithGoogle();
+      if (error) throw error;
+      if (data?.user) {
+        // Redirecionar após login bem-sucedido
+        router.push('/');
+      }
     } catch (error: any) {
       toast({
         title: 'Erro de Login',
-        description: error.message || 'Ocorreu um erro ao tentar fazer login com o Google.',
+        description: error.error_description || error.message || 'Ocorreu um erro ao tentar fazer login com o Google.',
         variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
     }
   }
-
 
   return (
     <Card className="w-full max-w-sm">
@@ -100,7 +111,13 @@ export default function LoginForm() {
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isSignUp ? 'Cadastrar' : 'Entrar'}
           </Button>
-          <Button variant="outline" className="w-full h-12 text-base" onClick={handleGoogleSignIn} type="button" disabled={isLoading}>
+          <Button 
+            variant="outline" 
+            className="w-full h-12 text-base" 
+            onClick={handleGoogleSignIn} 
+            type="button" 
+            disabled={isLoading}
+          >
             Entrar com Google
           </Button>
         </CardContent>
