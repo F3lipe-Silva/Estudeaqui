@@ -1,11 +1,15 @@
 'use client';
 
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { Session, supabase } from '@/lib/supabase/client';
+import { useState, createContext, useContext, ReactNode } from 'react';
+
+interface User {
+  id: string;
+  email: string;
+}
 
 interface AuthContextType {
-  session: Session | null;
-  user: any;
+  session: { user: User } | null;
+  user: User | null;
   loading: boolean;
   signUp: (email: string, password: string) => Promise<any>;
   signIn: (email: string, password: string) => Promise<any>;
@@ -17,77 +21,85 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState<{ user: User } | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    // Get initial session
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user || null);
-      setLoading(false);
-
-      // Listen for auth changes
-      const { data: { subscription } } = await supabase.auth.onAuthStateChange(
-        (_event, session) => {
-          setSession(session);
-          setUser(session?.user || null);
-        }
-      );
-
-      return () => {
-        subscription.unsubscribe();
-      };
-    };
-
-    getSession();
-  }, []);
+  // Mock storage for demo purposes
+  const storeSession = (user: User | null) => {
+    if (user) {
+      localStorage.setItem('mock_user', JSON.stringify(user));
+      setSession({ user });
+    } else {
+      localStorage.removeItem('mock_user');
+      setSession(null);
+    }
+  };
 
   const signUp = async (email: string, password: string) => {
-    return await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
-      },
-    });
+    // Mock signup implementation
+    const mockUser: User = {
+      id: `user_${Date.now()}`,
+      email
+    };
+
+    storeSession(mockUser);
+    setUser(mockUser);
+
+    return { data: { user: mockUser }, error: null };
   };
 
   const signIn = async (email: string, password: string) => {
-    return await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    // Mock sign in implementation
+    const storedUser = localStorage.getItem('mock_user');
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      if (parsedUser.email === email) {
+        storeSession(parsedUser);
+        setUser(parsedUser);
+        return { data: { user: parsedUser }, error: null };
+      }
+    }
+
+    // If no user found, create a mock user for demo
+    const mockUser: User = {
+      id: `user_${Date.now()}`,
+      email
+    };
+
+    storeSession(mockUser);
+    setUser(mockUser);
+
+    return { data: { user: mockUser }, error: null };
   };
 
   const signInWithGoogle = async () => {
-    return await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
-      }
-    });
+    // Mock Google sign in implementation
+    const mockUser: User = {
+      id: `google_user_${Date.now()}`,
+      email: `mock_user_${Date.now()}@gmail.com`
+    };
+
+    storeSession(mockUser);
+    setUser(mockUser);
+
+    return { data: { user: mockUser }, error: null };
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (!error) {
-      setSession(null);
-      setUser(null);
-      // Redirecionar para a página de login após o logout
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
+    storeSession(null);
+    setUser(null);
+    // Redirecionar para a página de login após o logout
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
     }
-    return { error };
+    return { error: null };
   };
 
   const resetPassword = async (email: string) => {
-    return await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
-    });
+    // Mock password reset implementation
+    console.log('Password reset requested for:', email);
+    return { error: null };
   };
 
   const value = {
@@ -103,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }

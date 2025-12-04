@@ -44,14 +44,14 @@ export default function StudyLogModal({ visible, onClose, initialData, existingL
   useEffect(() => {
     if (visible) {
       if (existingLog) {
-         if (!hasUserModified.subjectId) setSubjectId(existingLog.subjectId);
-        if (!hasUserModified.topicId) setTopicId(existingLog.topicId);
-        if (!hasUserModified.duration) setDuration(String(existingLog.duration));
-        if (!hasUserModified.startPage) setStartPage(existingLog.startPage ? String(existingLog.startPage) : '');
-        if (!hasUserModified.endPage) setEndPage(existingLog.endPage ? String(existingLog.endPage) : '');
-        if (!hasUserModified.questionsTotal) setQuestionsTotal(existingLog.questionsTotal ? String(existingLog.questionsTotal) : '');
-        if (!hasUserModified.questionsCorrect) setQuestionsCorrect(existingLog.questionsCorrect ? String(existingLog.questionsCorrect) : '');
-        if (!hasUserModified.source) setSource(existingLog.source || '');
+        setSubjectId(prev => !hasUserModified.subjectId ? existingLog.subjectId : prev);
+        setTopicId(prev => !hasUserModified.topicId ? existingLog.topicId : prev);
+        setDuration(prev => !hasUserModified.duration ? String(existingLog.duration) : prev);
+        setStartPage(prev => !hasUserModified.startPage ? (existingLog.startPage ? String(existingLog.startPage) : '') : prev);
+        setEndPage(prev => !hasUserModified.endPage ? (existingLog.endPage ? String(existingLog.endPage) : '') : prev);
+        setQuestionsTotal(prev => !hasUserModified.questionsTotal ? (existingLog.questionsTotal ? String(existingLog.questionsTotal) : '') : prev);
+        setQuestionsCorrect(prev => !hasUserModified.questionsCorrect ? (existingLog.questionsCorrect ? String(existingLog.questionsCorrect) : '') : prev);
+        setSource(prev => !hasUserModified.source ? existingLog.source || '' : prev);
       } else if (!hasUserModified.subjectId && !hasUserModified.topicId && !hasUserModified.duration) {
         setSubjectId(initialData?.subjectId || '');
         setTopicId(initialData?.topicId || '');

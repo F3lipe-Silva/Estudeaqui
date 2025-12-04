@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, FlatList, Pressable, Alert } from 'react-native';
 import { useStudy } from '@/contexts/study-context';
+import { useStudySelector } from '@/hooks/useStudySelector';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +10,12 @@ import StudyLogModal from '@/components/study-log-modal';
 import { format, parseISO } from 'date-fns';
 
 export default function HistoryScreen() {
-  const { data, dispatch } = useStudy();
+  const { dispatch } = useStudy();
+
+  // Use selectors to get only the specific data needed
+  const subjects = useStudySelector(state => state.subjects);
+  const studyLog = useStudySelector(state => state.studyLog);
+
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const themeTextColor = isDark ? '#FFF' : '#000';
@@ -18,9 +24,9 @@ export default function HistoryScreen() {
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<any>(null);
 
-  const getSubjectName = (id: string) => data.subjects.find(s => s.id === id)?.name || 'N/A';
-  const getSubjectColor = (id: string) => data.subjects.find(s => s.id === id)?.color || '#ccc';
-  const getTopicName = (subjectId: string, topicId: string) => data.subjects.find(s => s.id === subjectId)?.topics.find(t => t.id === topicId)?.name || 'N/A';
+  const getSubjectName = (id: string) => subjects.find(s => s.id === id)?.name || 'N/A';
+  const getSubjectColor = (id: string) => subjects.find(s => s.id === id)?.color || '#ccc';
+  const getTopicName = (subjectId: string, topicId: string) => subjects.find(s => s.id === subjectId)?.topics.find(t => t.id === topicId)?.name || 'N/A';
 
   const getSourceDisplayName = (source?: string) => {
       if (!source || source === 'site-questoes') return 'Questões';
@@ -112,7 +118,7 @@ export default function HistoryScreen() {
         </Pressable>
       </View>
 
-      {data.studyLog.length === 0 ? (
+      {studyLog.length === 0 ? (
            <View style={styles.emptyState}>
                 <Ionicons name="time-outline" size={64} color={subTextColor} />
                 <Text style={[styles.emptyStateText, { color: subTextColor }]}>Nenhum registro encontrado</Text>
@@ -120,7 +126,7 @@ export default function HistoryScreen() {
             </View>
       ) : (
           <FlatList
-            data={data.studyLog}
+            data={studyLog}
             keyExtractor={item => item.id}
             renderItem={renderItem}
             contentContainerStyle={styles.listContent}

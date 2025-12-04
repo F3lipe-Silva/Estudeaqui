@@ -112,6 +112,7 @@ export interface StudyData {
 export interface StudyContextType {
   data: StudyData;
   dispatch: React.Dispatch<any>;
+  batchDispatch: (actions: any[]) => void;
   pomodoroState: PomodoroState;
   setPomodoroState: React.Dispatch<React.SetStateAction<PomodoroState>>;
   activeTab: string;

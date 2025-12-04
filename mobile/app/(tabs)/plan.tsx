@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, FlatList, Pressable, Alert, ScrollView } from 'react-native';
 import { useStudy } from '@/contexts/study-context';
+import { useStudySelector } from '@/hooks/useStudySelector';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,8 +10,13 @@ import AddSubjectToSequenceModal from '@/components/add-subject-to-sequence-moda
 import StudyLogModal from '@/components/study-log-modal';
 
 export default function PlanScreen() {
-  const { data, dispatch } = useStudy();
-  const { subjects, studySequence, sequenceIndex } = data;
+  const { dispatch } = useStudy();
+
+  // Use selectors to get only the specific data needed
+  const subjects = useStudySelector(state => state.subjects);
+  const studySequence = useStudySelector(state => state.studySequence);
+  const sequenceIndex = useStudySelector(state => state.sequenceIndex);
+  const schedulePlans = useStudySelector(state => state.schedulePlans);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const themeTextColor = isDark ? '#FFF' : '#000';
@@ -103,7 +109,7 @@ export default function PlanScreen() {
 
   const handleImportFromSchedule = () => {
       // Since we don't have the schedule UI ported or verified, this is a placeholder behavior as per web code logic
-      if (data.schedulePlans.length > 0) {
+      if (schedulePlans.length > 0) {
           // Logic to show plan selection would go here
            Alert.alert("Aviso", "Funcionalidade de importar cronograma ainda não portada completamente.");
       } else {

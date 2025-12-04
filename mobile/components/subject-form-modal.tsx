@@ -42,7 +42,7 @@ export default function SubjectFormModal({ visible, onClose, onSave, subject }: 
         setMaterialUrl('');
       }
     }
-  }, [visible, subject]);
+  }, [visible, subject]); // This one is fine as it sets different values based on the subject prop
 
   const handleSubmit = () => {
     if (!name.trim()) {

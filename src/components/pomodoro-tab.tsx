@@ -101,68 +101,67 @@ export default function PomodoroTab() {
 
           {/* Widget Pomodoro e Status */}
           <div className="space-y-6">
-
-
-          {/* Status da Sessão */}
-          {currentSession && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
-                  Detalhes da Sessão
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-4 h-4 rounded-full" 
-                    style={{ backgroundColor: currentSession.color }}
-                  />
-                  <div>
-                    <p className="font-medium">{currentSession.subject}</p>
-                    <p className="text-sm text-muted-foreground">{currentSession.topic}</p>
+            {/* Status da Sessão */}
+            {currentSession && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5" />
+                    Detalhes da Sessão
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-4 h-4 rounded-full"
+                      style={{ backgroundColor: currentSession.color }}
+                    />
+                    <div>
+                      <p className="font-medium">{currentSession.subject}</p>
+                      <p className="text-sm text-muted-foreground">{currentSession.topic}</p>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">
-                    Status: <span className={cn(
-                      "font-medium",
-                      currentSession.status === 'focus' && "text-green-600",
-                      currentSession.status === 'paused' && "text-yellow-600",
-                      currentSession.status === 'short_break' && "text-blue-600",
-                      currentSession.status === 'long_break' && "text-purple-600"
-                    )}>
-                      {currentSession.status === 'focus' && 'Foco'}
-                      {currentSession.status === 'paused' && 'Pausado'}
-                      {currentSession.status === 'short_break' && 'Pausa Curta'}
-                      {currentSession.status === 'long_break' && 'Pausa Longa'}
+
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">
+                      Status: <span className={cn(
+                        "font-medium",
+                        currentSession.status === 'focus' && "text-green-600",
+                        currentSession.status === 'paused' && "text-yellow-600",
+                        currentSession.status === 'short_break' && "text-blue-600",
+                        currentSession.status === 'long_break' && "text-purple-600"
+                      )}>
+                        {currentSession.status === 'focus' && 'Foco'}
+                        {currentSession.status === 'paused' && 'Pausado'}
+                        {currentSession.status === 'short_break' && 'Pausa Curta'}
+                        {currentSession.status === 'long_break' && 'Pausa Longa'}
+                      </span>
                     </span>
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-          {/* Informações quando não há sessão */}
-          {!currentSession && (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center space-y-4">
-                  <div className="mx-auto bg-muted/50 p-4 rounded-full w-fit">
-                    <Timer className="h-12 w-12 text-muted-foreground" />
+            {/* Informações quando não há sessão */}
+            {!currentSession && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center space-y-4">
+                    <div className="mx-auto bg-muted/50 p-4 rounded-full w-fit">
+                      <Timer className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Nenhuma sessão ativa</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Selecione uma matéria e assunto para iniciar sua sessão Pomodoro
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Nenhuma sessão ativa</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Selecione uma matéria e assunto para iniciar sua sessão Pomodoro
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
       </div>
 

@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, FlatList, Pressable, ScrollView } from 'react-native';
 import { useStudy, REVISION_SEQUENCE } from '@/contexts/study-context';
+import { useStudySelector } from '@/hooks/useStudySelector';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '@/components/ui/card';
 
 export default function ReviewScreen() {
-  const { data, dispatch } = useStudy();
-  const { subjects } = data;
+  const { dispatch } = useStudy();
+
+  // Use selectors to get only the specific data needed
+  const subjects = useStudySelector(state => state.subjects);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const themeTextColor = isDark ? '#FFF' : '#000';

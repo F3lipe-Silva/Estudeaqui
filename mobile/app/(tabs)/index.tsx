@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, Dimensions, Pressable } from 'react-native';
 import { useStudy, REVISION_SEQUENCE } from '@/contexts/study-context';
+import { useStudySelector } from '@/hooks/useStudySelector';
 import { Card } from '@/components/ui/card';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -10,8 +11,14 @@ import { BarChart } from 'react-native-chart-kit';
 import StudyLogModal from '@/components/study-log-modal';
 
 export default function OverviewScreen() {
-  const { data, setActiveTab } = useStudy();
-  const { subjects, studyLog, streak, studySequence, sequenceIndex } = data;
+  const { setActiveTab } = useStudy();
+
+  // Use selectors to get only the specific data needed to prevent unnecessary re-renders
+  const subjects = useStudySelector(state => state.subjects);
+  const studyLog = useStudySelector(state => state.studyLog);
+  const streak = useStudySelector(state => state.streak);
+  const studySequence = useStudySelector(state => state.studySequence);
+  const sequenceIndex = useStudySelector(state => state.sequenceIndex);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const tintColor = Colors[colorScheme ?? 'light'].tint;
@@ -39,7 +46,7 @@ export default function OverviewScreen() {
     return `${h}h ${m}m`;
   };
 
-   const getNextStudyInfo = () => {
+   const { nextSubject, sequenceItem, pendingRevisionTopic } = useMemo(() => {
     if (!studySequence || studySequence.sequence.length === 0) {
       return { nextSubject: null, sequenceItem: null, pendingRevisionTopic: null };
     }
@@ -63,9 +70,7 @@ export default function OverviewScreen() {
     }
 
     return { nextSubject, sequenceItem, pendingRevisionTopic };
-  };
-
-  const { nextSubject, sequenceItem, pendingRevisionTopic } = getNextStudyInfo();
+  }, [studySequence, sequenceIndex, subjects]);
 
   const timeStudied = sequenceItem?.totalTimeStudied || 0;
   const timeGoal = nextSubject?.studyDuration || 0;
@@ -80,7 +85,7 @@ export default function OverviewScreen() {
     setIsLogFormOpen(true);
   };
 
-  const chartData = {
+  const chartData = useMemo(() => ({
     labels: subjects.map(s => s.name.substring(0, 3)), // Truncate for mobile
     datasets: [
       {
@@ -92,7 +97,7 @@ export default function OverviewScreen() {
         })
       }
     ]
-  };
+  }), [subjects, studyLog]);
 
   const screenWidth = Dimensions.get("window").width;
 

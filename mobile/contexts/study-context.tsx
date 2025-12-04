@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useReducer, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { StudyContextType, StudyData, Subject, Topic, PomodoroState, StudyLogEntry, StudySequenceItem, PomodoroSettings, SubjectTemplate, StudySequence } from '../lib/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -186,10 +185,26 @@ function studyReducer(state: StudyData, action: any): StudyData {
           }
         }
 
+        // Insert the new log in the correct position based on date (newest first)
+        // Find the correct position to insert the new log
+        const newStudyLog = [...state.studyLog];
+        let insertIndex = 0;
+        const newLogDate = parseISO(newLog.date).getTime();
+
+        for (let i = 0; i < newStudyLog.length; i++) {
+          if (parseISO(newStudyLog[i].date).getTime() < newLogDate) {
+            insertIndex = i;
+            break;
+          }
+          insertIndex = i + 1;
+        }
+
+        newStudyLog.splice(insertIndex, 0, newLog);
+
         return {
           ...state,
           subjects,
-          studyLog: [newLog, ...state.studyLog].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()),
+          studyLog: newStudyLog,
           streak,
           lastStudiedDate,
           studySequence,
@@ -334,8 +349,7 @@ function studyReducer(state: StudyData, action: any): StudyData {
   }
 
 export function StudyProvider({ children }: { children: React.ReactNode }) {
-  // Simplified Auth: Assuming user is logged in or local for now
-  // In a real app, integrate Supabase Auth
+  // Simplified Auth: Using local storage for user data
   const user = { id: 'local-user' }; // Placeholder
 
   const [state, originalDispatch] = useReducer(studyReducer, initialState);
@@ -359,6 +373,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   // Refs to avoid stale closures
   const manualAdvanceTimeRef = useRef<number | null>(null);
   const manualRegistrationExpectedRef = useRef<boolean>(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setPomodoroState(prev => {
@@ -431,10 +446,26 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
   const dispatch = (action: any) => {
     originalDispatch(action);
-    // Debounce or immediate save? immediate for now to match web logic
-    setTimeout(() => {
-        saveStateToStorage(stateRef.current);
-    }, 0);
+    // Debounce saves to avoid excessive AsyncStorage operations
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    // Use a longer debounce time to reduce the frequency of saves
+    saveTimeoutRef.current = setTimeout(() => {
+      saveStateToStorage(stateRef.current);
+    }, 1000); // 1000ms debounce to reduce frequent saves even more
+  };
+
+  // Batch dispatch function to handle multiple related updates efficiently
+  const batchDispatch = (actions: any[]) => {
+    actions.forEach(action => originalDispatch(action));
+    // Only save once after all actions are processed
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      saveStateToStorage(stateRef.current);
+    }, 1000);
   };
 
   // ... (Pomodoro logic would go here, simplified for brevity as the user asked for structure first)
@@ -455,6 +486,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(() => ({
     data: state,
     dispatch,
+    batchDispatch,
     pomodoroState,
     setPomodoroState,
     activeTab,
@@ -468,6 +500,15 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     showTransitionDialog,
     setShowTransitionDialog,
   }), [state, pomodoroState, activeTab, startPomodoroForItem, pausePomodoroTimer, advancePomodoroCycle, skipToBreak, continueToBreak, resetManualRegistrationFlag, showTransitionDialog, setShowTransitionDialog]);
+
+  // Cleanup function to clear timeouts when component unmounts
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (isLoading) {
       return null; // Or a loading spinner

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, FlatList, Pressable } from 'react-native';
 import { useStudy } from '@/contexts/study-context';
+import { useStudySelector } from '@/hooks/useStudySelector';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +10,11 @@ import SubjectFormModal from '@/components/subject-form-modal';
 import SubjectDetailModal from '@/components/subject-detail-modal';
 
 export default function SubjectsScreen() {
-  const { data, dispatch } = useStudy();
+  const { dispatch } = useStudy();
+
+  // Use selectors to get only the specific data needed
+  const subjects = useStudySelector(state => state.subjects);
+
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const themeTextColor = isDark ? '#FFF' : '#000';
@@ -23,7 +28,7 @@ export default function SubjectsScreen() {
     dispatch({ type: 'ADD_SUBJECT', payload: newSubject });
   };
 
-  const renderSubjectItem = ({ item }: { item: any }) => {
+  const renderSubjectItem = useCallback(({ item }: { item: any }) => {
     const completedCount = item.topics.filter((t: any) => t.isCompleted).length;
     const totalCount = item.topics.length;
 
@@ -47,7 +52,7 @@ export default function SubjectsScreen() {
         </Card>
       </Pressable>
     );
-  };
+  }, [setSelectedSubject, themeTextColor, subTextColor]);
 
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#000' : '#F2F2F7' }]}>
