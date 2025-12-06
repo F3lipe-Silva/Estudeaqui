@@ -179,5 +179,6 @@ export default function PomodoroTab() {
         onOpenChange={setSettingsDialogOpen}
       />
     </div>
+   </div>
   );
 }

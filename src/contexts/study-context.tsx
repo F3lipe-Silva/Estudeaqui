@@ -1,11 +1,24 @@
 "use client";
 
 import React, { createContext, useContext, useReducer, useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { StudyContextType, StudyData, Subject, Topic, PomodoroState, StudyLogEntry, StudySequenceItem, PomodoroSettings, SubjectTemplate, StudySequence } from '@/lib/types';
+import type { StudyContextType, StudyData, Subject, Topic, PomodoroState, StudyLogEntry, StudySequenceItem, PomodoroSettings, SubjectTemplate, StudySequence, SchedulePlan } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, isSameDay, parseISO } from 'date-fns';
 import { REVISION_SEQUENCE } from '@/components/revision-tab';
 import { useAuth } from './auth-context';
+import { db } from '@/lib/firebase';
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  getDocs, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  writeBatch,
+  query,
+  orderBy
+} from 'firebase/firestore';
 
 const initialPomodoroSettings: PomodoroSettings = {
   tasks: [
@@ -153,11 +166,11 @@ function studyReducer(state: StudyData, action: any): StudyData {
         if (lastDate && isSameDay(lastDate, yesterday)) {
           streak = state.streak + 1;
         } else if (!lastDate || !isSameDay(lastDate, logDate)) {
-          if (lastDate && !isSameDay(lastDate, logDate)) {
-            streak = 1;
-          } else if (!lastDate) {
-            streak = 1;
-          }
+           if (lastDate && !isSameDay(lastDate, logDate)) {
+              streak = 1;
+           } else if (!lastDate) {
+              streak = 1;
+           }
         }
         lastStudiedDate = newLog.date;
       }
@@ -339,6 +352,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [isLoading, setIsLoading] = useState(true);
+  const stateRef = useRef(state);
 
   const { pomodoroSettings } = state;
 
@@ -353,23 +367,16 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
   // State for transition dialog
   const [showTransitionDialog, setShowTransitionDialog] = useState(false);
-  const [transitionAction, setTransitionAction] = useState<'continue' | 'skip' | null>(null);
   const [transitionData, setTransitionData] = useState<{
     prevState: PomodoroState;
     effectiveTimeSpent: number;
     topic?: any;
   } | null>(null);
-
-  // Ref to store effective time spent for manual advance
   const manualAdvanceTimeRef = useRef<number | null>(null);
-
-  // Ref to track if manual registration is expected
   const manualRegistrationExpectedRef = useRef<boolean>(false);
 
   useEffect(() => {
     setPomodoroState(prev => {
-      // Only update the initial time if we're in idle state (not running)
-      // If we're in any active state (focus, short_break, long_break, paused), keep the current time
       if (prev.status === 'idle') {
         return {
           ...prev,
@@ -378,11 +385,17 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           key: prev.key + 1,
         };
       }
-      // For active sessions, preserve the current settings to avoid mid-session changes
       return prev;
     });
   }, [pomodoroSettings]);
 
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  // --- FIRESTORE INTEGRATION ---
+
+  // Load Data from Firestore
   useEffect(() => {
     if (!user) {
       setIsLoading(false);
@@ -390,29 +403,71 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const loadData = () => {
+    const loadData = async () => {
       setIsLoading(true);
       try {
-        const key = `estudeaqui_user_data_${user.id}`;
-        const savedData = localStorage.getItem(key);
+        const uid = user.uid; 
+        
+        // 1. Load User Settings / Profile
+        const userDocRef = doc(db, 'users', uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        let loadedState: Partial<StudyData> = {};
 
-        if (savedData) {
-          const parsedData = JSON.parse(savedData);
-          // Remove the metadata we added when saving
-          const { lastSaved, ...stateData } = parsedData;
-          originalDispatch({
-            type: 'SET_STATE',
-            payload: stateData as StudyData
-          });
-        } else {
-          // If no data in localStorage, initialize with empty state
-          originalDispatch({ type: 'SET_STATE', payload: initialState });
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          loadedState = {
+            streak: userData.streak || 0,
+            lastStudiedDate: userData.lastStudiedDate || null,
+            pomodoroSettings: userData.pomodoroSettings || initialPomodoroSettings,
+            sequenceIndex: userData.sequenceIndex || 0,
+          };
         }
 
+        // 2. Load Subjects
+        const subjectsCol = collection(db, 'users', uid, 'subjects');
+        const subjectsSnapshot = await getDocs(subjectsCol);
+        loadedState.subjects = subjectsSnapshot.docs.map(d => d.data() as Subject);
+
+        // 3. Load Study Logs
+        const logsCol = collection(db, 'users', uid, 'logs');
+        // Ideally limit this for performance, but loading all for now as requested
+        const logsQuery = query(logsCol, orderBy('date', 'desc'));
+        const logsSnapshot = await getDocs(logsQuery);
+        loadedState.studyLog = logsSnapshot.docs.map(d => d.data() as StudyLogEntry);
+
+        // 4. Load Sequence
+        const sequenceDocRef = doc(db, 'users', uid, 'sequences', 'current');
+        const sequenceDoc = await getDoc(sequenceDocRef);
+        if (sequenceDoc.exists()) {
+          loadedState.studySequence = sequenceDoc.data() as StudySequence;
+        }
+
+        // 5. Load Templates
+        const templatesCol = collection(db, 'users', uid, 'templates');
+        const templatesSnapshot = await getDocs(templatesCol);
+        loadedState.templates = templatesSnapshot.docs.map(d => d.data() as SubjectTemplate);
+
+         // 6. Check for Migration from LocalStorage (if Firestore is empty but LocalStorage is not)
+         const localKey = `estudeaqui_user_data_${uid}`;
+         const localDataRaw = localStorage.getItem(localKey);
+         if ((!userDoc.exists() || subjectsSnapshot.empty) && localDataRaw) {
+           console.log("Migrating data from LocalStorage to Firestore...");
+           const localData = JSON.parse(localDataRaw);
+           const { lastSaved, ...dataToMigrate } = localData;
+           
+           // Use local data immediately
+           loadedState = { ...initialState, ...dataToMigrate };
+           
+           // Trigger async migration
+           migrateToFirestore(uid, loadedState as StudyData);
+         }
+
+        originalDispatch({ type: 'SET_STATE', payload: loadedState });
+
       } catch (error) {
-        console.error("Failed to load from localStorage:", error);
-        // If there's an error loading, continue with empty state
-        originalDispatch({ type: 'SET_STATE', payload: initialState });
+        console.error("Failed to load from Firestore:", error);
+        toast({ title: "Erro de Sincronização", description: "Não foi possível carregar seus dados.", variant: "destructive" });
       } finally {
         setIsLoading(false);
       }
@@ -421,34 +476,150 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     loadData();
   }, [user]);
 
-  const stateRef = useRef(state);
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
+  // Helper to migrate data
+  const migrateToFirestore = async (uid: string, data: StudyData) => {
+    try {
+      const batch = writeBatch(db);
+      
+      // User Profile
+      batch.set(doc(db, 'users', uid), {
+        streak: data.streak,
+        lastStudiedDate: data.lastStudiedDate,
+        pomodoroSettings: data.pomodoroSettings,
+        sequenceIndex: data.sequenceIndex
+      });
 
-  // Function to save state to localStorage
-  const saveStateToLocalStorage = useCallback((stateToSave: StudyData) => {
-    if (user) {
-      try {
-        const key = `estudeaqui_user_data_${user.id}`;
-        const dataToSave = {
-          ...stateToSave,
-          lastSaved: new Date().toISOString()
-        };
-        localStorage.setItem(key, JSON.stringify(dataToSave));
-      } catch (error) {
-        console.error("Failed to save to localStorage", error);
+      // Subjects
+      data.subjects.forEach(s => {
+        batch.set(doc(db, 'users', uid, 'subjects', s.id), s);
+      });
+
+      // Logs (Limit migration if too many? No, try all)
+      data.studyLog.forEach(l => {
+        batch.set(doc(db, 'users', uid, 'logs', l.id), l);
+      });
+
+      // Sequence
+      if (data.studySequence) {
+        batch.set(doc(db, 'users', uid, 'sequences', 'current'), data.studySequence);
       }
-    }
-  }, [user]);
 
-  const dispatch = (action: any) => {
+      await batch.commit();
+      console.log("Migration complete!");
+      toast({ title: "Sincronização", description: "Seus dados locais foram salvos na nuvem." });
+    } catch (e) {
+      console.error("Migration failed", e);
+    }
+  };
+
+  // Function to sync specific actions to Firestore
+  const syncActionToFirestore = async (uid: string, action: any, newState: StudyData) => {
+    try {
+      switch (action.type) {
+        case 'ADD_SUBJECT':
+        case 'UPDATE_SUBJECT':
+        case 'ADD_TOPIC': // Topic changes are saved within the subject document
+        case 'TOGGLE_TOPIC_COMPLETED':
+        case 'DELETE_TOPIC':
+        case 'SET_REVISION_PROGRESS': {
+           // Identify the subject changed. 
+           // For ADD_SUBJECT, id is in payload.id (or we generated it).
+           // For others, subjectId is in payload.
+           let subjectId = action.payload.id || action.payload.subjectId;
+           
+           // Find the subject in the NEW state
+           const subject = newState.subjects.find(s => s.id === subjectId);
+           if (subject) {
+             await setDoc(doc(db, 'users', uid, 'subjects', subjectId), subject);
+           }
+           break;
+        }
+        case 'DELETE_SUBJECT': {
+          await deleteDoc(doc(db, 'users', uid, 'subjects', action.payload));
+          break;
+        }
+        case 'ADD_STUDY_LOG': {
+          // Save the new log
+          // We need the log ID. The reducer generates one if not provided.
+          // But 'newState.studyLog' has the newest one at top.
+          const newLog = newState.studyLog[0]; // Assuming sorted by date desc
+          if (newLog) {
+             await setDoc(doc(db, 'users', uid, 'logs', newLog.id), newLog);
+          }
+          
+          // Also update User Profile (Streak, Last Studied, Sequence Index)
+          await setDoc(doc(db, 'users', uid), {
+            streak: newState.streak,
+            lastStudiedDate: newState.lastStudiedDate,
+            sequenceIndex: newState.sequenceIndex,
+          }, { merge: true });
+          
+          // Also update Sequence if changed
+          if (newState.studySequence) {
+             await setDoc(doc(db, 'users', uid, 'sequences', 'current'), newState.studySequence);
+          }
+          break;
+        }
+        case 'DELETE_STUDY_LOG': {
+          await deleteDoc(doc(db, 'users', uid, 'logs', action.payload));
+          // Potentially update sequence if it was reverted
+           if (newState.studySequence) {
+             await setDoc(doc(db, 'users', uid, 'sequences', 'current'), newState.studySequence);
+          }
+          break;
+        }
+        case 'SAVE_STUDY_SEQUENCE':
+        case 'RESET_STUDY_SEQUENCE': 
+        case 'ADVANCE_SEQUENCE': {
+           if (newState.studySequence) {
+             await setDoc(doc(db, 'users', uid, 'sequences', 'current'), newState.studySequence);
+           }
+           // Index might change
+           await setDoc(doc(db, 'users', uid), { sequenceIndex: newState.sequenceIndex }, { merge: true });
+           break;
+        }
+        case 'UPDATE_POMODORO_SETTINGS': {
+           await setDoc(doc(db, 'users', uid), { pomodoroSettings: newState.pomodoroSettings }, { merge: true });
+           break;
+        }
+        case 'SAVE_TEMPLATE': {
+          const template = newState.templates.find(t => t.name === action.payload.name); // Approximation
+          if (template) {
+             await setDoc(doc(db, 'users', uid, 'templates', template.id), template);
+          }
+          break;
+        }
+        case 'DELETE_TEMPLATE': {
+          await deleteDoc(doc(db, 'users', uid, 'templates', action.payload));
+          break;
+        }
+      }
+    } catch (error) {
+      console.error("Error syncing to Firestore:", error);
+      toast({ title: "Erro ao salvar", description: "Suas alterações podem não ter sido salvas na nuvem.", variant: "destructive" });
+    }
+  };
+
+  const dispatch = async (action: any) => {
+    // 1. Calculate new state (Optimistic)
+    // We need to run the reducer to get the new state. 
+    // But useReducer doesn't give us the new state immediately in the variable 'state'.
+    // So we just dispatch to UI first.
     originalDispatch(action);
 
-    // Save updated state to localStorage after state update
-    setTimeout(() => {
-      saveStateToLocalStorage(stateRef.current);
-    }, 0);
+    // 2. Sync to Firestore (Side Effect)
+    // We need the *result* of the action to save correctly. 
+    // Since we can't easily predict the reducer result without running it, 
+    // and we want to avoid dual-logic.
+    // Solution: Re-run the reducer logic purely for the sync payload? 
+    // Or just grab the updated state from a separate effect? 
+    // Limitation: 'state' here is the OLD state until next render.
+    // Hack: Calculate the next state manually just for the Sync function.
+    if (user) {
+       const predictedState = studyReducer(stateRef.current, action);
+       // Fire and forget sync
+       syncActionToFirestore(user.uid, action, predictedState);
+    }
   };
 
   const getAssociatedTopic = useCallback(() => {
@@ -502,10 +673,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
     const topic = getAssociatedTopic();
 
-    // Capture current state values to avoid stale closure issues
-    const currentStudySequence = state.studySequence;
-    const currentSequenceIndex = state.sequenceIndex;
-
     // Set the manual registration flag to true before showing the dialog
     manualRegistrationExpectedRef.current = true;
 
@@ -517,7 +684,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     });
     setShowTransitionDialog(true);
 
-  }, [pomodoroSettings, getAssociatedTopic, state.studySequence, state.sequenceIndex]);
+  }, [pomodoroSettings, getAssociatedTopic]);
 
   useEffect(() => {
     // Only run timer if status is focus or break (not paused or idle)
@@ -600,20 +767,38 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // Function to show transition dialog
-  const showPomodoroTransitionDialog = useCallback((actualTimeSpent: number, topicId?: string, subjectId?: string) => {
-    setShowTransitionDialog(true);
-  }, []);
+  const advancePomodoroCycle = useCallback(() => {
+    setPomodoroState(prev => {
+      if (prev.status === 'idle') return prev;
 
-  // Function to reset the manual registration flag
+      // Calculate effective time spent
+      let effectiveTimeSpent = 0;
+      if (prev.originalDuration) {
+        effectiveTimeSpent = prev.originalDuration - prev.timeRemaining;
+      } else {
+        const currentTask = prev.currentTaskIndex !== undefined && pomodoroSettings?.tasks?.[prev.currentTaskIndex];
+        if (currentTask) {
+          effectiveTimeSpent = currentTask.duration - prev.timeRemaining;
+        } else {
+          effectiveTimeSpent = (pomodoroSettings?.tasks?.[0]?.duration || 1500) - prev.timeRemaining;
+        }
+      }
+
+      manualAdvanceTimeRef.current = effectiveTimeSpent;
+      return { ...prev, timeRemaining: 0, key: prev.key + 1 };
+    });
+  }, [pomodoroSettings]);
+
+  const showPomodoroTransitionDialog = useCallback((show: boolean) => {
+     setShowTransitionDialog(show);
+  }, []);
+  
   const resetManualRegistrationFlag = useCallback(() => {
     manualRegistrationExpectedRef.current = false;
   }, []);
 
-  // Functions to handle transition dialog actions
   const skipToBreak = useCallback(() => {
     if (transitionData) {
-      const { prevState } = transitionData;
       // Skip transition and go directly to break or next phase
       setPomodoroState(prev => {
         if (prev.status === 'focus') {
@@ -629,7 +814,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             key: prev.key + 1
           };
         } else if (prev.status === 'short_break' || prev.status === 'long_break') {
-          // Go back to focus
           const firstTask = pomodoroSettings?.tasks?.[0];
           return {
             ...prev,
@@ -642,7 +826,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         return prev;
       });
     }
-    // Reset the manual registration flag when skipping
     manualRegistrationExpectedRef.current = false;
     setShowTransitionDialog(false);
   }, [pomodoroSettings, transitionData]);
@@ -651,27 +834,23 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     if (transitionData) {
       const { prevState, effectiveTimeSpent, topic } = transitionData;
 
-      // Execute the transition logic based on the stored data
       if (prevState.status === 'focus') {
-        // Check if this is a custom duration session
         if (prevState.isCustomDuration) {
-          // For custom duration sessions, go straight to break after one session
-          // Only register automatically if manual registration is not expected
           if (topic && !manualRegistrationExpectedRef.current) {
             const sequenceItemIndex = state.studySequence ? state.studySequence.sequence.findIndex((item: any, index: number) => item.subjectId === topic.subjectId && index === state.sequenceIndex) : -1;
             dispatch({
               type: 'ADD_STUDY_LOG',
               payload: {
-                duration: Math.floor(effectiveTimeSpent / 60), // Use actual time spent
+                duration: Math.floor(effectiveTimeSpent / 60),
                 subjectId: topic.subjectId,
                 topicId: topic.id,
                 startPage: 0, endPage: 0, questionsTotal: 0, questionsCorrect: 0,
                 source: 'pomodoro',
-                sequenceItemIndex: sequenceItemIndex !== -1 ? sequenceItemIndex : undefined,
+                sequenceItemIndex: sequenceItemIndex !== -1 ? sequenceItemIndex : null,
               }
             });
           }
-
+          
           const newCycle = prevState.currentCycle + 1;
           const isLongBreak = newCycle > 0 && pomodoroSettings?.cyclesUntilLongBreak && newCycle % pomodoroSettings.cyclesUntilLongBreak === 0;
 
@@ -697,7 +876,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             }));
           }
         } else {
-          // For normal task-based sessions, follow the existing logic
           const currentTaskIndex = prevState.currentTaskIndex ?? 0;
           const nextTaskIndex = currentTaskIndex + 1;
 
@@ -711,7 +889,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
               key: prev.key + 1,
             }));
           } else {
-            // Only register automatically if manual registration is not expected
             const topic = getAssociatedTopic();
             if (topic && !manualRegistrationExpectedRef.current) {
               const totalFocusDuration = pomodoroSettings.tasks.reduce((sum: number, task: any) => sum + task.duration, 0);
@@ -724,7 +901,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
                   topicId: topic.id,
                   startPage: 0, endPage: 0, questionsTotal: 0, questionsCorrect: 0,
                   source: 'pomodoro',
-                  sequenceItemIndex: sequenceItemIndex !== -1 ? sequenceItemIndex : undefined,
+                  sequenceItemIndex: sequenceItemIndex !== -1 ? sequenceItemIndex : null,
                 }
               });
             }
@@ -756,7 +933,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } else if (prevState.status === 'short_break' || prevState.status === 'long_break') {
-        // For breaks, transition directly to focus without showing dialog
         const firstTask = pomodoroSettings.tasks?.[0];
         setPomodoroState(prev => ({
           ...prev,
@@ -769,37 +945,10 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         setPomodoroState(prev => ({ ...prev, status: 'idle' }));
       }
     }
-    // Reset the manual registration flag after completing the transition
     manualRegistrationExpectedRef.current = false;
     setShowTransitionDialog(false);
   }, [pomodoroSettings, transitionData, state.studySequence, state.sequenceIndex, getAssociatedTopic, toast, dispatch]);
 
-  const advancePomodoroCycle = useCallback(() => {
-    setPomodoroState(prev => {
-      if (prev.status === 'idle') return prev;
-
-      // Calculate effective time spent: total task time - remaining time
-      let effectiveTimeSpent = 0;
-      if (prev.originalDuration) {
-        // For custom duration sessions
-        effectiveTimeSpent = prev.originalDuration - prev.timeRemaining;
-      } else {
-        // For task-based sessions
-        const currentTask = prev.currentTaskIndex !== undefined && pomodoroSettings?.tasks?.[prev.currentTaskIndex];
-        if (currentTask) {
-          effectiveTimeSpent = currentTask.duration - prev.timeRemaining;
-        } else {
-          effectiveTimeSpent = (pomodoroSettings?.tasks?.[0]?.duration || 1500) - prev.timeRemaining; // default to 25 mins
-        }
-      }
-
-      // Store the effective time spent in the ref for use in handlePomodoroStateTransition
-      manualAdvanceTimeRef.current = effectiveTimeSpent;
-
-      // Set time to 0 to trigger the transition effect
-      return { ...prev, timeRemaining: 0, key: prev.key + 1 };
-    });
-  }, [pomodoroSettings]);
 
   const value = useMemo(() => ({
     data: state,
@@ -815,8 +964,8 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     continueToBreak,
     resetManualRegistrationFlag,
     showTransitionDialog,
-    setShowTransitionDialog,
-  }), [state, pomodoroState, activeTab, startPomodoroForItem, pausePomodoroTimer, advancePomodoroCycle, skipToBreak, continueToBreak, resetManualRegistrationFlag, showTransitionDialog, setShowTransitionDialog]);
+    setShowTransitionDialog: showPomodoroTransitionDialog,
+  }), [state, pomodoroState, activeTab, startPomodoroForItem, pausePomodoroTimer, advancePomodoroCycle, skipToBreak, continueToBreak, resetManualRegistrationFlag, showTransitionDialog, showPomodoroTransitionDialog]);
 
   if (isLoading) {
     return (

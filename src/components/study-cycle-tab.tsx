@@ -57,21 +57,21 @@ function SubjectForm({ subject, onSave, onCancel }: { subject?: any; onSave: (da
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="name">Nome</Label>
-          <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome da matéria..." />
+          <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome da matéria..." className="h-11 text-base" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="studyDuration">Tempo (min)</Label>
-          <Input id="studyDuration" type="number" value={studyDuration} onChange={(e) => setStudyDuration(Number(e.target.value))} placeholder="60" />
+          <Input id="studyDuration" type="number" value={studyDuration} onChange={(e) => setStudyDuration(Number(e.target.value))} placeholder="60" className="h-11 text-base" />
         </div>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="description">Descrição</Label>
-        <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição breve da matéria..."/>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="materialUrl">URL do Material</Label>
-        <Input id="materialUrl" value={materialUrl} onChange={(e) => setMaterialUrl(e.target.value)} placeholder="https://..."/>
-      </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Descrição</Label>
+              <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição breve da matéria..." className="text-base" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="materialUrl">URL do Material</Label>
+              <Input id="materialUrl" value={materialUrl} onChange={(e) => setMaterialUrl(e.target.value)} placeholder="https://..." className="h-11 text-base" />
+            </div>
       <div className="space-y-2">
         <Label>Cor</Label>
         <div className="flex gap-2 flex-wrap">
@@ -226,7 +226,7 @@ export default function StudyCycleTab() {
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto lg:flex-wrap lg:justify-end">
             <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" className="shadow-sm hover:shadow-md transition-shadow w-full sm:w-auto">
+                <Button variant="outline" className="shadow-sm hover:shadow-md transition-shadow w-full sm:w-auto h-11">
                   <Save className="mr-2 h-4 w-4" /> Salvar Template
                 </Button>
               </DialogTrigger>
@@ -248,7 +248,7 @@ export default function StudyCycleTab() {
             </Dialog>
             <Dialog open={isLoadDialogOpen} onOpenChange={setIsLoadDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" className="shadow-sm hover:shadow-md transition-shadow w-full sm:w-auto">
+                <Button variant="outline" className="shadow-sm hover:shadow-md transition-shadow w-full sm:w-auto h-11">
                   <FolderOpen className="mr-2 h-4 w-4" /> Carregar Template
                 </Button>
               </DialogTrigger>
@@ -311,7 +311,7 @@ export default function StudyCycleTab() {
               <DialogTrigger asChild>
                 <Button 
                   data-testid="new-subject-button"
-                  className="w-full sm:w-auto shadow-sm hover:shadow-md transition-shadow"
+                  className="w-full sm:w-auto shadow-sm hover:shadow-md transition-shadow h-11"
                 >
                   <Plus className="mr-2 h-4 w-4" /> Nova Matéria
                 </Button>

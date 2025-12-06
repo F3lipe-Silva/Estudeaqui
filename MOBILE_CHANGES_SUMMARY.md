@@ -61,7 +61,6 @@ Este documento resume todas as alterações realizadas no projeto Estudaqui para
 ## Testes Realizados
 O script de verificação de responsividade mostrou que o projeto já implementava 11 de 12 padrões responsivos em 179 arquivos, demonstrando uma base sólida para a experiência mobile.
 
-## Integração Supabase na versão Mobile
 
 - Client mobile com sessão persistente via `AsyncStorage` e cabeçalhos padrão.
 - Serviços expandidos no mobile para equivalência com web: `subjects`, `topics`, `study_logs`, `study_sequences`, `templates`, `schedule_plans`, `pomodoro_settings`, `user_settings`.
@@ -82,7 +81,6 @@ O script de verificação de responsividade mostrou que o projeto já implementa
 
 ## Variáveis de Ambiente
 
-- Defina no mobile: `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
 - Para OAuth, o `redirectTo` usa `Linking.createURL('/')` com `scheme` definido em `app.json`.
 
 ## Como Rodar

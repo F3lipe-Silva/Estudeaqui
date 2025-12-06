@@ -1,11 +1,29 @@
 'use client';
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { Session, supabase } from '@/lib/supabase/client';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  User
+} from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+
+interface Session {
+  user: {
+    id: string;
+    email: string;
+  };
+  expires_at: number;
+}
 
 interface AuthContextType {
   session: Session | null;
-  user: any;
+  user: User | null;
   loading: boolean;
   signUp: (email: string, password: string) => Promise<any>;
   signIn: (email: string, password: string) => Promise<any>;
@@ -18,76 +36,138 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user || null);
+    // Listen for auth state changes
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser && currentUser.email) {
+        // Construct a session object compatible with the rest of the app
+        setSession({
+          user: {
+            id: currentUser.uid,
+            email: currentUser.email,
+          },
+          expires_at: Number.MAX_SAFE_INTEGER, // Session managed by Firebase
+        });
+      } else {
+        setSession(null);
+      }
       setLoading(false);
+    });
 
-      // Listen for auth changes
-      const { data: { subscription } } = await supabase.auth.onAuthStateChange(
-        (_event, session) => {
-          setSession(session);
-          setUser(session?.user || null);
-        }
-      );
-
-      return () => {
-        subscription.unsubscribe();
-      };
-    };
-
-    getSession();
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
   }, []);
 
   const signUp = async (email: string, password: string) => {
-    return await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
-      },
-    });
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // Construct a session object compatible with the rest of the app
+      const sessionData = {
+        user: {
+          id: userCredential.user.uid,
+          email: userCredential.user.email!,
+        },
+        expires_at: Number.MAX_SAFE_INTEGER, // Session managed by Firebase
+      };
+
+      // Set the session and user in the context
+      setSession(sessionData);
+      setUser(userCredential.user);
+
+      // Redirect to main application after successful sign up
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+
+      return { data: { user: userCredential.user }, error: null };
+    } catch (error: any) {
+      console.error("SignUp Error:", error);
+      return { data: null, error };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    return await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // Construct a session object compatible with the rest of the app
+      const sessionData = {
+        user: {
+          id: userCredential.user.uid,
+          email: userCredential.user.email!,
+        },
+        expires_at: Number.MAX_SAFE_INTEGER, // Session managed by Firebase
+      };
+
+      // Set the session and user in the context
+      setSession(sessionData);
+      setUser(userCredential.user);
+
+      // Redirect to main application after successful sign in
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+
+      return { data: { session: sessionData }, error: null };
+    } catch (error: any) {
+      console.error("SignIn Error:", error);
+      return { data: null, error };
+    }
   };
 
   const signInWithGoogle = async () => {
-    return await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+    try {
+      const provider = new GoogleAuthProvider();
+      const userCredential = await signInWithPopup(auth, provider);
+      // Construct a session object compatible with the rest of the app
+      const sessionData = {
+        user: {
+          id: userCredential.user.uid,
+          email: userCredential.user.email!,
+        },
+        expires_at: Number.MAX_SAFE_INTEGER, // Session managed by Firebase
+      };
+
+      // Set the session and user in the context
+      setSession(sessionData);
+      setUser(userCredential.user);
+
+      // Redirect to main application after successful sign in
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
       }
-    });
+
+      return { data: { session: sessionData }, error: null };
+    } catch (error: any) {
+      console.error("Google SignIn Error:", error);
+      return { data: null, error };
+    }
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (!error) {
+    try {
+      await firebaseSignOut(auth);
       setSession(null);
       setUser(null);
-      // Redirecionar para a página de login após o logout
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
       }
+      return { error: null };
+    } catch (error: any) {
+      return { error };
     }
-    return { error };
   };
 
   const resetPassword = async (email: string) => {
-    return await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
-    });
+    try {
+      await sendPasswordResetEmail(auth, email);
+      return { data: {}, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
   };
 
   const value = {

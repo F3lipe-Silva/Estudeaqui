@@ -121,7 +121,7 @@ export default function OverviewTab() {
         </div>
 
         {/* Métricas - Grid responsivo otimizado para desktop */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="hover:shadow-md transition-shadow border-l-4 border-l-primary">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
               <CardTitle className="text-sm font-medium">Hoje</CardTitle>
@@ -278,7 +278,7 @@ export default function OverviewTab() {
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
                     <XAxis 
                       type="number" 
-                      tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                       tickFormatter={(value) => `${value}min`}
                     />
                     <YAxis
@@ -286,8 +286,8 @@ export default function OverviewTab() {
                       type="category"
                       tickLine={false}
                       axisLine={false}
-                      width={90}
-                      tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                      width={100}
+                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                     />
                     <ChartTooltip
                       cursor={{ fill: 'hsl(var(--muted)/0.3)' }}
@@ -333,7 +333,7 @@ export default function OverviewTab() {
                         tickLine={false}
                         axisLine={false}
                         width={80}
-                        tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                        tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                       />
                       <ChartTooltip
                         cursor={{ fill: 'hsl(var(--muted)/0.2)' }}

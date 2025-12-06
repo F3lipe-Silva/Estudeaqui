@@ -160,11 +160,11 @@ export default function ChatTab() {
         <div className="space-y-3">
              {hasUserMessages && (
                 <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-                    <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => handlePresetAction('anki')} disabled={isLoading}>
+                    <Button variant="outline" className="w-full sm:w-auto h-11" onClick={() => handlePresetAction('anki')} disabled={isLoading}>
                         <FileText className="mr-2 h-4 w-4" />
                         Gerar CSV para Anki
                     </Button>
-                    <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => handlePresetAction('cespe')} disabled={isLoading}>
+                    <Button variant="outline" className="w-full sm:w-auto h-11" onClick={() => handlePresetAction('cespe')} disabled={isLoading}>
                         <Repeat className="mr-2 h-4 w-4" />
                         Transformar em Questão CESPE
                     </Button>
@@ -176,17 +176,17 @@ export default function ChatTab() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
                 placeholder="Digite sua dúvida aqui..."
-                className="pr-12 py-6 h-auto" // Aumentar altura do campo de input
+                className="pr-14 py-6 h-auto text-base" // Aumentar altura do campo de input e fonte base
                 disabled={isLoading}
               />
               <Button
                 type="submit"
                 size="icon"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10" // Aumentar tamanho do botão
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-11 w-11" // Aumentar tamanho do botão
                 onClick={() => handleSend()}
                 disabled={isLoading || !input.trim()}
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-5 w-5" />
               </Button>
             </div>
         </div>

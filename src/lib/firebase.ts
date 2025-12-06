@@ -8,13 +8,13 @@ import { getAuth } from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  "projectId": "estudaqui-pwa",
-  "appId": "1:269023322689:web:678762d266322eda695cc0",
-  "storageBucket": "estudaqui-pwa.firebasestorage.app",
+  "projectId": "estudeaqui-fb6e7",
+  "appId": "1:1072254243948:web:b21c3757f547df4185b449",
+  "storageBucket": "estudeaqui-fb6e7.firebasestorage.app",
   "apiKey": process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  "authDomain": "estudaqui-pwa.firebaseapp.com",
-  "measurementId": "",
-  "messagingSenderId": "269023322689"
+  "authDomain": "estudeaqui-fb6e7.firebaseapp.com",
+  "measurementId": "G-B5Y9CQHR05",
+  "messagingSenderId": "1072254243948"
 };
 
 console.log('Firebase API Key:', process.env.NEXT_PUBLIC_FIREBASE_API_KEY);

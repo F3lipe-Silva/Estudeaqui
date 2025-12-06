@@ -32,9 +32,9 @@ export default function BottomNavigationBar() {
                             )}
                         >
                             <div className={cn("relative p-1 rounded-xl transition-colors", isActive && "bg-primary/10")}>
-                                <item.icon className={cn("h-5 w-5 transition-transform", isActive && "scale-110 fill-current")} />
+                                <item.icon className={cn("h-6 w-6 transition-transform", isActive && "scale-110 fill-current")} />
                             </div>
-                            <span className={cn("text-[10px] font-medium transition-all", isActive ? "font-semibold" : "font-normal")}>{item.label}</span>
+                            <span className={cn("text-[11px] font-medium transition-all", isActive ? "font-semibold" : "font-normal")}>{item.label}</span>
                         </button>
                     );
                 })}

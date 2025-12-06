@@ -1,12 +1,8 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useStudy } from '@/contexts/study-context';
 import { Button } from '@/components/ui/button';
-import {
-  DialogFooter,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -93,7 +89,7 @@ export default function StudyLogForm({ onSave, onCancel, existingLog, initialDat
         questionsTotal: Number(questionsTotal),
         questionsCorrect: Number(questionsCorrect),
         source,
-        sequenceItemIndex: initialData?.sequenceItemIndex,
+        ...(initialData?.sequenceItemIndex !== undefined && { sequenceItemIndex: initialData.sequenceItemIndex }),
     };
     
     if (existingLog) {
@@ -251,10 +247,10 @@ export default function StudyLogForm({ onSave, onCancel, existingLog, initialDat
           />
         </div>
       </div>
-      <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 pt-4">
-        <Button variant="outline" onClick={onCancel}>Cancelar</Button>
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-0 pt-4 justify-end">
+        <Button variant="outline" onClick={onCancel} className="mr-2">Cancelar</Button>
         <Button onClick={handleSubmit}>Salvar</Button>
-      </DialogFooter>
+      </div>
     </div>
   );
 }
