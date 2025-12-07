@@ -1,6 +1,7 @@
 import React from 'react';
-import { StyleSheet, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { Pause, RotateCcw } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { useStudy } from '../contexts/study-context';
 import { ThemedText } from './themed-text';
 import { Colors } from '../constants/theme';
@@ -11,6 +12,7 @@ export default function ClockWidget() {
   const { pomodoroState, pausePomodoroTimer, setPomodoroState } = useStudy();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
+  const { width } = useWindowDimensions();
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -49,12 +51,14 @@ export default function ClockWidget() {
   };
 
   const handlePause = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (pomodoroState.status === 'focus' || pomodoroState.status === 'short_break' || pomodoroState.status === 'long_break') {
       pausePomodoroTimer();
     }
   };
 
   const handleReset = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     setPomodoroState({
       status: 'idle',
       timeRemaining: 0,
@@ -86,7 +90,10 @@ export default function ClockWidget() {
         </View>
 
         <View style={styles.timerContainer}>
-          <ThemedText style={[styles.timerText, { color: colors.text }]}>
+          <ThemedText style={[styles.timerText, {
+            fontSize: width < 360 ? 32 : width < 400 ? 36 : 40,
+            color: colors.text
+          }]}>
             {formatTime(pomodoroState.timeRemaining)}
           </ThemedText>
           
@@ -105,17 +112,23 @@ export default function ClockWidget() {
 
         <View style={styles.controlsContainer}>
           {(pomodoroState.status === 'focus' || pomodoroState.status === 'short_break' || pomodoroState.status === 'long_break') && (
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={handlePause}
               style={[styles.controlButton, { borderColor: theme.border }]}
+              accessibilityLabel="Pausar timer"
+              accessibilityHint="Pausa a sessão atual de pomodoro"
+              accessible={true}
             >
               <Pause size={24} color={theme.text} />
             </TouchableOpacity>
           )}
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             onPress={handleReset}
             style={[styles.controlButton, { borderColor: theme.border }]}
+            accessibilityLabel="Reiniciar sessão"
+            accessibilityHint="Reinicia o timer e volta ao estado inicial"
+            accessible={true}
           >
             <RotateCcw size={24} color={theme.text} />
           </TouchableOpacity>
@@ -139,9 +152,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   content: {
-    padding: 24,
+    padding: 20,
     alignItems: 'center',
-    gap: 20,
+    gap: 16,
   },
   statusContainer: {
     alignItems: 'center',
@@ -155,19 +168,19 @@ const styles = StyleSheet.create({
   timerContainer: {
     width: '100%',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 16,
   },
   timerText: {
-    fontSize: 64,
     fontWeight: 'bold',
     fontVariant: ['tabular-nums'],
     letterSpacing: -2,
   },
   progressBarBackground: {
     width: '100%',
-    height: 8,
+    height: 12,
     backgroundColor: 'rgba(0,0,0,0.1)',
-    borderRadius: 4,
+    borderRadius: 6,
     overflow: 'hidden',
   },
   progressBarFill: {
@@ -180,9 +193,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   controlButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

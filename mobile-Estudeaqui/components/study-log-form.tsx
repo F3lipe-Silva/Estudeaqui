@@ -151,7 +151,8 @@ export default function StudyLogForm({ onSave, onCancel, existingLog, initialDat
               {existingLog ? 'Editar Registro de Estudo' : 'Registrar Sessão de Estudo'}
             </CardTitle>
           </CardHeader>
-          <CardContent style={styles.content}>
+        <CardContent style={styles.content}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 16, paddingVertical: 16 }}>
             <View style={isSmallScreen ? styles.columnStack : styles.row}>
               <View style={isSmallScreen ? styles.columnFull : styles.column}>
                 <Text style={[styles.label, { color: theme.text }]}>Matéria</Text>
@@ -176,7 +177,7 @@ export default function StudyLogForm({ onSave, onCancel, existingLog, initialDat
                   <Text style={{ color: theme.text }}>
                     {data.subjects.find(s => s.id === subjectId)?.name || 'Selecione a matéria'}
                   </Text>
-                </TouchableOpacity>
+                 </TouchableOpacity>
               </View>
               <View style={isSmallScreen ? styles.columnFull : styles.column}>
                 <Text style={[styles.label, { color: theme.text }]}>Assunto</Text>
@@ -216,7 +217,7 @@ export default function StudyLogForm({ onSave, onCancel, existingLog, initialDat
                   <Text style={{ color: theme.text }}>
                     {availableTopics.find(t => t.id === topicId)?.name || 'Selecione o assunto'}
                   </Text>
-                </TouchableOpacity>
+                 </TouchableOpacity>
               </View>
             </View>
 
@@ -239,7 +240,7 @@ export default function StudyLogForm({ onSave, onCancel, existingLog, initialDat
                   <Text style={{ color: theme.text }}>
                     {source || 'Fonte / Revisão'}
                   </Text>
-                </TouchableOpacity>
+                 </TouchableOpacity>
               </View>
             </View>
 
@@ -284,7 +285,17 @@ export default function StudyLogForm({ onSave, onCancel, existingLog, initialDat
                 />
               </View>
             </View>
-          </CardContent>
+
+            <View style={styles.buttonRow}>
+              <Button variant="outline" style={getButtonStyle(theme, 'outline')} onPress={onCancel}>
+                <Text style={{ color: theme.text }}>Cancelar</Text>
+              </Button>
+              <Button style={getButtonStyle(theme, 'primary')} onPress={handleSubmit}>
+                <Text style={{ color: 'white' }}>Salvar</Text>
+              </Button>
+            </View>
+          </ScrollView>
+        </CardContent>
         </ScrollView>
         <View style={styles.buttonRow}>
           <Button variant="outline" style={getButtonStyle(theme, 'outline')} onPress={onCancel}>
@@ -451,16 +462,16 @@ export default function StudyLogForm({ onSave, onCancel, existingLog, initialDat
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     maxWidth: 500, // Limit width on larger screens
     width: '100%', // Take full width on small screens
   },
   card: {
     marginBottom: 0,
     borderWidth: 1,
+    minHeight: 500,
   },
   content: {
-    gap: 16,
+    flex: 1,
   },
   row: {
     flexDirection: 'row',
@@ -496,7 +507,6 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 8,
   },
   button: {
     flex: 1,
