@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Home, Calendar, BookOpen, History, Repeat2, Timer, MessageCircle } from 'lucide-react-native';
+import { Home, Calendar, History, Repeat2, Timer } from 'lucide-react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { Colors } from '@/constants/theme';
@@ -30,13 +30,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Calendar size={28} color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="cycle"
-        options={{
-          title: 'Matérias',
-          tabBarIcon: ({ color }) => <BookOpen size={28} color={color} />,
-        }}
-      />
+
       <Tabs.Screen
         name="revision"
         options={{

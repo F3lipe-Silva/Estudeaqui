@@ -96,7 +96,6 @@ export function CardFooter({ children, style }: { children: React.ReactNode; sty
 
 const styles = StyleSheet.create({
   card: {
-    borderWidth: 1,
     borderRadius: 12,
     marginBottom: 16,
     shadowOffset: { width: 0, height: 1 },
@@ -116,8 +115,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   content: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
   },
   footer: {
     padding: 16,

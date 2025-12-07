@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, FlatList, View, RefreshControl, TouchableOpacity, Modal } from 'react-native';
-import { Play, RotateCcw, Calendar, ArrowRight, Plus, Trash2, Edit, Clock, ArrowUp, ArrowDown, X, Save, PlusCircle, Upload, Settings, RefreshCw } from 'lucide-react-native';
+import { Play, Calendar, Plus, Trash2, Edit, ArrowUp, ArrowDown, X, Save, PlusCircle, Settings, RefreshCw } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -103,23 +104,7 @@ export default function PlanningScreen() {
       });
   };
 
-  const handleDeleteSequence = () => {
-      showAlert({
-          title: "Apagar Sequência",
-          message: "Tem certeza que deseja apagar sua sequência de estudos atual?",
-          variant: 'destructive',
-          primaryButton: {
-              text: "Apagar",
-              variant: 'destructive',
-              action: () => dispatch({ type: 'SAVE_STUDY_SEQUENCE', payload: null })
-          },
-          secondaryButton: {
-              text: "Cancelar",
-              variant: 'secondary',
-              action: () => {}
-          }
-      });
-  };
+
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -195,59 +180,36 @@ export default function PlanningScreen() {
   };
 
   const handleAddSubjectToSequence = () => {
-    if (subjects.length === 0) {
-      showAlert({
-        title: "Erro",
-        message: "Adicione matérias antes.",
-        variant: 'destructive',
-        primaryButton: {
-          text: "OK",
-          action: () => {}
-        }
-      });
-      return;
-    }
+     if (subjects.length === 0) {
+       showAlert({
+         title: "Erro",
+         message: "Adicione matérias antes.",
+         variant: 'destructive',
+         primaryButton: {
+           text: "OK",
+           action: () => {}
+         }
+       });
+       return;
+     }
 
-    // For this specific case, we need to implement a custom selector dialog or use a different approach
-    // since our AlertDialog only supports primary/secondary buttons, not multiple options like Alert
-    // For now, we'll just show a simple message suggesting to manage subjects elsewhere
-    showAlert({
-      title: "Adicionar Matéria",
-      message: "Gerencie suas matérias na aba 'Matérias' e adicione-as ao seu plano de estudos.",
-      variant: 'default',
-      primaryButton: {
-        text: "OK",
-        action: () => {}
-      }
-    });
-  };
+     // For this specific case, we need to implement a custom selector dialog or use a different approach
+     // since our AlertDialog only supports primary/secondary buttons, not multiple options like Alert
+     // For now, we'll just show a simple message suggesting to manage subjects elsewhere
+     showAlert({
+       title: "Adicionar Matéria",
+       message: "Gerencie suas matérias na aba 'Matérias' e adicione-as ao seu plano de estudos.",
+       variant: 'default',
+       primaryButton: {
+         text: "OK",
+         action: () => {}
+       }
+     });
+   };
 
-  // Import logic placeholders (functionality relies on context not fully shown here, keeping it simple)
-  const handleImportToPlanning = () => {
-      // Placeholder for future full implementation if needed
-      showAlert({
-        title: "Info",
-        message: "Importação para planejamento não disponível nesta versão.",
-        variant: 'default',
-        primaryButton: {
-          text: "OK",
-          action: () => {}
-        }
-      });
-  };
 
-  const handleImportFromSchedule = () => {
-      // Placeholder
-      showAlert({
-        title: "Info",
-        message: "Importação de cronograma não disponível nesta versão.",
-        variant: 'default',
-        primaryButton: {
-          text: "OK",
-          action: () => {}
-        }
-      });
-  };
+
+
   
   const handleCreateEmptyManualSequence = () => {
       const newSequence = {
@@ -259,34 +221,34 @@ export default function PlanningScreen() {
   };
 
 
-  if (!studySequence || studySequence.sequence.length === 0) {
-      return (
-        <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
-             <ThemedView style={styles.header}>
-                <ThemedText type="title">Planejamento</ThemedText>
-            </ThemedView>
-             <View style={styles.emptyState}>
-                 <View style={styles.emptyIconContainer}>
-                   <Calendar size={48} color={theme.primary} style={{ opacity: 0.6 }} />
-                 </View>
-                 <ThemedText style={styles.emptyTitle}>Crie seu plano de estudos</ThemedText>
-                 <ThemedText style={styles.emptyDesc}>
-                     Organize suas matérias em uma sequência de estudo personalizada para maximizar sua produtividade.
-                 </ThemedText>
-                 <View style={styles.emptyActions}>
-                    <Button onPress={handleCreateDefaultPlan} style={styles.primaryButton} variant="default">
-                        <Plus size={16} color="white" style={{marginRight: 6}} />
-                        Plano Automático
-                    </Button>
-                    <Button onPress={handleCreateEmptyManualSequence} style={styles.secondaryButton} variant="outline">
-                        <Edit size={16} color={theme.primary} style={{marginRight: 6}} />
-                        Plano Manual
-                    </Button>
-                      </View>
-                 </View>
-            </ThemedView>
-      );
-   };
+    if (!studySequence || studySequence.sequence.length === 0) {
+        return (
+          <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+              <ThemedView style={styles.header}>
+                 <ThemedText type="title">Planejamento</ThemedText>
+             </ThemedView>
+              <View style={styles.emptyState}>
+                  <View style={styles.emptyIconContainer}>
+                    <Calendar size={64} color={theme.primary} style={{ opacity: 0.7 }} />
+                  </View>
+                  <ThemedText style={styles.emptyTitle}>Crie seu plano de estudos</ThemedText>
+                  <ThemedText style={styles.emptyDesc}>
+                      Organize suas matérias em uma sequência de estudo personalizada para maximizar sua produtividade e alcançar seus objetivos.
+                  </ThemedText>
+                  <View style={styles.emptyActions}>
+                     <Button onPress={handleCreateDefaultPlan} style={styles.primaryButton} variant="default">
+                         <Plus size={18} color="white" style={{marginRight: 8}} />
+                         Plano Automático
+                     </Button>
+                     <Button onPress={handleCreateEmptyManualSequence} style={styles.secondaryButton} variant="outline">
+                         <Edit size={18} color={theme.primary} style={{marginRight: 8}} />
+                         Plano Manual
+                     </Button>
+                       </View>
+                  </View>
+             </ThemedView>
+       );
+    };
 
    const renderItem = ({ item, index }: { item: any, index: number }) => {
      const subject = subjects.find(s => s.id === item.subjectId);
@@ -302,173 +264,195 @@ export default function PlanningScreen() {
        label: isCompleted ? 'Concluída' : isCurrent ? 'Atual' : isUpcoming ? 'Próxima' : 'Pendente'
      };
 
-     return (
-       <Card style={{
-           ...styles.card,
-           ...(isCurrent ? { borderColor: theme.primary, borderWidth: 2, backgroundColor: theme.primary + '05' } : {}),
-           ...(isCompleted ? { backgroundColor: '#22c55e10', borderColor: '#22c55e30' } : {}),
-           ...(isUpcoming ? { opacity: 0.8 } : {})
-       }}>
-         <CardContent style={styles.cardContent}>
-           <View style={styles.cardMain}>
-             <View style={styles.subjectInfo}>
-               <ThemedText style={[styles.subjectName, { color: theme.text }, isCompleted && styles.completedText]} numberOfLines={1}>
-                 {subject.name}
-               </ThemedText>
-               <ThemedText style={[styles.statusLabel, { color: statusInfo.label === 'Concluída' ? '#22c55e' : statusInfo.label === 'Atual' ? theme.primary : theme.mutedForeground }]}>
-                 {statusInfo.label}
-               </ThemedText>
-             </View>
+      return (
+        <Card style={{
+            ...styles.card,
+            ...(isCurrent ? { borderColor: '#22c55e', borderWidth: 1 } : {}),
+            ...(isCompleted ? { backgroundColor: '#22c55e15', borderColor: '#22c55e40' } : {}),
+            ...(isUpcoming ? { opacity: 0.85 } : {})
+        }}>
+          <CardContent style={styles.cardContent}>
+            <View style={styles.cardMain}>
+              <View style={styles.subjectInfo}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                  <View style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: 6,
+                    backgroundColor: subject.color || theme.primary,
+                    marginRight: 8
+                  }} />
+                  <ThemedText style={[styles.subjectName, { color: theme.text }, isCompleted && styles.completedText]} numberOfLines={1}>
+                    {subject.name}
+                  </ThemedText>
+                </View>
+                <ThemedText style={[styles.statusLabel, { color: statusInfo.label === 'Concluída' ? '#22c55e' : statusInfo.label === 'Atual' ? theme.primary : theme.mutedForeground }]}>
+                  {statusInfo.label}
+                </ThemedText>
+              </View>
 
-             <View style={styles.cardActions}>
-               {isEditing ? (
-                 <View style={styles.editActions}>
-                    <TouchableOpacity
-                      onPress={() => moveSequenceItem(index, index - 1)}
-                      disabled={index === 0}
-                      style={[styles.editButton, { backgroundColor: theme.card }, index === 0 && styles.disabledButton]}
-                    >
-                      <ArrowUp size={14} color={index === 0 ? theme.mutedForeground : theme.icon} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => moveSequenceItem(index, index + 1)}
-                      disabled={index === editingSequence.length - 1}
-                      style={[styles.editButton, { backgroundColor: theme.card }, index === editingSequence.length - 1 && styles.disabledButton]}
-                    >
-                      <ArrowDown size={14} color={index === editingSequence.length - 1 ? theme.mutedForeground : theme.icon} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => handleDeleteSequenceItem(index)}
-                      style={[styles.editButton, styles.deleteButton, { backgroundColor: theme.destructive }]}
-                    >
-                      <Trash2 size={14} color="white" />
-                    </TouchableOpacity>
-                 </View>
-               ) : (
-                 <View style={styles.viewActions}>
-                    <TouchableOpacity
-                      onPress={() => openLogForm(subject.id, index)}
-                      style={[styles.actionButton, { backgroundColor: theme.primary }]}
-                    >
-                      <PlusCircle size={14} color="white" />
-                      <ThemedText style={styles.actionButtonText}>Registrar</ThemedText>
-                    </TouchableOpacity>
+              <View style={styles.cardActions}>
+                {isEditing ? (
+                  <View style={styles.editActions}>
+                      <TouchableOpacity
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); moveSequenceItem(index, index - 1); }}
+                        disabled={index === 0}
+                        style={[styles.editButton, { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.border }, index === 0 && styles.disabledButton]}
+                        accessibilityLabel="Mover item para cima"
+                        accessibilityHint="Move o item da sequência uma posição para cima"
+                        accessible={true}
+                      >
+                        <ArrowUp size={20} color={index === 0 ? theme.mutedForeground : theme.icon} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); moveSequenceItem(index, index + 1); }}
+                        disabled={index === editingSequence.length - 1}
+                        style={[styles.editButton, { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.border }, index === editingSequence.length - 1 && styles.disabledButton]}
+                        accessibilityLabel="Mover item para baixo"
+                        accessibilityHint="Move o item da sequência uma posição para baixo"
+                        accessible={true}
+                      >
+                        <ArrowDown size={20} color={index === editingSequence.length - 1 ? theme.mutedForeground : theme.icon} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); handleDeleteSequenceItem(index); }}
+                        style={[styles.editButton, styles.deleteButton, { backgroundColor: theme.destructive }]}
+                        accessibilityLabel="Deletar item"
+                        accessibilityHint="Remove o item da sequência de estudo"
+                        accessible={true}
+                      >
+                        <Trash2 size={20} color="white" />
+                      </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.viewActions}>
+                      <TouchableOpacity
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openLogForm(subject.id, index); }}
+                        style={[styles.actionButton, { backgroundColor: theme.primary }]}
+                        accessibilityLabel="Registrar sessão"
+                        accessibilityHint="Abre formulário para registrar uma sessão de estudo"
+                        accessible={true}
+                      >
+                        <PlusCircle size={18} color="white" />
+                        <ThemedText style={styles.actionButtonText}>Registrar</ThemedText>
+                      </TouchableOpacity>
 
-                    <TouchableOpacity
-                      onPress={() => handleStart(subject.id, index)}
-                      style={[
-                          styles.startButton,
-                          { borderColor: theme.border },
-                          isCurrent ? [styles.startButtonActive, { backgroundColor: theme.primary, borderColor: theme.primary }] : styles.startButtonInactive
-                      ]}>
-                      <Play size={14} color={isCurrent ? 'white' : theme.icon} />
-                      <ThemedText style={[
-                        styles.startButtonText,
-                        { color: isCurrent ? 'white' : theme.icon }
-                      ]}>
-                        {isCurrent ? 'Continuar' : 'Iniciar'}
-                      </ThemedText>
-                    </TouchableOpacity>
-                 </View>
-               )}
-             </View>
+                      <TouchableOpacity
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleStart(subject.id, index); }}
+                        style={[
+                            styles.startButton,
+                            { borderColor: theme.border },
+                            isCurrent ? [styles.startButtonActive, { backgroundColor: theme.primary, borderColor: theme.primary }] : styles.startButtonInactive
+                        ]}
+                        accessibilityLabel={isCurrent ? "Continuar sessão" : "Iniciar sessão"}
+                        accessibilityHint={isCurrent ? "Continua a sessão atual de pomodoro" : "Inicia uma nova sessão de pomodoro"}
+                        accessible={true}
+                      >
+                        <Play size={18} color={isCurrent ? 'white' : theme.icon} />
+                        <ThemedText style={[styles.startButtonText, { color: isCurrent ? 'white' : theme.icon }]}>
+                          {isCurrent ? 'Continuar' : 'Iniciar'}
+                        </ThemedText>
+                     </TouchableOpacity>
+                  </View>
+                )}
+              </View>
 
-             <View style={styles.progressSection}>
-               <View style={styles.progressRow}>
-                   <Progress value={progress} style={styles.progressBar} />
-                   <ThemedText style={styles.progressText}>
-                       {item.totalTimeStudied || 0}/{timeGoal}min
-                   </ThemedText>
-               </View>
-               {isCurrent && timeGoal > (item.totalTimeStudied || 0) && (
-                 <ThemedText style={[styles.timeRemaining, { color: theme.primary }]}>
-                   Faltam: {timeGoal - (item.totalTimeStudied || 0)}min
-                 </ThemedText>
-               )}
-             </View>
-           </View>
-         </CardContent>
-       </Card>
-     );
+              <View style={styles.progressSection}>
+                <View style={styles.progressRow}>
+                    <Progress value={progress} style={styles.progressBar} />
+                    <ThemedText style={styles.progressText}>
+                        {item.totalTimeStudied || 0}/{timeGoal}min
+                    </ThemedText>
+                </View>
+                {isCurrent && timeGoal > (item.totalTimeStudied || 0) && (
+                  <ThemedText style={[styles.timeRemaining, { color: theme.primary }]}>
+                    Faltam: {timeGoal - (item.totalTimeStudied || 0)}min
+                  </ThemedText>
+                )}
+              </View>
+            </View>
+          </CardContent>
+        </Card>
+      );
    };
 
    return (
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
-       <ThemedView style={styles.header}>
-         <View style={styles.headerTop}>
-          <View style={styles.titleSection}>
-            <ThemedText type="title" style={styles.mainTitle}>Planejamento</ThemedText>
-            <View style={[styles.progressBadge, {
-              backgroundColor: theme.primary + '20',
-              borderColor: theme.primary + '30'
-            }]}>
-              <ThemedText style={[styles.progressText, { color: theme.primary }]}>
-                {sequenceIndex + 1}/{studySequence.sequence.length}
-              </ThemedText>
-            </View>
+        <ThemedView style={styles.header}>
+          <View style={styles.headerTop}>
+           <View style={styles.titleSection}>
+             <ThemedText type="title" style={styles.mainTitle}>Planejamento</ThemedText>
+             <View style={[styles.progressBadge, {
+               backgroundColor: theme.primary + '20',
+               borderColor: theme.primary + '30'
+             }]}>
+               <ThemedText style={[styles.progressText, { color: theme.primary }]}>
+                 {sequenceIndex + 1}/{studySequence.sequence.length}
+               </ThemedText>
+             </View>
+           </View>
+           <View style={styles.headerActions}>
+             {isEditing ? (
+               <>
+                   <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleEditToggle(); }} style={[styles.headerButton, { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.border }]} accessibilityLabel="Cancelar edição" accessibilityHint="Sai do modo de edição sem salvar" accessible={true}>
+                     <X size={20} color={theme.icon} />
+                   </TouchableOpacity>
+                   <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSaveSequence(); }} style={[styles.headerButton, styles.saveButton, { backgroundColor: theme.primary }]} accessibilityLabel="Salvar sequência" accessibilityHint="Salva as alterações na sequência de estudo" accessible={true}>
+                     <Save size={20} color="white" />
+                   </TouchableOpacity>
+               </>
+             ) : (
+               <>
+                   <TouchableOpacity onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); handleReset(); }} style={[styles.headerButton, { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.border }]} accessibilityLabel="Reiniciar sequência" accessibilityHint="Reseta a sequência para o estado inicial" accessible={true}>
+                     <RefreshCw size={18} color={theme.icon} />
+                   </TouchableOpacity>
+                   <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleEditToggle(); }} style={[styles.headerButton, { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.border }]} accessibilityLabel="Editar sequência" accessibilityHint="Entra no modo de edição para reordenar ou deletar itens" accessible={true}>
+                     <Settings size={20} color={theme.icon} />
+                   </TouchableOpacity>
+               </>
+             )}
+           </View>
           </View>
-          <View style={styles.headerActions}>
-            {isEditing ? (
-              <>
-                 <TouchableOpacity onPress={handleEditToggle} style={[styles.headerButton, { backgroundColor: theme.card }]}>
-                   <X size={18} color={theme.icon} />
-                 </TouchableOpacity>
-                 <TouchableOpacity onPress={handleSaveSequence} style={[styles.headerButton, styles.saveButton, { backgroundColor: theme.primary }]}>
-                   <Save size={18} color="white" />
-                 </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                 <TouchableOpacity onPress={handleReset} style={[styles.headerButton, { backgroundColor: theme.card }]}>
-                   <RefreshCw size={16} color={theme.icon} />
-                 </TouchableOpacity>
-                 <TouchableOpacity onPress={handleEditToggle} style={[styles.headerButton, { backgroundColor: theme.card }]}>
-                   <Settings size={18} color={theme.icon} />
-                 </TouchableOpacity>
-              </>
-            )}
-          </View>
+         <View style={styles.sequenceInfo}>
+           <ThemedText style={[styles.sequenceName, { color: theme.text }]}>{studySequence.name}</ThemedText>
+           <View style={styles.sequenceStatsRow}>
+             <ThemedText style={styles.sequenceStats}>
+               {studySequence.sequence.length} matérias • {Math.round(studySequence.sequence.reduce((acc, item) => acc + (item.totalTimeStudied || 0), 0) / 60 * 10) / 10}h estudadas
+             </ThemedText>
+             {data.cycleResetCount > 0 && (
+               <View style={styles.cycleInfo}>
+                 <RefreshCw size={16} color={theme.primary} />
+                 <ThemedText style={[styles.cycleInfoText, { color: theme.primary }]}>
+                   {data.cycleResetCount} ciclo{data.cycleResetCount !== 1 ? 's' : ''} reiniciado{data.cycleResetCount !== 1 ? 's' : ''}
+                 </ThemedText>
+               </View>
+             )}
+           </View>
          </View>
-        <View style={styles.sequenceInfo}>
-          <ThemedText style={[styles.sequenceName, { color: theme.text }]}>{studySequence.name}</ThemedText>
-          <View style={styles.sequenceStatsRow}>
-            <ThemedText style={styles.sequenceStats}>
-              {studySequence.sequence.length} matérias • {Math.round(studySequence.sequence.reduce((acc, item) => acc + (item.totalTimeStudied || 0), 0) / 60 * 10) / 10}h estudadas
-            </ThemedText>
-            {data.cycleResetCount > 0 && (
-              <View style={styles.cycleInfo}>
-                <RefreshCw size={14} color={theme.primary} />
-                <ThemedText style={[styles.cycleInfoText, { color: theme.primary }]}>
-                  {data.cycleResetCount} ciclo{data.cycleResetCount !== 1 ? 's' : ''} reiniciado{data.cycleResetCount !== 1 ? 's' : ''}
-                </ThemedText>
-              </View>
-            )}
-          </View>
-        </View>
-       </ThemedView>
+        </ThemedView>
 
-      <FlatList
-        data={isEditing ? editingSequence : studySequence.sequence}
-        keyExtractor={(item, index) => `${item.subjectId}-${index}`}
-        renderItem={renderItem}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-        ListFooterComponent={
-            isEditing ? (
-                <Button onPress={handleAddSubjectToSequence} style={{marginTop: 12}} variant="outline">
-                    <Plus size={14} color={theme.primary} style={{marginRight: 6}} />
-                    Adicionar Matéria
-                </Button>
-            ) : null
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <ThemedText style={styles.emptyText}>Nenhuma sequência de estudos encontrada.</ThemedText>
-          </View>
-        }
-      />
+       <FlatList
+         data={isEditing ? editingSequence : studySequence.sequence}
+         keyExtractor={(item, index) => `${item.subjectId}-${index}`}
+         renderItem={renderItem}
+         contentContainerStyle={styles.content}
+         refreshControl={
+           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+         }
+         ListFooterComponent={
+             isEditing ? (
+                 <Button onPress={handleAddSubjectToSequence} style={{marginTop: 16, marginBottom: 16}} variant="outline">
+                     <Plus size={16} color={theme.primary} style={{marginRight: 8}} />
+                     Adicionar Matéria
+                 </Button>
+             ) : null
+         }
+         ListEmptyComponent={
+           <View style={styles.emptyState}>
+             <ThemedText style={styles.emptyText}>Nenhuma sequência de estudos encontrada.</ThemedText>
+           </View>
+         }
+       />
 
       {/* Formulário de registro de estudo */}
       <Modal visible={isLogFormOpen} animationType="slide" transparent>
@@ -485,153 +469,151 @@ export default function PlanningScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingBottom: 12 },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  titleSection: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  mainTitle: { fontSize: 20, fontWeight: 'bold' },
-  progressBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    borderWidth: 1
-  },
-  progressText: { fontSize: 11, fontWeight: '600' },
-  headerActions: { flexDirection: 'row', gap: 6 },
-  headerButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  saveButton: { },
-  sequenceInfo: { marginTop: 6 },
-  sequenceName: { fontSize: 14, fontWeight: '600' },
-  sequenceStatsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 },
-  sequenceStats: { fontSize: 11, opacity: 0.6 },
-  cycleInfo: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cycleInfoText: { fontSize: 11, fontWeight: '500' },
-  content: { padding: 16, paddingBottom: 80 },
-  card: { marginBottom: 8, borderRadius: 10 },
-  cardContent: {
-      padding: 12,
-  },
-  cardMain: { gap: 8 },
-  subjectInfo: { marginBottom: 4 },
-  statusIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    backgroundColor: 'transparent' // Will be overridden inline
-  },
-  statusEmoji: { fontSize: 18 },
-  subjectHeader: { marginBottom: 8 },
-  subjectName: { fontSize: 14, fontWeight: '600', marginBottom: 1 },
-  completedText: { textDecorationLine: 'line-through', opacity: 0.7 },
-  statusLabel: { fontSize: 11, fontWeight: '500' },
-  cardLeft: { flexDirection: 'row', gap: 8, alignItems: 'center', flex: 1 },
-  cardActions: { flexDirection: 'row', alignItems: 'center' },
-  indexBadge: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  indexText: { fontSize: 11, fontWeight: 'bold' },
-  subjectName: { fontSize: 14, fontWeight: '600' },
-  progressSection: { marginTop: 6 },
-  progressRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  progressBar: { flex: 1, height: 6 },
-  progressText: { fontSize: 11, opacity: 0.7 },
-  timeRemaining: { fontSize: 10, opacity: 0.6, marginTop: 1 },
-  completedBadge: { backgroundColor: 'rgba(34, 197, 94, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
-  completedText: { color: '#22c55e', fontSize: 10, fontWeight: 'bold' },
-  waitingBadge: { opacity: 0.3 },
-  waitingText: { fontSize: 10 },
-  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30, marginTop: 30 },
-  emptyIconContainer: { marginBottom: 20 },
-  emptyTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 6, textAlign: 'center' },
-  emptyDesc: { textAlign: 'center', opacity: 0.6, marginBottom: 20, lineHeight: 18 },
-  emptyActions: { gap: 10, width: '100%', maxWidth: 260 },
-  primaryButton: { flex: 1 },
-  secondaryButton: { flex: 1 },
-  emptyText: { opacity: 0.5 },
+   container: { flex: 1 },
+   header: { paddingHorizontal: 16, paddingBottom: 16 },
+   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+   titleSection: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+   mainTitle: { fontSize: 24, fontWeight: 'bold' },
+   progressBadge: {
+     paddingHorizontal: 8,
+     paddingVertical: 4,
+     borderRadius: 12,
+     borderWidth: 1
+   },
+   progressText: { fontSize: 12, fontWeight: '600' },
+   headerActions: { flexDirection: 'row', gap: 8 },
+   headerButton: {
+     width: 48,
+     height: 48,
+     borderRadius: 24,
+     alignItems: 'center',
+     justifyContent: 'center'
+   },
+   saveButton: { },
+   sequenceInfo: { marginTop: 8 },
+   sequenceName: { fontSize: 14, fontWeight: '600' },
+   sequenceStatsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 },
+   sequenceStats: { fontSize: 12, opacity: 0.7 },
+   cycleInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+   cycleInfoText: { fontSize: 12, fontWeight: '500' },
+   content: { padding: 16, paddingBottom: 80 },
+   card: { marginBottom: 12, borderRadius: 16, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+   cardContent: {
+       padding: 12,
+   },
+   cardMain: { gap: 8 },
+   subjectInfo: { marginBottom: 2 },
+   statusIcon: {
+     width: 32,
+     height: 32,
+     borderRadius: 16,
+     alignItems: 'center',
+     justifyContent: 'center',
+     marginRight: 8,
+     backgroundColor: 'transparent' // Will be overridden inline
+   },
+   statusEmoji: { fontSize: 18 },
+   subjectHeader: { marginBottom: 8 },
+   subjectName: { fontSize: 16, fontWeight: '600', marginBottom: 2 },
+   completedText: { textDecorationLine: 'line-through', opacity: 0.7 },
+   statusLabel: { fontSize: 12, fontWeight: '500' },
+   cardLeft: { flexDirection: 'row', gap: 8, alignItems: 'center', flex: 1 },
+   cardActions: { flexDirection: 'row', alignItems: 'center' },
+   indexBadge: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+   indexText: { fontSize: 11, fontWeight: 'bold' },
+   progressSection: { marginTop: 8 },
+   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+   progressBar: { flex: 1, height: 8, borderRadius: 4 },
+   timeRemaining: { fontSize: 11, opacity: 0.7, marginTop: 2 },
+   completedBadge: { backgroundColor: 'rgba(34, 197, 94, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
+   waitingBadge: { opacity: 0.3 },
+   waitingText: { fontSize: 10 },
+   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, marginTop: 40 },
+   emptyIconContainer: { marginBottom: 24 },
+   emptyTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' },
+   emptyDesc: { textAlign: 'center', opacity: 0.7, marginBottom: 24, lineHeight: 20 },
+   emptyActions: { gap: 12, width: '100%', maxWidth: 280 },
+   primaryButton: { flex: 1 },
+   secondaryButton: { flex: 1 },
+   emptyText: { opacity: 0.5 },
+   editActions: { flexDirection: 'row', gap: 6 },
+   editButton: {
+     width: 48,
+     height: 48,
+     borderRadius: 24,
+     alignItems: 'center',
+     justifyContent: 'center'
+   },
+   disabledButton: { opacity: 0.3 },
+   deleteButton: { },
+   viewActions: { flexDirection: 'row', gap: 8 },
+   actionButton: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     gap: 6,
+     paddingHorizontal: 12,
+     paddingVertical: 10,
+     borderRadius: 20,
+     minHeight: 44
+   },
+   actionButtonText: { color: 'white', fontSize: 12, fontWeight: '600' },
+   startButton: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     gap: 6,
+     paddingHorizontal: 12,
+     paddingVertical: 10,
+     borderRadius: 20,
+     borderWidth: 1,
+     minHeight: 44
+   },
+   startButtonActive: { },
+   startButtonInactive: { backgroundColor: 'transparent' },
+   startButtonText: { fontSize: 12, fontWeight: '600' },
 
-  // Action buttons
-  cardActions: { alignItems: 'flex-end' },
-  editActions: { flexDirection: 'row', gap: 3 },
-  editButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  disabledButton: { opacity: 0.3 },
-  deleteButton: { },
-  viewActions: { flexDirection: 'row', gap: 6 },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 16
-  },
-  actionButtonText: { color: 'white', fontSize: 11, fontWeight: '600' },
-  startButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1
-  },
-  startButtonActive: { },
-  startButtonInactive: { backgroundColor: 'transparent' },
-  startButtonText: { fontSize: 11, fontWeight: '600' },
+   modalOverlay: {
+     flex: 1,
+     backgroundColor: 'rgba(0,0,0,0.5)',
+     justifyContent: 'center',
+     alignItems: 'center',
+     padding: 20
+   },
+   formContainer: {
+     width: '100%',
+     maxHeight: '80%',
+     borderRadius: 12,
+     elevation: 8,
+     shadowColor: '#000',
+     shadowOffset: { width: 0, height: 4 },
+     shadowOpacity: 0.3,
+     shadowRadius: 8,
+   },
+   iconButton: { padding: 8 },
+   playButton: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+   resetButton: {
+     position: 'relative',
+   },
+   resetButtonContent: {
+     alignItems: 'center',
+     justifyContent: 'center',
+   },
+   resetCounter: {
+     position: 'absolute',
+     top: -8,
+     right: -8,
+     backgroundColor: '#ef4444',
+     borderRadius: 10,
+     minWidth: 16,
+     height: 16,
+     alignItems: 'center',
+     justifyContent: 'center',
+     paddingHorizontal: 4,
+   },
+   resetCounterText: {
+     color: 'white',
+     fontSize: 10,
+     fontWeight: 'bold',
+   },
 
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20
-  },
-  formContainer: {
-    width: '100%',
-    maxHeight: '80%',
-    borderRadius: 12,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  iconButton: { padding: 8 },
-  playButton: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  resetButton: {
-    position: 'relative',
-  },
-  resetButtonContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  resetCounter: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: '#ef4444',
-    borderRadius: 10,
-    minWidth: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  resetCounterText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-});
+
+ });

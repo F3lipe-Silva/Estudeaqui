@@ -156,11 +156,8 @@ export default function HistoryTab() {
                         </div>
                       </div>
                     </CardContent>
-                     <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-background/95 backdrop-blur rounded-lg shadow-lg p-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary" onClick={() => handleEdit(log)} title="Editar">
-                              <Edit className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
+                      <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-background/95 backdrop-blur rounded-lg shadow-lg p-1">
+                           <AlertDialog>
                               <AlertDialogTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" title="Remover">
                                       <Trash2 className="h-4 w-4" />
