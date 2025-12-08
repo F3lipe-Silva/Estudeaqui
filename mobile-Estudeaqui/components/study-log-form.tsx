@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, FlatList, Modal, useWindowDimensions, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, Modal, FlatList, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { ChevronDown, Check, X } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { useStudy } from '../contexts/study-context';
 import { useAlert } from '../contexts/alert-context';
-import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Colors } from '../constants/theme';
 import { useColorScheme } from '../hooks/use-color-scheme';
 
@@ -17,57 +17,50 @@ interface StudyLogFormProps {
 export default function StudyLogForm({ onSave, onCancel, existingLog, initialData }: StudyLogFormProps) {
   const { data, dispatch } = useStudy();
   const { showAlert } = useAlert();
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? 'light'];
+  
+  // State
   const [subjectId, setSubjectId] = useState(existingLog?.subjectId || initialData?.subjectId || '');
   const [topicId, setTopicId] = useState(existingLog?.topicId || initialData?.topicId || '');
-  const [duration, setDuration] = useState(existingLog?.duration || initialData?.duration || '');
-  const [startPage, setStartPage] = useState(existingLog?.startPage || '');
-  const [endPage, setEndPage] = useState(existingLog?.endPage || '');
-  const [questionsTotal, setQuestionsTotal] = useState(existingLog?.questionsTotal || '');
-  const [questionsCorrect, setQuestionsCorrect] = useState(existingLog?.questionsCorrect || '');
+  const [duration, setDuration] = useState(existingLog?.duration ? String(existingLog.duration) : initialData?.duration ? String(initialData.duration) : '');
+  const [startPage, setStartPage] = useState(existingLog?.startPage ? String(existingLog.startPage) : '');
+  const [endPage, setEndPage] = useState(existingLog?.endPage ? String(existingLog.endPage) : '');
+  const [questionsTotal, setQuestionsTotal] = useState(existingLog?.questionsTotal ? String(existingLog.questionsTotal) : '');
+  const [questionsCorrect, setQuestionsCorrect] = useState(existingLog?.questionsCorrect ? String(existingLog.questionsCorrect) : '');
   const [source, setSource] = useState(existingLog?.source || initialData?.source || '');
+
+  // Modal States
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [showTopicModal, setShowTopicModal] = useState(false);
   const [showSourceModal, setShowSourceModal] = useState(false);
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? 'light'];
-  const { width: screenWidth } = useWindowDimensions();
-  const isSmallScreen = screenWidth < 400;
+  
+  // Search States for Modals
+  const [subjectSearch, setSubjectSearch] = useState('');
+  const [topicSearch, setTopicSearch] = useState('');
 
+  // Derived Data
   const availableTopics = data.subjects.find(s => s.id === subjectId)?.topics || [];
+  const currentSubject = data.subjects.find(s => s.id === subjectId);
+  const currentTopic = availableTopics.find(t => t.id === topicId);
 
-  useEffect(() => {
-    if (existingLog) {
-      setSubjectId(existingLog.subjectId);
-      setTopicId(existingLog.topicId);
-      setDuration(existingLog.duration);
-      setStartPage(existingLog.startPage);
-      setEndPage(existingLog.endPage);
-      setQuestionsTotal(existingLog.questionsTotal);
-      setQuestionsCorrect(existingLog.questionsCorrect);
-      setSource(existingLog.source || '');
-    } else if (!existingLog && initialData) {
-      setSubjectId(initialData.subjectId || '');
-      setTopicId(initialData.topicId || '');
-      setDuration(initialData.duration || '');
-      setStartPage('');
-      setEndPage('');
-      setQuestionsTotal('');
-      setQuestionsCorrect('');
-      setSource(initialData.source || '');
-    }
-  }, [existingLog, initialData]);
+  // Filtered Lists
+  const filteredSubjects = data.subjects.filter(s => 
+    s.name.toLowerCase().includes(subjectSearch.toLowerCase())
+  );
+  const filteredTopics = availableTopics.filter(t => 
+    t.name.toLowerCase().includes(topicSearch.toLowerCase())
+  );
 
   const handleSubmit = () => {
     const numericDuration = Number(duration);
+    
     if (!subjectId || !topicId || numericDuration <= 0) {
       showAlert({
-        title: 'Erro',
-        message: 'Preencha pelo menos a matéria, assunto e duração.',
+        title: 'Campos obrigatórios',
+        message: 'Preencha a matéria, assunto e duração.',
         variant: 'destructive',
-        primaryButton: {
-          text: 'OK',
-          action: () => {}
-        }
+        primaryButton: { text: 'OK', action: () => {} }
       });
       return;
     }
@@ -85,509 +78,384 @@ export default function StudyLogForm({ onSave, onCancel, existingLog, initialDat
     };
 
     if (existingLog) {
-      dispatch({
-        type: 'UPDATE_STUDY_LOG',
-        payload: { ...existingLog, ...logData },
-      });
-      showAlert({
-        title: 'Sucesso',
-        message: 'Registro de estudo atualizado!',
-        variant: 'success',
-        primaryButton: {
-          text: 'OK',
-          action: () => {}
-        }
-      });
+      dispatch({ type: 'UPDATE_STUDY_LOG', payload: { ...existingLog, ...logData } });
     } else {
-        dispatch({
-            type: 'ADD_STUDY_LOG',
-            payload: logData,
-        });
-        showAlert({
-          title: 'Sucesso',
-          message: 'Sessão de estudo registrada!',
-          variant: 'success',
-          primaryButton: {
-            text: 'OK',
-            action: () => {}
-          }
-        });
+      dispatch({ type: 'ADD_STUDY_LOG', payload: logData });
     }
-    onSave(); // Close dialog
+    
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onSave();
   };
 
-  // Funções para criar estilos dinâmicos com base no tema
-  const getCardStyle = (theme: any) => ({
-    ...styles.card,
-    backgroundColor: theme.card,
-    borderColor: theme.border,
-  });
-
-  const getSelectStyle = (theme: any) => ({
-    ...styles.select,
-    borderColor: theme.border,
-    backgroundColor: theme.background,
-  });
-
-  const getInputStyle = (theme: any) => ({
-    ...styles.input,
-    borderColor: theme.border,
-    backgroundColor: theme.background,
-    color: theme.text,
-  });
-
-  const getButtonStyle = (theme: any, type: 'outline' | 'primary') => ({
-    ...styles.button,
-    borderColor: type === 'outline' ? theme.border : undefined,
-    backgroundColor: type === 'outline' ? theme.muted : theme.primary,
-  });
+  const Label = ({ children }: { children: string }) => (
+    <Text style={[styles.label, { color: theme.text }]}>{children}</Text>
+  );
 
   return (
-    <View style={styles.container}>
-      <Card style={{ ...getCardStyle(theme), maxHeight: '90%' }}>
-        <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          <CardHeader>
-            <CardTitle style={{ color: theme.text }}>
-              {existingLog ? 'Editar Registro de Estudo' : 'Registrar Sessão de Estudo'}
-            </CardTitle>
-          </CardHeader>
-        <CardContent style={styles.content}>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 16, paddingVertical: 16 }}>
-            <View style={isSmallScreen ? styles.columnStack : styles.row}>
-              <View style={isSmallScreen ? styles.columnFull : styles.column}>
-                <Text style={[styles.label, { color: theme.text }]}>Matéria</Text>
-                 <TouchableOpacity
-                   style={getSelectStyle(theme)}
-                   onPress={() => {
-                     if (data.subjects.length === 0) {
-                       showAlert({
-                         title: 'Nenhuma matéria',
-                         message: 'Adicione matérias primeiro.',
-                         variant: 'default',
-                         primaryButton: {
-                           text: 'OK',
-                           action: () => {}
-                         }
-                       });
-                       return;
-                     }
-                     setShowSubjectModal(true);
-                   }}
-                 >
-                  <Text style={{ color: theme.text }}>
-                    {data.subjects.find(s => s.id === subjectId)?.name || 'Selecione a matéria'}
-                  </Text>
-                 </TouchableOpacity>
-              </View>
-              <View style={isSmallScreen ? styles.columnFull : styles.column}>
-                <Text style={[styles.label, { color: theme.text }]}>Assunto</Text>
-                 <TouchableOpacity
-                   style={getSelectStyle(theme)}
-                   onPress={() => {
-                     if (!subjectId) {
-                       showAlert({
-                         title: 'Erro',
-                         message: 'Selecione uma matéria primeiro.',
-                         variant: 'destructive',
-                         primaryButton: {
-                           text: 'OK',
-                           action: () => {}
-                         }
-                       });
-                       return;
-                     }
-
-                     if (availableTopics.length === 0) {
-                       showAlert({
-                         title: 'Nenhum assunto',
-                         message: 'Esta matéria não tem assuntos cadastrados.',
-                         variant: 'default',
-                         primaryButton: {
-                           text: 'OK',
-                           action: () => {}
-                         }
-                       });
-                       return;
-                     }
-
-                     setShowTopicModal(true);
-                   }}
-                   disabled={!subjectId}
-                 >
-                  <Text style={{ color: theme.text }}>
-                    {availableTopics.find(t => t.id === topicId)?.name || 'Selecione o assunto'}
-                  </Text>
-                 </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={isSmallScreen ? styles.columnStack : styles.row}>
-              <View style={isSmallScreen ? styles.columnFull : styles.column}>
-                <Text style={[styles.label, { color: theme.text }]}>Duração (min)</Text>
-                <TextInput
-                  value={duration.toString()}
-                  onChangeText={setDuration}
-                  keyboardType="numeric"
-                  style={getInputStyle(theme)}
-                />
-              </View>
-              <View style={isSmallScreen ? styles.columnFull : styles.column}>
-                <Text style={[styles.label, { color: theme.text }]}>Fonte / Revisão</Text>
-                 <TouchableOpacity
-                   style={getSelectStyle(theme)}
-                   onPress={() => setShowSourceModal(true)}
-                 >
-                  <Text style={{ color: theme.text }}>
-                    {source || 'Fonte / Revisão'}
-                  </Text>
-                 </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={isSmallScreen ? styles.columnStack : styles.row}>
-              <View style={isSmallScreen ? styles.columnFull : styles.column}>
-                <Text style={[styles.label, { color: theme.text }]}>Pág. Início</Text>
-                <TextInput
-                  value={startPage.toString()}
-                  onChangeText={setStartPage}
-                  keyboardType="numeric"
-                  style={getInputStyle(theme)}
-                />
-              </View>
-              <View style={isSmallScreen ? styles.columnFull : styles.column}>
-                <Text style={[styles.label, { color: theme.text }]}>Pág. Fim</Text>
-                <TextInput
-                  value={endPage.toString()}
-                  onChangeText={setEndPage}
-                  keyboardType="numeric"
-                  style={getInputStyle(theme)}
-                />
-              </View>
-            </View>
-
-            <View style={isSmallScreen ? styles.columnStack : styles.row}>
-              <View style={isSmallScreen ? styles.columnFull : styles.column}>
-                <Text style={[styles.label, { color: theme.text }]}>Questões (Total)</Text>
-                <TextInput
-                  value={questionsTotal.toString()}
-                  onChangeText={setQuestionsTotal}
-                  keyboardType="numeric"
-                  style={getInputStyle(theme)}
-                />
-              </View>
-              <View style={isSmallScreen ? styles.columnFull : styles.column}>
-                <Text style={[styles.label, { color: theme.text }]}>Questões (Acertos)</Text>
-                <TextInput
-                  value={questionsCorrect.toString()}
-                  onChangeText={setQuestionsCorrect}
-                  keyboardType="numeric"
-                  style={getInputStyle(theme)}
-                />
-              </View>
-            </View>
-
-            <View style={styles.buttonRow}>
-              <Button variant="outline" style={getButtonStyle(theme, 'outline')} onPress={onCancel}>
-                <Text style={{ color: theme.text }}>Cancelar</Text>
-              </Button>
-              <Button style={getButtonStyle(theme, 'primary')} onPress={handleSubmit}>
-                <Text style={{ color: 'white' }}>Salvar</Text>
-              </Button>
-            </View>
-          </ScrollView>
-        </CardContent>
-        </ScrollView>
-        <View style={styles.buttonRow}>
-          <Button variant="outline" style={getButtonStyle(theme, 'outline')} onPress={onCancel}>
-            <Text style={{ color: theme.text }}>Cancelar</Text>
-          </Button>
-          <Button style={getButtonStyle(theme, 'primary')} onPress={handleSubmit}>
-            <Text style={{ color: 'white' }}>Salvar</Text>
-          </Button>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.modalContentWrapper}
+    >
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={[styles.header, { borderBottomColor: theme.border }]}>
+          <Text style={[styles.title, { color: theme.text }]}>
+            {existingLog ? 'Editar Registro' : 'Registrar Sessão'}
+          </Text>
+          <TouchableOpacity onPress={onCancel} style={styles.closeButton}>
+            <X size={24} color={theme.text} />
+          </TouchableOpacity>
         </View>
-      </Card>
 
-      {/* Subject Selection Modal */}
-      <Modal visible={showSubjectModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.selectionModal}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>Selecionar Matéria</Text>
-              <TouchableOpacity onPress={() => setShowSubjectModal(false)}>
-                <Text style={[styles.closeButton, { color: theme.primary }]}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.modalContent}>
-              {data.subjects.length === 0 ? (
-                <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>
-                  Nenhuma matéria cadastrada
+        <ScrollView contentContainerStyle={styles.formContent}>
+          {/* Row 1: Subject & Topic */}
+          <View style={styles.row}>
+            <View style={styles.col}>
+              <Label>Matéria</Label>
+              <TouchableOpacity 
+                style={[styles.input, { borderColor: theme.border, backgroundColor: theme.background }]}
+                onPress={() => setShowSubjectModal(true)}
+              >
+                <Text style={{ color: currentSubject ? theme.text : theme.mutedForeground }} numberOfLines={1}>
+                  {currentSubject?.name || "Selecione"}
                 </Text>
-              ) : (
-                <FlatList
-                  data={data.subjects}
-                  keyExtractor={(item) => item.id}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      style={[
-                        styles.selectionItem,
-                        subjectId === item.id && styles.selectionItemSelected
-                      ]}
-                      onPress={() => {
-                        setSubjectId(item.id);
-                        setTopicId(''); // Reset topic when subject changes
-                        setShowSubjectModal(false);
-                      }}
-                    >
-                      <View style={[styles.subjectIcon, { backgroundColor: item.color + '20' }]}>
-                        <Text style={{ color: item.color, fontSize: 16 }}>📚</Text>
-                      </View>
-                      <Text style={[styles.selectionItemText, { color: theme.text }]}>
-                        {item.name}
-                      </Text>
-                      {subjectId === item.id && (
-                        <Text style={[styles.checkmark, { color: theme.primary }]}>✓</Text>
-                      )}
-                    </TouchableOpacity>
-                  )}
-                  showsVerticalScrollIndicator={false}
-                />
-              )}
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Topic Selection Modal */}
-      <Modal visible={showTopicModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.selectionModal}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>
-                Selecionar Assunto
-              </Text>
-              <TouchableOpacity onPress={() => setShowTopicModal(false)}>
-                <Text style={[styles.closeButton, { color: theme.primary }]}>✕</Text>
+                <ChevronDown size={16} color={theme.mutedForeground} />
               </TouchableOpacity>
             </View>
-            <View style={[styles.modalContent, styles.topicModalContent]}>
-              <Text style={[styles.selectedSubjectText, { color: theme.mutedForeground }]}>
-                Matéria: {data.subjects.find(s => s.id === subjectId)?.name}
-              </Text>
-              {availableTopics.length === 0 ? (
-                <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>
-                  Nenhum assunto cadastrado
-                </Text>
-              ) : (
-                <FlatList
-                  data={availableTopics}
-                  keyExtractor={(item) => item.id}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      style={[
-                        styles.selectionItem,
-                        topicId === item.id && styles.selectionItemSelected
-                      ]}
-                      onPress={() => {
-                        setTopicId(item.id);
-                        setShowTopicModal(false);
-                      }}
-                    >
-                      <Text style={[styles.selectionItemText, { color: theme.text }]}>
-                        {item.name}
-                      </Text>
-                      {topicId === item.id && (
-                        <Text style={[styles.checkmark, { color: theme.primary }]}>✓</Text>
-                      )}
-                    </TouchableOpacity>
-                  )}
-                  showsVerticalScrollIndicator={false}
-                />
-              )}
-            </View>
-          </View>
-        </View>
-      </Modal>
 
-      {/* Source Selection Modal */}
-      <Modal visible={showSourceModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.selectionModal}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>Selecionar Fonte</Text>
-              <TouchableOpacity onPress={() => setShowSourceModal(false)}>
-                <Text style={[styles.closeButton, { color: theme.primary }]}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.modalContent}>
-              <FlatList
-                data={[
-                  { label: 'Site de Questões', value: 'site-questoes', icon: '🌐' },
-                  { label: 'Revisão A', value: 'A', icon: '📝' },
-                  { label: 'Revisão B', value: 'B', icon: '📝' },
-                  { label: 'Revisão C', value: 'C', icon: '📝' },
-                  { label: 'Revisão D', value: 'D', icon: '📝' },
+            <View style={styles.col}>
+              <Label>Assunto</Label>
+              <TouchableOpacity 
+                style={[
+                  styles.input, 
+                  { borderColor: theme.border, backgroundColor: theme.background },
+                  !subjectId && { opacity: 0.5 }
                 ]}
-                keyExtractor={(item) => item.value}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={[
-                      styles.selectionItem,
-                      source === item.value && styles.selectionItemSelected
-                    ]}
-                    onPress={() => {
-                      setSource(item.value);
-                      setShowSourceModal(false);
-                    }}
-                  >
-                    <Text style={[styles.sourceIcon, { color: theme.text }]}>
-                      {item.icon}
-                    </Text>
-                    <Text style={[styles.selectionItemText, { color: theme.text }]}>
-                      {item.label}
-                    </Text>
-                    {source === item.value && (
-                      <Text style={[styles.checkmark, { color: theme.primary }]}>✓</Text>
-                    )}
-                  </TouchableOpacity>
-                )}
-                showsVerticalScrollIndicator={false}
+                onPress={() => subjectId && setShowTopicModal(true)}
+                disabled={!subjectId}
+              >
+                <Text style={{ color: currentTopic ? theme.text : theme.mutedForeground }} numberOfLines={1}>
+                  {currentTopic?.name || "Selecione"}
+                </Text>
+                <ChevronDown size={16} color={theme.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Row 2: Duration & Source */}
+          <View style={styles.row}>
+            <View style={styles.col}>
+              <Label>Duração (min)</Label>
+              <TextInput
+                style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.background }]}
+                value={duration}
+                onChangeText={setDuration}
+                placeholder="Ex: 50"
+                placeholderTextColor={theme.mutedForeground}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.col}>
+              <Label>Fonte / Revisão</Label>
+              <TouchableOpacity 
+                style={[styles.input, { borderColor: theme.border, backgroundColor: theme.background }]}
+                onPress={() => setShowSourceModal(true)}
+              >
+                <Text style={{ color: source ? theme.text : theme.mutedForeground }} numberOfLines={1}>
+                  {source === 'site-questoes' ? 'Site de Questões' : source ? `Revisão ${source}` : "Fonte / Revisão"}
+                </Text>
+                <ChevronDown size={16} color={theme.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Row 3: Pages */}
+          <View style={styles.row}>
+            <View style={styles.col}>
+              <Label>Pág. Início</Label>
+              <TextInput
+                style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.background }]}
+                value={startPage}
+                onChangeText={setStartPage}
+                placeholder="Ex: 10"
+                placeholderTextColor={theme.mutedForeground}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.col}>
+              <Label>Pág. Fim</Label>
+              <TextInput
+                style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.background }]}
+                value={endPage}
+                onChangeText={setEndPage}
+                placeholder="Ex: 25"
+                placeholderTextColor={theme.mutedForeground}
+                keyboardType="numeric"
               />
             </View>
           </View>
-        </View>
-      </Modal>
-    </View>
+
+          {/* Row 4: Questions */}
+          <View style={styles.row}>
+            <View style={styles.col}>
+              <Label>Questões (Total)</Label>
+              <TextInput
+                style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.background }]}
+                value={questionsTotal}
+                onChangeText={setQuestionsTotal}
+                placeholder="Ex: 20"
+                placeholderTextColor={theme.mutedForeground}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.col}>
+              <Label>Questões (Acertos)</Label>
+              <TextInput
+                style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.background }]}
+                value={questionsCorrect}
+                onChangeText={setQuestionsCorrect}
+                placeholder="Ex: 18"
+                placeholderTextColor={theme.mutedForeground}
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+
+          {/* Footer Buttons */}
+          <View style={styles.footer}>
+            <TouchableOpacity 
+              style={[styles.button, styles.cancelButton, { borderColor: theme.border }]} 
+              onPress={onCancel}
+            >
+              <Text style={{ color: theme.text, fontWeight: '500' }}>Cancelar</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.button, { backgroundColor: theme.text }]} 
+              onPress={handleSubmit}
+            >
+              <Text style={{ color: theme.background, fontWeight: '500' }}>Salvar</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+
+        {/* --- MODALS --- */}
+        
+        {/* Subject Modal */}
+        <Modal visible={showSubjectModal} animationType="slide" presentationStyle="pageSheet">
+          <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Selecionar Matéria</Text>
+              <TouchableOpacity onPress={() => setShowSubjectModal(false)}>
+                <Text style={{ color: theme.primary, fontSize: 16 }}>Fechar</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ padding: 16 }}>
+              <TextInput
+                style={[styles.input, { borderColor: theme.border, color: theme.text, marginBottom: 0 }]}
+                placeholder="Buscar..."
+                placeholderTextColor={theme.mutedForeground}
+                value={subjectSearch}
+                onChangeText={setSubjectSearch}
+              />
+            </View>
+            <FlatList
+              data={filteredSubjects}
+              keyExtractor={item => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.listItem, { borderBottomColor: theme.border }]}
+                  onPress={() => {
+                    setSubjectId(item.id);
+                    setTopicId('');
+                    setSubjectSearch('');
+                    setShowSubjectModal(false);
+                  }}
+                >
+                  <Text style={{ color: theme.text, fontSize: 16 }}>{item.name}</Text>
+                  {subjectId === item.id && <Check size={16} color={theme.primary} />}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </Modal>
+
+        {/* Topic Modal */}
+        <Modal visible={showTopicModal} animationType="slide" presentationStyle="pageSheet">
+          <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+             <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Selecionar Assunto</Text>
+              <TouchableOpacity onPress={() => setShowTopicModal(false)}>
+                <Text style={{ color: theme.primary, fontSize: 16 }}>Fechar</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ padding: 16 }}>
+               <TextInput
+                style={[styles.input, { borderColor: theme.border, color: theme.text, marginBottom: 0 }]}
+                placeholder="Buscar..."
+                placeholderTextColor={theme.mutedForeground}
+                value={topicSearch}
+                onChangeText={setTopicSearch}
+              />
+            </View>
+            <FlatList
+              data={filteredTopics}
+              keyExtractor={item => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.listItem, { borderBottomColor: theme.border }]}
+                  onPress={() => {
+                    setTopicId(item.id);
+                    setTopicSearch('');
+                    setShowTopicModal(false);
+                  }}
+                >
+                  <Text style={{ color: theme.text, fontSize: 16 }}>{item.name}</Text>
+                  {topicId === item.id && <Check size={16} color={theme.primary} />}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </Modal>
+
+        {/* Source Modal */}
+        <Modal visible={showSourceModal} animationType="slide" presentationStyle="pageSheet">
+          <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+             <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Fonte / Revisão</Text>
+              <TouchableOpacity onPress={() => setShowSourceModal(false)}>
+                <Text style={{ color: theme.primary, fontSize: 16 }}>Fechar</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={[
+                { label: 'Site de Questões', value: 'site-questoes' },
+                { label: 'Revisão A', value: 'A' },
+                { label: 'Revisão B', value: 'B' },
+                { label: 'Revisão C', value: 'C' },
+                { label: 'Revisão D', value: 'D' },
+              ]}
+              keyExtractor={item => item.value}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.listItem, { borderBottomColor: theme.border }]}
+                  onPress={() => {
+                    setSource(item.value);
+                    setShowSourceModal(false);
+                  }}
+                >
+                  <Text style={{ color: theme.text, fontSize: 16 }}>{item.label}</Text>
+                  {source === item.value && <Check size={16} color={theme.primary} />}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </Modal>
+
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  modalContentWrapper: {
+    flex: 1, // Occupy all available space
+    width: '100%',
+    height: '100%',
+    borderRadius: 0, 
+    overflow: 'hidden',
+    paddingTop: Platform.OS === 'ios' ? 40 : 0, 
+  },
   container: {
-    maxWidth: 500, // Limit width on larger screens
-    width: '100%', // Take full width on small screens
+    flex: 1, // The internal container fills the wrapper, respecting its width/height constraints
+    paddingTop: 16,
   },
-  card: {
-    marginBottom: 0,
-    borderWidth: 1,
-    minHeight: 500,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    marginBottom: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  content: {
-    flex: 1,
+  title: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  formContent: {
+    paddingHorizontal: 20,
+    gap: 16,
+    paddingBottom: 40,
   },
   row: {
     flexDirection: 'row',
     gap: 12,
   },
-  columnStack: {
-    flexDirection: 'column',
-    gap: 16,
-  },
-  column: {
+  col: {
     flex: 1,
-    gap: 4,
-  },
-  columnFull: {
-    gap: 4,
   },
   label: {
     fontSize: 14,
     fontWeight: '500',
-  },
-  select: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 16,
+    marginBottom: 8,
   },
   input: {
+    height: 40, // Standard Shadcn Input height
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 16,
-  },
-  buttonRow: {
+    borderRadius: 6, // Standard Shadcn Radius
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    fontSize: 14,
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
     gap: 12,
+    marginTop: 16,
   },
   button: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 80,
+  },
+  cancelButton: {
+    backgroundColor: 'transparent',
     borderWidth: 1,
   },
-
-  // Selection Modals
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  selectionModal: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    maxHeight: '80%',
-    width: '100%',
-    maxWidth: 400,
+  
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 17,
+    fontWeight: '600',
   },
-  closeButton: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  modalContent: {
-    padding: 20,
-    maxHeight: 400,
-  },
-  topicModalContent: {
-    paddingTop: 10,
-  },
-  selectedSubjectText: {
-    fontSize: 14,
-    marginBottom: 16,
-    fontWeight: '500',
-  },
-  selectionItem: {
+  listItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 8,
-    backgroundColor: '#f9fafb',
-  },
-  selectionItemSelected: {
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#3b82f6',
-  },
-  subjectIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  sourceIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  selectionItemText: {
-    flex: 1,
-    fontSize: 16,
-  },
-  checkmark: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  emptyText: {
-    textAlign: 'center',
-    fontSize: 16,
-    padding: 40,
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
 });

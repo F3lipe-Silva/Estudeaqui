@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { StyleSheet, ScrollView, View, TouchableOpacity, Dimensions, Modal, RefreshControl } from 'react-native';
-import { Clock, BookOpen, Target, Repeat, PlusCircle, Zap } from 'lucide-react-native';
+import { Clock, BookOpen, Target, Repeat, PlusCircle, Zap, Settings } from 'lucide-react-native';
 import { format, parseISO, isToday, isThisWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -35,6 +35,7 @@ const getResponsiveStyles = (theme) => {
     // Header
     greeting: { fontSize: isSmall ? 20 : 24, fontWeight: 'bold' },
     date: { fontSize: isSmall ? 12 : 14, opacity: 0.6, textTransform: 'capitalize' },
+    settingsButton: { padding: 8 },
 
     // Stats cards
     statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -186,9 +187,7 @@ const getResponsiveStyles = (theme) => {
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: isSmall ? 16 : 20
+      // No constraints, let child fill
     },
   };
 };
@@ -198,6 +197,7 @@ export default function HomeScreen() {
    const colorScheme = useColorScheme();
    const theme = Colors[colorScheme ?? 'light'];
    const insets = useSafeAreaInsets();
+   const router = useRouter(); // Hook for navigation
    const responsiveStyles = getResponsiveStyles(theme);
 
    const [refreshing, setRefreshing] = useState(false);
@@ -369,6 +369,12 @@ export default function HomeScreen() {
              <ThemedText style={responsiveStyles.greeting}>Olá, Estudante!</ThemedText>
              <ThemedText style={responsiveStyles.date}>{format(today, "EEEE, d 'de' MMMM", { locale: ptBR })}</ThemedText>
            </View>
+           <TouchableOpacity 
+             onPress={() => router.push('/settings')}
+             style={responsiveStyles.settingsButton}
+           >
+             <Settings size={24} color={theme.text} />
+           </TouchableOpacity>
         </View>
 
         {/* Overview Stats Cards - Updated to match web version */}

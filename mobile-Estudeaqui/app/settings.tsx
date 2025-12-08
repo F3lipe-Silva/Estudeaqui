@@ -13,11 +13,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStudy } from '../contexts/study-context';
 import { useAuth } from '../contexts/auth-context';
 import { useAlert } from '../contexts/alert-context';
+import { useTheme } from '../contexts/theme-context';
 
 export default function SettingsScreen() {
   const { dispatch } = useStudy();
   const { user, signOut } = useAuth();
   const { showAlert } = useAlert();
+  const { theme: currentTheme, setTheme } = useTheme();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
   const router = useRouter();
@@ -85,6 +87,46 @@ export default function SettingsScreen() {
     <ThemedView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <Stack.Screen options={{ title: 'Configurações', headerBackTitle: 'Voltar' }} />
       
+      <View style={styles.section}>
+        <ThemedText type="subtitle" style={styles.sectionTitle}>Aparência</ThemedText>
+        <Card>
+          <CardContent style={styles.cardContent}>
+            <View style={styles.row}>
+              <ThemedText>Tema</ThemedText>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity
+                  onPress={() => setTheme('light')}
+                  style={[
+                    styles.themeButton,
+                    currentTheme === 'light' && { backgroundColor: theme.tint + '20', borderColor: theme.tint }
+                  ]}
+                >
+                  <Sun size={20} color={currentTheme === 'light' ? theme.tint : theme.icon} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setTheme('dark')}
+                  style={[
+                    styles.themeButton,
+                    currentTheme === 'dark' && { backgroundColor: theme.tint + '20', borderColor: theme.tint }
+                  ]}
+                >
+                  <Moon size={20} color={currentTheme === 'dark' ? theme.tint : theme.icon} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setTheme('system')}
+                  style={[
+                    styles.themeButton,
+                    currentTheme === 'system' && { backgroundColor: theme.tint + '20', borderColor: theme.tint }
+                  ]}
+                >
+                  <ThemedText style={{ fontSize: 12, color: currentTheme === 'system' ? theme.tint : theme.icon }}>Auto</ThemedText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </CardContent>
+        </Card>
+      </View>
+
       <View style={styles.section}>
         <ThemedText type="subtitle" style={styles.sectionTitle}>Conta</ThemedText>
         <Card>
@@ -162,5 +204,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  themeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
   }
 });

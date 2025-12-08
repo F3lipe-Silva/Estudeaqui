@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView, View, TouchableOpacity } from 'react-native';
-import { Settings, Target, Clock, Timer } from 'lucide-react-native';
+import { StyleSheet, View, TouchableOpacity, ScrollView } from 'react-native';
+import { Settings, Play, Pause, Square, RotateCcw } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useStudy } from '../../contexts/study-context';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import ClockWidget from '@/components/clock-widget';
 import PomodoroSessionSelector from '@/components/pomodoro-session-selector';
@@ -16,7 +16,7 @@ import PomodoroCompletionDialog from '@/components/pomodoro-completion-dialog';
 import PomodoroSettingsDialog from '@/components/pomodoro-settings-dialog';
 
 export default function PomodoroScreen() {
-  const { pomodoroState, data, startPomodoroForItem } = useStudy();
+  const { pomodoroState, data, startPomodoroForItem, pausePomodoroTimer, setPomodoroState } = useStudy();
   const { subjects, pomodoroSettings } = data;
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
@@ -25,6 +25,8 @@ export default function PomodoroScreen() {
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
   const [completionData, setCompletionData] = useState<any>(null);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+
+  const isActive = pomodoroState.status !== 'idle';
 
   // Detectar finalização de sessão para mostrar popup
   useEffect(() => {
@@ -52,7 +54,6 @@ export default function PomodoroScreen() {
     }
   }, [pomodoroState.status, pomodoroState.previousStatus, pomodoroState.associatedItemId, subjects, pomodoroSettings]);
 
-
   const getCurrentSessionInfo = () => {
     if (!pomodoroState.associatedItemId || pomodoroState.status === 'idle') {
       return null;
@@ -66,16 +67,38 @@ export default function PomodoroScreen() {
     return {
       subject: subject.name,
       topic: topic.name,
-      status: pomodoroState.status,
       color: subject.color
     };
   };
 
   const currentSession = getCurrentSessionInfo();
 
+  const handlePauseResume = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    pausePomodoroTimer();
+  };
+
+  const handleStop = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setPomodoroState({
+      status: 'idle',
+      timeRemaining: 0,
+      currentCycle: 0,
+      pomodorosCompletedToday: 0,
+      associatedItemId: undefined,
+      associatedItemType: undefined,
+      key: 0,
+      previousStatus: undefined,
+      pausedTime: 0,
+      currentTaskIndex: undefined,
+      isCustomDuration: false,
+      originalDuration: undefined
+    });
+  };
+
   return (
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
-      <ThemedView style={styles.header}>
+      <View style={styles.header}>
         <View>
           <ThemedText type="title">Pomodoro</ThemedText>
           <ThemedText style={styles.subtitle}>Gerencie seu foco</ThemedText>
@@ -83,75 +106,55 @@ export default function PomodoroScreen() {
         <TouchableOpacity onPress={() => setSettingsDialogOpen(true)} style={styles.settingsButton}>
           <Settings size={24} color={theme.icon} />
         </TouchableOpacity>
-      </ThemedView>
+      </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Widget do Relógio */}
-        <ClockWidget />
-
-        {/* Seletor de Sessão */}
-        <View style={styles.section}>
-            <PomodoroSessionSelector
+      <View style={styles.contentContainer}>
+        {!isActive ? (
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+             <PomodoroSessionSelector
               onStartSession={(subjectId, topicId, customDuration) => {
                 startPomodoroForItem(topicId, 'topic', true, customDuration);
               }}
-              disabled={pomodoroState.status !== 'idle'}
             />
-        </View>
-
-        {/* Status da Sessão */}
-        {currentSession && (
-            <Card style={styles.statusCard}>
-              <CardHeader style={styles.cardHeader}>
-                <CardTitle style={styles.cardTitle}>
-                  <Target size={20} color={theme.icon} />
-                  <ThemedText type="defaultSemiBold">Detalhes da Sessão</ThemedText>
-                </CardTitle>
-              </CardHeader>
-              <CardContent style={styles.cardContent}>
-                <View style={styles.sessionInfoRow}>
+          </ScrollView>
+        ) : (
+          <View style={styles.activeSessionContainer}>
+            <View style={styles.timerWrapper}>
+              <ClockWidget />
+              {currentSession && (
+                <View style={styles.sessionInfo}>
                   <View style={[styles.colorDot, { backgroundColor: currentSession.color }]} />
-                  <View>
-                    <ThemedText style={styles.subjectName}>{currentSession.subject}</ThemedText>
-                    <ThemedText style={styles.topicName}>{currentSession.topic}</ThemedText>
-                  </View>
-                </View>
-                
-                <View style={styles.statusRow}>
-                  <Clock size={16} color={theme.mutedForeground} />
-                  <ThemedText style={styles.statusLabel}>Status: </ThemedText>
-                  <ThemedText style={[
-                      styles.statusValue, 
-                      currentSession.status === 'focus' && { color: '#16a34a' },
-                      currentSession.status === 'paused' && { color: '#ca8a04' },
-                      currentSession.status === 'short_break' && { color: '#2563eb' },
-                      currentSession.status === 'long_break' && { color: '#9333ea' }
-                  ]}>
-                      {currentSession.status === 'focus' && 'Foco'}
-                      {currentSession.status === 'paused' && 'Pausado'}
-                      {currentSession.status === 'short_break' && 'Pausa Curta'}
-                      {currentSession.status === 'long_break' && 'Pausa Longa'}
+                  <ThemedText style={styles.sessionText}>
+                    {currentSession.subject} - {currentSession.topic}
                   </ThemedText>
                 </View>
-              </CardContent>
-            </Card>
-        )}
+              )}
+            </View>
 
-        {/* Estado Vazio (Sem Sessão) */}
-        {!currentSession && (
-            <Card style={styles.emptyCard}>
-              <CardContent style={styles.emptyContent}>
-                  <View style={styles.emptyIconContainer}>
-                    <Timer size={48} color={theme.mutedForeground} />
-                  </View>
-                  <ThemedText type="subtitle" style={styles.emptyTitle}>Nenhuma sessão ativa</ThemedText>
-                  <ThemedText style={styles.emptyText}>
-                    Selecione uma matéria e assunto acima para iniciar.
-                  </ThemedText>
-              </CardContent>
-            </Card>
+            <View style={styles.controlsContainer}>
+              <TouchableOpacity
+                onPress={handleStop}
+                style={[styles.controlButton, styles.stopButton]}
+                accessibilityLabel="Parar sessão"
+              >
+                <Square size={24} color={theme.text} fill={theme.text} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handlePauseResume}
+                style={[styles.controlButton, styles.playPauseButton, { backgroundColor: theme.text }]}
+                accessibilityLabel={pomodoroState.status === 'paused' ? "Retomar" : "Pausar"}
+              >
+                {pomodoroState.status === 'paused' ? (
+                  <Play size={32} color={theme.background} fill={theme.background} />
+                ) : (
+                  <Pause size={32} color={theme.background} fill={theme.background} />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
-      </ScrollView>
+      </View>
 
       {/* Dialogs */}
       <PomodoroCompletionDialog
@@ -179,26 +182,59 @@ const styles = StyleSheet.create({
   },
   subtitle: { fontSize: 14, opacity: 0.6, marginTop: 4 },
   settingsButton: { padding: 8 },
-  content: { padding: 20, paddingBottom: 40, gap: 20 },
-  section: { marginBottom: 0 },
+  contentContainer: { flex: 1 },
+  scrollContent: { padding: 20 },
   
-  // Status Card Styles
-  statusCard: { marginTop: 10 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
-  cardTitle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardContent: { padding: 16, gap: 16 },
-  sessionInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  colorDot: { width: 16, height: 16, borderRadius: 8 },
-  subjectName: { fontWeight: '600', fontSize: 16 },
-  topicName: { fontSize: 14, opacity: 0.7 },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  statusLabel: { fontSize: 14, opacity: 0.7 },
-  statusValue: { fontWeight: 'bold', fontSize: 14 },
-
-  // Empty Card Styles
-  emptyCard: { marginTop: 10 },
-  emptyContent: { alignItems: 'center', padding: 32, gap: 12 },
-  emptyIconContainer: { padding: 16, borderRadius: 40, backgroundColor: 'rgba(0,0,0,0.03)', marginBottom: 8 },
-  emptyTitle: { textAlign: 'center' },
-  emptyText: { textAlign: 'center', opacity: 0.6, maxWidth: 250 },
+  // Active Session Styles
+  activeSessionContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingBottom: 60,
+    paddingHorizontal: 20,
+  },
+  timerWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sessionInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+  },
+  colorDot: { width: 8, height: 8, borderRadius: 4 },
+  sessionText: { fontSize: 14, opacity: 0.7 },
+  
+  // Controls
+  controlsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 32,
+  },
+  controlButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playPauseButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  stopButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
 });

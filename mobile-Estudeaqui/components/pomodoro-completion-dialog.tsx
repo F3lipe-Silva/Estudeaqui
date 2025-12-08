@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
-import { CheckCircle, Clock, BookOpen, X } from 'lucide-react-native';
+import { StyleSheet, View, Modal, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import { CheckCircle, Clock, BookOpen, X, ArrowRight } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
+
 import { useStudy } from '../contexts/study-context';
-import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Colors } from '../constants/theme';
 import { useColorScheme } from '../hooks/use-color-scheme';
+import { ThemedText } from './themed-text';
+import { ThemedView } from './themed-view';
 import StudyLogForm from './study-log-form';
 
 interface PomodoroCompletionDialogProps {
@@ -21,100 +23,38 @@ interface PomodoroCompletionDialogProps {
   onComplete?: () => void;
 }
 
+const { width } = Dimensions.get('window');
+
 export default function PomodoroCompletionDialog({ 
   visible, 
   onClose, 
   sessionData 
 }: PomodoroCompletionDialogProps) {
   const [showLogForm, setShowLogForm] = useState(false);
-  const { startPomodoroForItem } = useStudy();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
 
   if (!sessionData) return null;
 
   const handleRegisterSession = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setShowLogForm(true);
   };
 
   const handleLogFormSave = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setShowLogForm(false);
     onClose();
   };
 
   const handleLogFormCancel = () => {
     setShowLogForm(false);
-    onClose();
+    onClose(); // Ou voltar para a tela de resumo se preferir
   };
 
   const handleIgnore = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onClose();
-  };
-
-  // Função para criar estilos dinâmicos com base no tema
- const getModalContentStyle = (theme: any) => ({
-    ...styles.modalContent,
-    backgroundColor: theme.background,
-    borderColor: theme.border,
-  });
-
-  const getHeaderTitleStyle = (theme: any) => ({
-    ...styles.headerTitle,
-    color: theme.text,
-  });
-
-  const getDescriptionStyle = (theme: any) => ({
-    ...styles.description,
-    color: theme.text,
-  });
-
-  const getDetailsCardStyle = (theme: any) => ({
-    ...styles.detailsCard,
-    backgroundColor: theme.muted,
-  });
-
-  const getDetailStyle = (theme: any) => ({
-    ...styles.detailSubject,
-    color: theme.text,
-  });
-
-  const getTopicStyle = (theme: any) => ({
-    ...styles.detailTopic,
-    color: theme.text,
-  });
-
-  const getQuestionStyle = (theme: any) => ({
-    ...styles.question,
-    color: theme.text,
-  });
-
-  const getButtonStyle = (theme: any, variant: 'outline' | 'primary') => {
-    if (variant === 'outline') {
-      return {
-        ...styles.button,
-        borderColor: theme.border,
-        backgroundColor: theme.muted,
-      };
-    } else {
-      return {
-        ...styles.button,
-        backgroundColor: theme.primary,
-      };
-    }
-  };
-
-  const getButtonTextStyle = (theme: any, variant: 'outline' | 'primary') => {
-    if (variant === 'outline') {
-      return {
-        ...styles.buttonText,
-        color: theme.text,
-      };
-    } else {
-      return {
-        ...styles.buttonText,
-        color: 'white',
-      };
-    }
   };
 
   return (
@@ -124,72 +64,68 @@ export default function PomodoroCompletionDialog({
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={styles.modalContainer}>
-        <View style={getModalContentStyle(theme)}>
+      <View style={styles.modalOverlay}>
+        <ThemedView style={styles.modalContainer}>
           {!showLogForm ? (
-            <ScrollView contentContainerStyle={styles.content}>
+            <View style={styles.content}>
               <View style={styles.header}>
-                <CheckCircle size={24} color="#10B981" style={styles.headerIcon} />
-                <CardTitle style={getHeaderTitleStyle(theme)}>Sessão Concluída!</CardTitle>
-              </View>
-              
-              <Text style={getDescriptionStyle(theme)}>
-                Parabéns! Você completou mais uma sessão de estudo focada.
-              </Text>
-              
-              <View style={styles.sessionInfo}>
-                {/* Tempo decorrido */}
-                <View style={[styles.timeCard, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-                  <Clock size={32} color="#10B981" style={styles.timeIcon} />
-                  <Text style={[styles.timeValue, { color: '#10B981' }]}>
-                    {sessionData.duration} minutos
-                  </Text>
-                  <Text style={[styles.timeLabel, { color: theme.text }]}>
-                    Tempo de estudo focado
-                  </Text>
+                <View style={styles.iconContainer}>
+                  <CheckCircle size={48} color="#10B981" fill="#D1FAE5" />
                 </View>
+                <ThemedText type="title" style={styles.title}>Sessão Concluída!</ThemedText>
+                <ThemedText style={styles.subtitle}>
+                  Você manteve o foco por
+                </ThemedText>
+              </View>
 
-                {/* Detalhes da sessão */}
-                <View style={getDetailsCardStyle(theme)}>
-                  <View style={styles.detailRow}>
-                    <BookOpen size={20} color={theme.icon} />
-                    <View>
-                      <Text style={getDetailStyle(theme)}>{sessionData.subjectName}</Text>
-                      <Text style={getTopicStyle(theme)}>{sessionData.topicName}</Text>
-                    </View>
+              <View style={styles.heroSection}>
+                <ThemedText style={[styles.heroTime, { color: theme.text }]}>
+                  {sessionData.duration}
+                  <ThemedText style={styles.heroUnit}>min</ThemedText>
+                </ThemedText>
+              </View>
+
+              <View style={[styles.detailsContainer, { backgroundColor: theme.card }]}>
+                <View style={styles.detailItem}>
+                  <BookOpen size={20} color={theme.icon} style={styles.detailIcon} />
+                  <View style={styles.detailTextContainer}>
+                    <ThemedText type="defaultSemiBold">{sessionData.subjectName}</ThemedText>
+                    <ThemedText style={styles.detailSubText}>{sessionData.topicName}</ThemedText>
                   </View>
                 </View>
-
-                {/* Pergunta de registro */}
-                <Text style={getQuestionStyle(theme)}>
-                  Deseja registrar esta sessão no seu histórico de estudos?
-                </Text>
               </View>
-              
-              <View style={styles.buttonContainer}>
-                <Button 
-                  variant="outline" 
-                  style={getButtonStyle(theme, 'outline')}
-                  onPress={handleIgnore}
-                >
-                  <X size={16} color={theme.text} style={styles.buttonIcon} />
-                  <Text style={getButtonTextStyle(theme, 'outline')}>Ignorar</Text>
-                </Button>
-                <Button 
-                  style={getButtonStyle(theme, 'primary')}
+
+              <ThemedText style={styles.promptText}>
+                Deseja registrar esse tempo no seu histórico?
+              </ThemedText>
+
+              <View style={styles.actions}>
+                <TouchableOpacity
+                  style={[styles.primaryButton, { backgroundColor: theme.tint }]}
                   onPress={handleRegisterSession}
                 >
-                  <CheckCircle size={16} color="white" style={styles.buttonIcon} />
-                  <Text style={getButtonTextStyle(theme, 'primary')}>Registrar Sessão</Text>
-                </Button>
+                  <ThemedText style={styles.primaryButtonText}>Registrar Sessão</ThemedText>
+                  <ArrowRight size={20} color="white" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={handleIgnore}
+                >
+                  <ThemedText style={[styles.secondaryButtonText, { color: theme.mutedForeground }]}>
+                    Não, apenas ignorar
+                  </ThemedText>
+                </TouchableOpacity>
               </View>
-            </ScrollView>
+            </View>
           ) : (
-            <View style={styles.logFormContainer}>
-              <CardHeader>
-                <CardTitle style={{ color: theme.text }}>Registrar Sessão de Estudo</CardTitle>
-              </CardHeader>
-              
+            <ThemedView style={styles.formContentWrapper}>
+              <View style={styles.formHeader}>
+                <ThemedText type="subtitle">Registrar Sessão</ThemedText>
+                <TouchableOpacity onPress={handleLogFormCancel} style={styles.closeButton}>
+                  <X size={24} color={theme.icon} />
+                </TouchableOpacity>
+              </View>
               <StudyLogForm
                 onSave={handleLogFormSave}
                 onCancel={handleLogFormCancel}
@@ -200,112 +136,138 @@ export default function PomodoroCompletionDialog({
                   source: 'pomodoro'
                 }}
               />
-            </View>
+            </ThemedView>
           )}
-        </View>
+        </ThemedView>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  modalContainer: {
+  modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     padding: 20,
   },
-  modalContent: {
+  modalContainer: {
     width: '100%',
     maxWidth: 400,
-    borderRadius: 12,
-    borderWidth: 1,
-    maxHeight: '90%',
+    borderRadius: 24,
+    overflow: 'hidden',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    flex: 1, // Allow modal to stretch vertically
   },
   content: {
-    padding: 20,
-    gap: 16,
+    padding: 32,
+    alignItems: 'center',
+    gap: 24,
   },
   header: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+  },
+  iconContainer: {
     marginBottom: 8,
   },
-  headerIcon: {
-    marginRight: 8,
+  title: {
+    textAlign: 'center',
+    fontSize: 24,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  description: {
-    fontSize: 14,
-    marginBottom: 16,
+  subtitle: {
+    fontSize: 16,
+    opacity: 0.6,
     textAlign: 'center',
   },
-  sessionInfo: {
-    gap: 16,
-  },
-  timeCard: {
+  heroSection: {
     alignItems: 'center',
-    padding: 20,
-    borderRadius: 12,
+    justifyContent: 'center',
+    paddingVertical: 10,
   },
-  timeIcon: {
-    marginBottom: 8,
+  heroTime: {
+    fontSize: 64,
+    fontWeight: '800',
+    lineHeight: 70,
+    fontVariant: ['tabular-nums'],
   },
-  timeValue: {
+  heroUnit: {
     fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontWeight: '600',
+    marginLeft: 4,
   },
-  timeLabel: {
-    fontSize: 12,
-    opacity: 0.6,
+  detailsContainer: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.05)', // Fallback if theme.card is not defined
   },
-  detailsCard: {
-    padding: 12,
-    borderRadius: 8,
-  },
-  detailRow: {
+  detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  detailSubject: {
-    fontWeight: '600',
-  },
-  detailTopic: {
-    fontSize: 12,
-    opacity: 0.6,
-  },
-  question: {
-    fontSize: 14,
-    marginVertical: 16,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
     gap: 12,
-    marginTop: 16,
   },
-  button: {
+  detailIcon: {
+    opacity: 0.7,
+  },
+  detailTextContainer: {
     flex: 1,
+  },
+  detailSubText: {
+    fontSize: 14,
+    opacity: 0.6,
+    marginTop: 2,
+  },
+  promptText: {
+    textAlign: 'center',
+    fontSize: 14,
+    opacity: 0.5,
+  },
+  actions: {
+    width: '100%',
+    gap: 12,
+  },
+  primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
+    padding: 18,
+    borderRadius: 16,
+    gap: 8,
   },
-  buttonIcon: {
-    marginRight: 8,
-  },
-  buttonText: {
+  primaryButtonText: {
+    color: 'white',
+    fontSize: 16,
     fontWeight: '600',
   },
-  logFormContainer: {
+  secondaryButton: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  
+  // Form Styles
+  formContentWrapper: {
     flex: 1,
-    padding: 20,
+    borderRadius: 24, // Match parent modalContainer border radius
+  },
+  formHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20, // Add padding to the header
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  closeButton: {
+    padding: 4,
   },
 });
