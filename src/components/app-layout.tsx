@@ -24,10 +24,18 @@ function AppLayoutContent() {
   }, [user, loading, router]);
 
   if (loading || !user) {
-    // This can show a loader while auth state is being determined
+    // Accessible loader with ARIA attributes
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="text-lg font-semibold">Verificando autenticação...</div>
+        <div
+          role="status"
+          aria-live="polite"
+          aria-label="Verificando autenticação"
+          className="flex flex-col items-center gap-4"
+        >
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="text-lg font-semibold">Verificando autenticação...</div>
+        </div>
       </div>
     );
   }
@@ -64,10 +72,18 @@ export default function AppLayout() {
   }, [user, loading, router]);
 
   if (loading || !user) {
-    // This can show a loader while auth state is being determined
+    // Accessible loader with ARIA attributes
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="text-lg font-semibold">Verificando autenticação...</div>
+        <div
+          role="status"
+          aria-live="polite"
+          aria-label="Verificando autenticação"
+          className="flex flex-col items-center gap-4"
+        >
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="text-lg font-semibold">Verificando autenticação...</div>
+        </div>
       </div>
     );
   }

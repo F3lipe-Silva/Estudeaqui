@@ -3,20 +3,12 @@
 import { useState } from 'react';
 import { ThemeToggle } from './theme-toggle';
 import { Button } from './ui/button';
-import { Home, Timer, BookCopy, Workflow, History, BookCheck, Menu, LogOut } from 'lucide-react';
+import { Menu, LogOut } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { useStudy } from '@/contexts/study-context';
 import Sidebar from './sidebar';
 import { useAuth } from '@/contexts/auth-context';
-
-
-const navItems = [
-    { id: 'overview', label: 'Visão Geral', icon: Home },
-    { id: 'planning', label: 'Planejamento', icon: Workflow },
-    { id: 'cycle', label: 'Ciclo', icon: BookCopy },
-    { id: 'revision', label: 'Revisão', icon: BookCheck },
-    { id: 'history', label: 'Histórico', icon: History },
-];
+import { navItems } from '@/constants/navigation';
 
 import { SettingsDialog } from './settings-dialog';
 

@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "6eeb713a-ff9e-4f26-947f-bfefb89729dc"
+      }
+    },
+    "android": {
+      "package": "com.felipemastex.nextn"
+    }
+  }
+}

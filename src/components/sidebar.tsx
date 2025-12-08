@@ -2,18 +2,9 @@
 
 import { useStudy } from '@/contexts/study-context';
 import { Button } from '@/components/ui/button';
-import { Home, Timer, BookCopy, Workflow, History, BookCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SheetClose } from './ui/sheet';
-
-const navItems = [
-    { id: 'overview', label: 'Visão Geral', icon: Home },
-    { id: 'planning', label: 'Planejamento', icon: Workflow },
-    { id: 'cycle', label: 'Matéria', icon: BookCopy },
-    { id: 'revision', label: 'Revisão', icon: BookCheck },
-    { id: 'pomodoro', label: 'Pomodoro', icon: Timer },
-    { id: 'history', label: 'Histórico', icon: History },
-];
+import { navItems } from '@/constants/navigation';
 
 export default function Sidebar({ isSheet = false }: { isSheet?: boolean }) {
     const { activeTab, setActiveTab } = useStudy();
@@ -32,11 +23,11 @@ export default function Sidebar({ isSheet = false }: { isSheet?: boolean }) {
                 {navItems.map((item) => (
                 <NavButton
                     key={item.id}
-                    // @ts-ignore
                     variant={activeTab === item.id ? 'secondary' : 'ghost'}
                     onClick={() => setActiveTab(item.id)}
                     className={cn('justify-start h-12 w-full text-left')}
                     title={item.label}
+                    aria-current={activeTab === item.id ? 'page' : undefined}
                 >
                     <item.icon className={cn('h-5 w-5 mr-3 flex-shrink-0')} />
                     <span className="text-sm font-medium">{item.label}</span>

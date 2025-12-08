@@ -1,70 +1,151 @@
+@import './design-system.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 187 67% 95%;
-    /* Very light cyan - lighter */
-    --foreground: 210 20% 20%;
+    /* Design System Colors */
+    --color-primary: hsl(221 83% 53%);
+    --color-primary-foreground: hsl(210 40% 98%);
+    --color-secondary: hsl(210 40% 96%);
+    --color-secondary-foreground: hsl(222 84% 5%);
+    --color-destructive: hsl(0 84% 60%);
+    --color-destructive-foreground: hsl(210 40% 98%);
+    --color-muted: hsl(210 40% 96%);
+    --color-muted-foreground: hsl(215 16% 47%);
+    --color-accent: hsl(210 40% 96%);
+    --color-accent-foreground: hsl(222 84% 5%);
+    --color-background: hsl(0 0% 100%);
+    --color-foreground: hsl(222 84% 5%);
+    --color-card: hsl(0 0% 100%);
+    --color-card-foreground: hsl(222 84% 5%);
+    --color-border: hsl(214 32% 91%);
+    --color-input: hsl(214 32% 91%);
+    --color-ring: hsl(221 83% 53%);
+    --color-success: hsl(142 76% 36%);
+    --color-warning: hsl(38 92% 50%);
+    --color-error: hsl(0 84% 60%);
+    --color-info: hsl(199 89% 48%);
+
+    /* Legacy variables for backward compatibility */
+    --background: 0 0% 100%;
+    --foreground: 222 84% 5%;
     --card: 0 0% 100%;
-    /* Pure white for cards */
-    --card-foreground: 210 20% 20%;
+    --card-foreground: 222 84% 5%;
     --popover: 0 0% 100%;
-    --popover-foreground: 210 20% 20%;
-    --primary: 174 40% 50%;
-    /* Sky blue - more vibrant */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 187 50% 90%;
-    --secondary-foreground: 210 20% 20%;
-    --muted: 187 30% 92%;
-    --muted-foreground: 210 15% 50%;
-    --accent: 124 40% 65%;
-    /* Mellow green - more vibrant */
-    --accent-foreground: 210 15% 15%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 187 20% 88%;
-    --input: 187 20% 88%;
-    --ring: 174 40% 50%;
-    --radius: 0.75rem;
-    /* Increased border radius */
-    --chart-1: 174 40% 50%;
-    --chart-2: 124 40% 65%;
-    --chart-3: 187 50% 88%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --popover-foreground: 222 84% 5%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 84% 5%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 84% 5%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 221 83% 53%;
+
+    /* Design System Spacing */
+    --spacing-1: 0.25rem;
+    --spacing-2: 0.5rem;
+    --spacing-3: 0.75rem;
+    --spacing-4: 1rem;
+    --spacing-6: 1.5rem;
+    --spacing-8: 2rem;
+    --spacing-12: 3rem;
+    --spacing-16: 4rem;
+
+    /* Typography */
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 1.875rem;
+
+    /* Animations */
+    --transition-duration-fast: 150ms;
+    --transition-duration-normal: 200ms;
+    --transition-duration-slow: 300ms;
+    --transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Layout */
+    --header-height: 4rem;
+    --sidebar-width: 16rem;
+    --bottom-nav-height: 5rem;
+    --radius: 0.5rem;
+
+    /* Charts */
+    --chart-1: 221 83% 53%;
+    --chart-2: 142 76% 36%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 199 89% 48%;
+    --chart-5: 0 84% 60%;
     --pomodoro-focus: 39 91% 53%;
   }
 
   .dark {
-    --background: 210 25% 8%;
-    /* Darker and richer for desktop */
-    --foreground: 187 67% 95%;
-    --card: 210 25% 11%;
-    /* Slightly lighter than background */
-    --card-foreground: 187 67% 95%;
-    --popover: 210 25% 11%;
-    --popover-foreground: 187 67% 95%;
-    --primary: 174 45% 55%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 20% 15%;
-    --secondary-foreground: 187 67% 95%;
-    --muted: 210 20% 15%;
-    --muted-foreground: 187 30% 70%;
-    --accent: 124 40% 65%;
-    --accent-foreground: 210 15% 15%;
-    --destructive: 0 70% 50%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 210 20% 18%;
-    --input: 210 20% 18%;
-    --ring: 174 45% 55%;
-    --chart-1: 174 45% 55%;
-    --chart-2: 124 40% 65%;
-    --chart-3: 187 50% 88%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --pomodoro-focus: 39 91% 53%;
+    /* Dark mode colors */
+    --color-background: hsl(222 84% 5%);
+    --color-foreground: hsl(210 40% 98%);
+    --color-card: hsl(222 84% 5%);
+    --color-card-foreground: hsl(210 40% 98%);
+    --color-muted: hsl(217 33% 17%);
+    --color-muted-foreground: hsl(215 20% 65%);
+    --color-border: hsl(217 33% 17%);
+    --color-input: hsl(217 33% 17%);
+
+    /* Legacy dark mode */
+    --background: 222 84% 5%;
+    --foreground: 210 40% 98%;
+    --card: 222 84% 5%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 84% 5%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 221 83% 53%;
+  }
+
+  /* Acessibilidade: Reduzir movimento para usuários sensíveis */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Acessibilidade: Alto contraste */
+  @media (prefers-contrast: high) {
+    :root {
+      --color-border: hsl(0 0% 0%);
+      --color-muted-foreground: hsl(0 0% 0%);
+    }
+
+    .dark {
+      --color-border: hsl(0 0% 100%);
+      --color-muted-foreground: hsl(0 0% 100%);
+    }
   }
   input,
   textarea,

@@ -5,7 +5,8 @@ import { useState, useMemo } from 'react';
 import { useStudy } from '@/contexts/study-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Check, Clock, Zap, Target, Repeat, PlusCircle, Percent } from 'lucide-react';
+import { ExpandableCard, AnimatedButton } from '@/components/ui/expandable-card';
+import { BookOpen, Check, Clock, Zap, Target, Repeat, PlusCircle, Percent, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Progress } from '@/components/ui/progress';
@@ -120,8 +121,8 @@ export default function OverviewTab() {
           <p className="text-muted-foreground capitalize">{formattedDate}</p>
         </div>
 
-        {/* Métricas - Grid responsivo otimizado para desktop */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Métricas - Grid responsivo otimizado para mobile-first */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Card className="hover:shadow-md transition-shadow border-l-4 border-l-primary">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
               <CardTitle className="text-sm font-medium">Hoje</CardTitle>
@@ -207,17 +208,18 @@ export default function OverviewTab() {
                   </div>
                 )}
 
-                {nextSubject && (
-                  <DialogTrigger asChild>
-                    <Button
-                      onClick={() => handleOpenLogForm(nextSubject.id, pendingRevisionTopic?.id)}
-                      className="w-full h-12 text-base font-semibold shadow-sm"
-                    >
-                      <PlusCircle className="mr-2 h-5 w-5" />
-                      {progress > 0 ? 'Continuar Sessão' : 'Iniciar Sessão'}
-                    </Button>
-                  </DialogTrigger>
-                )}
+                 {nextSubject && (
+                   <DialogTrigger asChild>
+                     <AnimatedButton
+                       onClick={() => handleOpenLogForm(nextSubject.id, pendingRevisionTopic?.id)}
+                       className="w-full h-12 text-base font-semibold shadow-sm"
+                       feedbackType="medium"
+                     >
+                       <PlusCircle className="mr-2 h-5 w-5" />
+                       {progress > 0 ? 'Continuar Sessão' : 'Iniciar Sessão'}
+                     </AnimatedButton>
+                   </DialogTrigger>
+                 )}
               </div>
             </CardContent>
           </Card>
@@ -226,42 +228,70 @@ export default function OverviewTab() {
         {/* Cards de análise - Layout otimizado para desktop */}
         <div className="grid gap-6 lg:grid-cols-3 xl:grid-cols-4">
           {/* Progresso por Matéria */}
-          <Card className="hover:shadow-md transition-shadow lg:col-span-1 xl:col-span-1">
-            <CardHeader>
-              <CardTitle className="text-lg">Progresso por Matéria</CardTitle>
-              <CardDescription>Avanço geral nos conteúdos</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {subjects.slice(0, 5).map(subject => {
+          <ExpandableCard
+            title="Progresso por Matéria"
+            icon={<Target className="h-5 w-5" />}
+            className="lg:col-span-1 xl:col-span-1"
+            expandedContent={
+              <div className="space-y-4">
+                {subjects.map(subject => {
+                  const completed = subject.topics.filter(t => t.isCompleted).length;
+                  const total = subject.topics.length;
+                  const progress = total > 0 ? (completed / total) * 100 : 0;
+                  return (
+                    <div key={subject.id} className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="font-medium truncate max-w-[70%]">{subject.name}</span>
+                        <span className="text-muted-foreground">{Math.round(progress)}%</span>
+                      </div>
+                      <Progress
+                        value={progress}
+                        className="h-2"
+                        style={{ '--subject-color': subject.color } as React.CSSProperties}
+                      />
+                      <div className="text-xs text-muted-foreground">
+                        {completed} de {total} tópicos concluídos
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            }
+          >
+            <div className="space-y-3">
+              {subjects.slice(0, 3).map(subject => {
                 const completed = subject.topics.filter(t => t.isCompleted).length;
                 const total = subject.topics.length;
-                const progress = total > 0 ? (completed / total) * 10 : 0;
+                const progress = total > 0 ? (completed / total) * 100 : 0;
                 return (
                   <div key={subject.id} className="space-y-1">
                     <div className="flex justify-between text-sm">
                       <span className="font-medium truncate max-w-[70%]">{subject.name}</span>
                       <span className="text-muted-foreground">{Math.round(progress)}%</span>
                     </div>
-                    <Progress value={progress} style={{ '--subject-color': subject.color } as React.CSSProperties} className="h-2 [&>div]:bg-[var(--subject-color)]" />
+                    <Progress
+                      value={progress}
+                      className="h-2"
+                      style={{ '--subject-color': subject.color } as React.CSSProperties}
+                    />
                   </div>
                 );
               })}
-              {subjects.length > 5 && (
-                <Button variant="link" className="w-full text-xs text-muted-foreground h-auto p-0 pt-2">
-                  Ver mais {subjects.length - 5} matérias
-                </Button>
+              {subjects.length > 3 && (
+                <p className="text-xs text-muted-foreground">
+                  +{subjects.length - 3} matérias • Clique para expandir
+                </p>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </ExpandableCard>
 
           {/* Tempo por Matéria */}
-          <Card className="hover:shadow-md transition-shadow lg:col-span-1 xl:col-span-1">
-            <CardHeader>
-              <CardTitle className="text-lg">Tempo Dedicado</CardTitle>
-              <CardDescription>Distribuição por matéria</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={{}} className="h-[300px] w-full">
+          <ExpandableCard
+            title="Tempo Dedicado"
+            icon={<Clock className="h-5 w-5" />}
+            className="lg:col-span-1 xl:col-span-1"
+            expandedContent={
+              <ChartContainer config={{}} className="h-[350px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={chartData}
@@ -270,14 +300,13 @@ export default function OverviewTab() {
                     onClick={(data) => {
                       if (data && data.activePayload) {
                         const subjectName = data.activePayload[0].payload.name;
-                        // Navegar para a aba de matérias
                         setActiveTab('cycle');
                       }
                     }}
                   >
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
-                    <XAxis 
-                      type="number" 
+                    <XAxis
+                      type="number"
                       tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                       tickFormatter={(value) => `${value}min`}
                     />
@@ -296,17 +325,41 @@ export default function OverviewTab() {
                         labelFormatter={(label) => `Matéria: ${label}`}
                       />}
                     />
-                    <Bar 
-                      dataKey="minutes" 
-                      radius={[0, 4, 4, 0]} 
+                    <Bar
+                      dataKey="minutes"
+                      radius={[0, 4, 4, 0]}
                       barSize={24}
                       className="cursor-pointer hover:opacity-80 transition-opacity"
                     />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
-            </CardContent>
-          </Card>
+            }
+          >
+            <div className="space-y-2">
+              {chartData.slice(0, 3).map((item, index) => (
+                <div key={item.name} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: item.fill }}
+                    />
+                    <span className="text-sm font-medium truncate max-w-[120px]">
+                      {item.name}
+                    </span>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {item.minutes}min
+                  </span>
+                </div>
+              ))}
+              {chartData.length > 3 && (
+                <p className="text-xs text-muted-foreground text-center pt-2">
+                  +{chartData.length - 3} matérias • Clique para ver gráfico completo
+                </p>
+              )}
+            </div>
+          </ExpandableCard>
 
           {/* Percentual de Acertos */}
           {accuracyChartData.length > 0 && (
