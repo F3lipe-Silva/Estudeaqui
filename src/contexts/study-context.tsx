@@ -6,19 +6,9 @@ import { useToast } from "@/hooks/use-toast";
 import { format, subDays, isSameDay, parseISO } from 'date-fns';
 import { REVISION_SEQUENCE } from '@/components/revision-tab';
 import { useAuth } from './auth-context';
-import { db } from '@/lib/firebase';
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  writeBatch,
-  query,
-  orderBy
-} from 'firebase/firestore';
+import { useAppwrite } from './appwrite-context';
+import { databases } from '@/lib/appwrite';
+import { Query } from 'appwrite';
 
 const initialPomodoroSettings: PomodoroSettings = {
   tasks: [
@@ -393,9 +383,9 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     stateRef.current = state;
   }, [state]);
 
-  // --- FIRESTORE INTEGRATION ---
+  // --- APPWRITE INTEGRATION ---
 
-  // Load Data from Firestore
+  // Load Data from Appwrite
   useEffect(() => {
     if (!user) {
       setIsLoading(false);
@@ -406,220 +396,302 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const uid = user.uid; 
-        
-        // 1. Load User Settings / Profile
-        const userDocRef = doc(db, 'users', uid);
-        const userDoc = await getDoc(userDocRef);
-        
-        let loadedState: Partial<StudyData> = {};
+        const uid = user.$id;
 
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          loadedState = {
-            streak: userData.streak || 0,
-            lastStudiedDate: userData.lastStudiedDate || null,
-            pomodoroSettings: userData.pomodoroSettings || initialPomodoroSettings,
-            sequenceIndex: userData.sequenceIndex || 0,
-          };
+        // Load subjects
+        const subjectsResponse = await databases.listDocuments(
+          'estudeaqui_db',
+          'study_subjects',
+          [Query.equal('userId', uid)]
+        );
+
+        // Load study logs
+        const logsResponse = await databases.listDocuments(
+          'estudeaqui_db',
+          'study_logs',
+          [
+            Query.equal('userId', uid),
+            Query.orderDesc('date')
+          ]
+        );
+
+        // Load study sequences
+        const sequencesResponse = await databases.listDocuments(
+          'estudeaqui_db',
+          'study_sequences',
+          [Query.equal('userId', uid)]
+        );
+
+        // Load templates
+        const templatesResponse = await databases.listDocuments(
+          'estudeaqui_db',
+          'study_templates',
+          [Query.equal('userId', uid)]
+        );
+
+        // Transform data to match expected format
+        const subjects = subjectsResponse.documents.map(doc => ({
+          id: doc.id,
+          name: doc.name,
+          color: doc.color,
+          description: doc.description || '',
+          materialUrl: doc.materialUrl || '',
+          studyDuration: 0, // Will be calculated from sequences
+          revisionProgress: 0,
+          topics: doc.topics ? JSON.parse(doc.topics) : [],
+        }));
+
+        const studyLog = logsResponse.documents.map((doc: any) => ({
+          id: doc.id,
+          subjectId: doc.subjectId,
+          topicId: doc.id, // Using doc.id as topicId for now, should be stored properly
+          date: doc.date,
+          duration: doc.duration,
+          startPage: 0,
+          endPage: 0,
+          questionsTotal: 0,
+          questionsCorrect: 0,
+          source: 'appwrite',
+        }));
+
+        const studySequence = sequencesResponse.documents.length > 0
+          ? {
+              id: sequencesResponse.documents[0].id,
+              name: sequencesResponse.documents[0].name,
+              sequence: sequencesResponse.documents[0].sequence ? JSON.parse(sequencesResponse.documents[0].sequence) : [],
+            }
+          : null;
+
+        const templates = templatesResponse.documents.map(doc => ({
+          id: doc.id,
+          name: doc.name,
+          description: doc.description || '',
+          subjects: doc.subjects ? JSON.parse(doc.subjects) : [],
+          settings: doc.settings ? JSON.parse(doc.settings) : {},
+        }));
+
+        // Calculate streaks and other derived data
+        let streak = 0;
+        let lastStudiedDate = null;
+
+        if (studyLog.length > 0) {
+          const sortedLogs = studyLog.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          const today = new Date();
+          let currentDate = new Date(today);
+
+          for (let i = 0; i < sortedLogs.length; i++) {
+            const logDate = new Date(sortedLogs[i].date);
+            if (isSameDay(currentDate, logDate)) {
+              streak++;
+              currentDate.setDate(currentDate.getDate() - 1);
+            } else if (isSameDay(currentDate, subDays(logDate, 0))) {
+              // Continue checking for consecutive days
+              continue;
+            } else {
+              break;
+            }
+          }
+
+          lastStudiedDate = sortedLogs[0].date;
         }
 
-        // 2. Load Subjects
-        const subjectsCol = collection(db, 'users', uid, 'subjects');
-        const subjectsSnapshot = await getDocs(subjectsCol);
-        loadedState.subjects = subjectsSnapshot.docs.map(d => d.data() as Subject);
-
-        // 3. Load Study Logs
-        const logsCol = collection(db, 'users', uid, 'logs');
-        // Ideally limit this for performance, but loading all for now as requested
-        const logsQuery = query(logsCol, orderBy('date', 'desc'));
-        const logsSnapshot = await getDocs(logsQuery);
-        loadedState.studyLog = logsSnapshot.docs.map(d => d.data() as StudyLogEntry);
-
-        // 4. Load Sequence
-        const sequenceDocRef = doc(db, 'users', uid, 'sequences', 'current');
-        const sequenceDoc = await getDoc(sequenceDocRef);
-        if (sequenceDoc.exists()) {
-          loadedState.studySequence = sequenceDoc.data() as StudySequence;
-        }
-
-        // 5. Load Templates
-        const templatesCol = collection(db, 'users', uid, 'templates');
-        const templatesSnapshot = await getDocs(templatesCol);
-        loadedState.templates = templatesSnapshot.docs.map(d => d.data() as SubjectTemplate);
-
-         // 6. Check for Migration from LocalStorage (if Firestore is empty but LocalStorage is not)
-         const localKey = `estudeaqui_user_data_${uid}`;
-         const localDataRaw = localStorage.getItem(localKey);
-         if ((!userDoc.exists() || subjectsSnapshot.empty) && localDataRaw) {
-           console.log("Migrating data from LocalStorage to Firestore...");
-           const localData = JSON.parse(localDataRaw);
-           const { lastSaved, ...dataToMigrate } = localData;
-           
-           // Use local data immediately
-           loadedState = { ...initialState, ...dataToMigrate };
-           
-           // Trigger async migration
-           migrateToFirestore(uid, loadedState as StudyData);
-         }
+        const loadedState = {
+          subjects,
+          studyLog,
+          lastStudiedDate,
+          streak,
+          studySequence,
+          sequenceIndex: 0,
+          pomodoroSettings: initialPomodoroSettings,
+          templates,
+          schedulePlans: [],
+        };
 
         originalDispatch({ type: 'SET_STATE', payload: loadedState });
 
       } catch (error) {
-        console.error("Failed to load from Firestore:", error);
-        toast({ title: "Erro de Sincronização", description: "Não foi possível carregar seus dados.", variant: "destructive" });
+        console.error("Failed to load from Appwrite:", error);
+        toast({ title: "Erro de Carregamento", description: "Não foi possível carregar seus dados da nuvem.", variant: "destructive" });
       } finally {
         setIsLoading(false);
       }
     };
 
     loadData();
-  }, [user]);
+  }, [user, toast]);
 
-  // Helper to migrate data
-  const migrateToFirestore = async (uid: string, data: StudyData) => {
+  // Sync actions to Appwrite
+  const syncToAppwrite = async (action: any, newState: StudyData) => {
+    if (!user) return;
+
     try {
-      const batch = writeBatch(db);
-      
-      // User Profile
-      batch.set(doc(db, 'users', uid), {
-        streak: data.streak,
-        lastStudiedDate: data.lastStudiedDate,
-        pomodoroSettings: data.pomodoroSettings,
-        sequenceIndex: data.sequenceIndex
-      });
+      const uid = user.$id;
 
-      // Subjects
-      data.subjects.forEach(s => {
-        batch.set(doc(db, 'users', uid, 'subjects', s.id), s);
-      });
-
-      // Logs (Limit migration if too many? No, try all)
-      data.studyLog.forEach(l => {
-        batch.set(doc(db, 'users', uid, 'logs', l.id), l);
-      });
-
-      // Sequence
-      if (data.studySequence) {
-        batch.set(doc(db, 'users', uid, 'sequences', 'current'), data.studySequence);
-      }
-
-      await batch.commit();
-      console.log("Migration complete!");
-      toast({ title: "Sincronização", description: "Seus dados locais foram salvos na nuvem." });
-    } catch (e) {
-      console.error("Migration failed", e);
-    }
-  };
-
-  // Function to sync specific actions to Firestore
-  const syncActionToFirestore = async (uid: string, action: any, newState: StudyData) => {
-    try {
       switch (action.type) {
-        case 'ADD_SUBJECT':
+        case 'ADD_SUBJECT': {
+          const subject = newState.subjects.find(s => s.id === action.payload.id);
+          if (subject) {
+            const subjectData = {
+              userId: uid,
+              id: subject.id,
+              name: subject.name,
+              color: subject.color,
+              description: subject.description || '',
+              materialUrl: subject.materialUrl || '',
+              topics: JSON.stringify(subject.topics),
+            };
+
+            await databases.createDocument(
+              'estudeaqui_db',
+              'study_subjects',
+              subject.id, // Use subject.id as document ID
+              subjectData
+            );
+          }
+          break;
+        }
+
         case 'UPDATE_SUBJECT':
-        case 'ADD_TOPIC': // Topic changes are saved within the subject document
+        case 'ADD_TOPIC':
         case 'TOGGLE_TOPIC_COMPLETED':
-        case 'DELETE_TOPIC':
-        case 'SET_REVISION_PROGRESS': {
-           // Identify the subject changed. 
-           // For ADD_SUBJECT, id is in payload.id (or we generated it).
-           // For others, subjectId is in payload.
-           let subjectId = action.payload.id || action.payload.subjectId;
-           
-           // Find the subject in the NEW state
-           const subject = newState.subjects.find(s => s.id === subjectId);
-           if (subject) {
-             await setDoc(doc(db, 'users', uid, 'subjects', subjectId), subject);
-           }
-           break;
+        case 'DELETE_TOPIC': {
+          const subject = newState.subjects.find(s => s.id === (action.payload.id || action.payload.subjectId));
+          if (subject) {
+            const subjectData = {
+              userId: uid,
+              name: subject.name,
+              color: subject.color,
+              description: subject.description || '',
+              materialUrl: subject.materialUrl || '',
+              topics: JSON.stringify(subject.topics),
+            };
+
+            // Try to update first, if it fails (document doesn't exist), create it
+            try {
+              await databases.updateDocument(
+                'estudeaqui_db',
+                'study_subjects',
+                subject.id,
+                subjectData
+              );
+            } catch (error) {
+              // Document doesn't exist, create it
+              await databases.createDocument(
+                'estudeaqui_db',
+                'study_subjects',
+                subject.id,
+                { ...subjectData, id: subject.id }
+              );
+            }
+          }
+          break;
         }
+
         case 'DELETE_SUBJECT': {
-          await deleteDoc(doc(db, 'users', uid, 'subjects', action.payload));
+          const subjectId = action.payload;
+          try {
+            await databases.deleteDocument(
+              'estudeaqui_db',
+              'study_subjects',
+              subjectId
+            );
+          } catch (error) {
+            console.error("Error deleting subject from Appwrite:", error);
+          }
           break;
         }
+
         case 'ADD_STUDY_LOG': {
-          // Save the new log
-          // We need the log ID. The reducer generates one if not provided.
-          // But 'newState.studyLog' has the newest one at top.
-          const newLog = newState.studyLog[0]; // Assuming sorted by date desc
+          const newLog = newState.studyLog[0];
           if (newLog) {
-             await setDoc(doc(db, 'users', uid, 'logs', newLog.id), newLog);
+            const logData = {
+              userId: uid,
+              id: newLog.id,
+              subjectId: newLog.subjectId,
+              date: newLog.date,
+              duration: newLog.duration,
+            };
+
+            await databases.createDocument(
+              'estudeaqui_db',
+              'study_logs',
+              newLog.id,
+              logData
+            );
           }
-          
-          // Also update User Profile (Streak, Last Studied, Sequence Index)
-          await setDoc(doc(db, 'users', uid), {
-            streak: newState.streak,
-            lastStudiedDate: newState.lastStudiedDate,
-            sequenceIndex: newState.sequenceIndex,
-          }, { merge: true });
-          
-          // Also update Sequence if changed
+          break;
+        }
+
+        case 'SAVE_STUDY_SEQUENCE': {
           if (newState.studySequence) {
-             await setDoc(doc(db, 'users', uid, 'sequences', 'current'), newState.studySequence);
+            const sequenceData = {
+              userId: uid,
+              name: newState.studySequence.name,
+              sequence: JSON.stringify(newState.studySequence.sequence),
+            };
+
+            try {
+              await databases.updateDocument(
+                'estudeaqui_db',
+                'study_sequences',
+                newState.studySequence.id,
+                sequenceData
+              );
+            } catch (error) {
+              // Document doesn't exist, create it
+              await databases.createDocument(
+                'estudeaqui_db',
+                'study_sequences',
+                newState.studySequence.id,
+                { ...sequenceData, id: newState.studySequence.id }
+              );
+            }
           }
           break;
         }
-        case 'DELETE_STUDY_LOG': {
-          await deleteDoc(doc(db, 'users', uid, 'logs', action.payload));
-          // Potentially update sequence if it was reverted
-           if (newState.studySequence) {
-             await setDoc(doc(db, 'users', uid, 'sequences', 'current'), newState.studySequence);
-          }
-          break;
-        }
-        case 'SAVE_STUDY_SEQUENCE':
-        case 'RESET_STUDY_SEQUENCE': 
-        case 'ADVANCE_SEQUENCE': {
-           if (newState.studySequence) {
-             await setDoc(doc(db, 'users', uid, 'sequences', 'current'), newState.studySequence);
-           }
-           // Index might change
-           await setDoc(doc(db, 'users', uid), { sequenceIndex: newState.sequenceIndex }, { merge: true });
-           break;
-        }
-        case 'UPDATE_POMODORO_SETTINGS': {
-           await setDoc(doc(db, 'users', uid), { pomodoroSettings: newState.pomodoroSettings }, { merge: true });
-           break;
-        }
+
         case 'SAVE_TEMPLATE': {
-          const template = newState.templates.find(t => t.name === action.payload.name); // Approximation
+          const template = newState.templates[newState.templates.length - 1];
           if (template) {
-             await setDoc(doc(db, 'users', uid, 'templates', template.id), template);
+            const templateData = {
+              userId: uid,
+              id: template.id,
+              name: template.name,
+              subjects: JSON.stringify(template.subjects),
+            };
+
+            try {
+              await databases.updateDocument(
+                'estudeaqui_db',
+                'study_templates',
+                template.id,
+                templateData
+              );
+            } catch (error) {
+              // Document doesn't exist, create it
+              await databases.createDocument(
+                'estudeaqui_db',
+                'study_templates',
+                template.id,
+                templateData
+              );
+            }
           }
-          break;
-        }
-        case 'DELETE_TEMPLATE': {
-          await deleteDoc(doc(db, 'users', uid, 'templates', action.payload));
           break;
         }
       }
     } catch (error) {
-      console.error("Error syncing to Firestore:", error);
+      console.error("Error syncing to Appwrite:", error);
       toast({ title: "Erro ao salvar", description: "Suas alterações podem não ter sido salvas na nuvem.", variant: "destructive" });
     }
   };
 
   const dispatch = async (action: any) => {
-    // 1. Calculate new state (Optimistic)
-    // We need to run the reducer to get the new state. 
-    // But useReducer doesn't give us the new state immediately in the variable 'state'.
-    // So we just dispatch to UI first.
     originalDispatch(action);
 
-    // 2. Sync to Firestore (Side Effect)
-    // We need the *result* of the action to save correctly. 
-    // Since we can't easily predict the reducer result without running it, 
-    // and we want to avoid dual-logic.
-    // Solution: Re-run the reducer logic purely for the sync payload? 
-    // Or just grab the updated state from a separate effect? 
-    // Limitation: 'state' here is the OLD state until next render.
-    // Hack: Calculate the next state manually just for the Sync function.
-    if (user) {
-       const predictedState = studyReducer(stateRef.current, action);
-       // Fire and forget sync
-       syncActionToFirestore(user.uid, action, predictedState);
-    }
+    // Sync to Appwrite after state update
+    const predictedState = studyReducer(stateRef.current, action);
+    await syncToAppwrite(action, predictedState);
   };
 
   const getAssociatedTopic = useCallback(() => {
@@ -972,7 +1044,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       <div className="flex items-center justify-center h-screen w-full">
         <div className="text-center">
           <p className="text-lg font-semibold">Carregando seus dados...</p>
-          <p className="text-muted-foreground">Sincronizando com a nuvem.</p>
+          <p className="text-muted-foreground">Carregando dados locais.</p>
         </div>
       </div>
     );

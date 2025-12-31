@@ -96,7 +96,6 @@ export default function StudyCycleTab() {
   const [editingTopic, setEditingTopic] = useState<any>(null);
   const [editingTopicName, setEditingTopicName] = useState('');
   const [isEditingTopicOpen, setIsEditingTopicOpen] = useState(false);
-  const [subjectToDelete, setSubjectToDelete] = useState<{id: string, name: string} | null>(null);
   const [saveTemplateName, setSaveTemplateName] = useState('');
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
@@ -183,16 +182,7 @@ export default function StudyCycleTab() {
     }
   };
 
-  const handleDeleteSubject = (id: string, name: string) => {
-    setSubjectToDelete({ id, name });
-  };
 
-  const confirmDeleteSubject = () => {
-    if (subjectToDelete) {
-      dispatch({ type: 'DELETE_SUBJECT', payload: subjectToDelete.id });
-      setSubjectToDelete(null);
-    }
-  };
 
   const handleSaveTemplate = () => {
     if (saveTemplateName.trim()) {
@@ -365,30 +355,34 @@ export default function StudyCycleTab() {
                                 </DialogContent>
                             )}
                         </Dialog>
-                        <Dialog open={subjectToDelete?.id === subject.id} onOpenChange={() => setSubjectToDelete(null)}>
-                          <DialogTrigger asChild>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
                             <Button
                               variant="destructive"
                               size="sm"
                               className="w-full sm:w-auto"
-                              onClick={() => handleDeleteSubject(subject.id, subject.name)}
                             >
                               <Trash2 className="mr-2 h-3 w-3" /> Remover
                             </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                              <DialogHeader>
-                                  <DialogTitle>Remover matéria?</DialogTitle>
-                              </DialogHeader>
-                              <div className="py-4">
-                                  <p>Isso removerá "{subject.name}" e todos os seus {subject.topics.length} assuntos. Essa ação não pode ser desfeita.</p>
-                              </div>
-                              <DialogFooter>
-                                  <Button variant="outline" onClick={() => setSubjectToDelete(null)}>Cancelar</Button>
-                                  <Button variant="destructive" onClick={confirmDeleteSubject}>Remover</Button>
-                              </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remover matéria?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Isso removerá "{subject.name}" e todos os seus {subject.topics.length} assuntos. Essa ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => dispatch({ type: 'DELETE_SUBJECT', payload: subject.id })}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Remover
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                     </div>
                     {subject.studyDuration && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-1.5 rounded-md">

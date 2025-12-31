@@ -14,6 +14,7 @@ export default function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const { signIn, signUp, signInWithGoogle } = useAuth();
@@ -24,7 +25,7 @@ export default function LoginForm() {
     setIsLoading(true);
     try {
       if (isSignUp) {
-        const { error } = await signUp(email, password);
+        const { error } = await signUp(email, password, name);
         if (error) throw error;
         toast({
           title: 'Conta Criada!',
@@ -76,12 +77,27 @@ export default function LoginForm() {
         <CardTitle className="text-2xl">{isSignUp ? 'Criar Conta' : 'Login'}</CardTitle>
         <CardDescription>
           {isSignUp
-            ? 'Digite seu e-mail e senha para se cadastrar.'
+            ? 'Digite seu nome, e-mail e senha para se cadastrar.'
             : 'Digite seu e-mail e senha para acessar sua conta.'}
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleAuth}>
         <CardContent className="grid gap-4">
+          {isSignUp && (
+            <div className="grid gap-2">
+              <Label htmlFor="name">Nome</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Seu nome"
+                required={isSignUp}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={isLoading}
+                className="h-12 text-base"
+              />
+            </div>
+          )}
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
             <Input
