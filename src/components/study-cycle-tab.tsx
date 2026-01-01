@@ -46,15 +46,16 @@ function SubjectForm({ subject, onSave, onCancel }: { subject?: any; onSave: (da
   const [description, setDescription] = useState(subject?.description || '');
   const [studyDuration, setStudyDuration] = useState(subject?.studyDuration || 60);
   const [materialUrl, setMaterialUrl] = useState(subject?.materialUrl || '');
+  const [peso, setPeso] = useState(subject?.peso || 1);
 
   const handleSubmit = () => {
-    onSave({ name, color, description, studyDuration, materialUrl });
+    onSave({ name, color, description, studyDuration, materialUrl, peso });
     onCancel();
   };
 
   return (
     <div className="grid gap-6 py-4">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label htmlFor="name">Nome</Label>
           <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome da matéria..." className="h-11 text-base" />
@@ -62,6 +63,10 @@ function SubjectForm({ subject, onSave, onCancel }: { subject?: any; onSave: (da
         <div className="space-y-2">
           <Label htmlFor="studyDuration">Tempo (min)</Label>
           <Input id="studyDuration" type="number" value={studyDuration} onChange={(e) => setStudyDuration(Number(e.target.value))} placeholder="60" className="h-11 text-base" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="peso">Peso (1-5)</Label>
+          <Input id="peso" type="number" min="1" max="5" value={peso} onChange={(e) => setPeso(Number(e.target.value))} placeholder="1" className="h-11 text-base" />
         </div>
       </div>
             <div className="space-y-2">

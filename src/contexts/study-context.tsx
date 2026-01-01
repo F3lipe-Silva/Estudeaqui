@@ -431,39 +431,42 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
         // Transform data to match expected format
         const subjects = subjectsResponse.documents.map(doc => ({
-          id: doc.id,
+          id: doc.$id,
           name: doc.name,
           color: doc.color,
           description: doc.description || '',
           materialUrl: doc.materialUrl || '',
-          studyDuration: 0, // Will be calculated from sequences
-          revisionProgress: 0,
+          studyDuration: doc.studyDuration || 60,
+          revisionProgress: doc.revisionProgress || 0,
+          peso: doc.peso || 1,
+          nivelConhecimento: doc.nivelConhecimento || 'intermediario',
+          horasSemanais: doc.horasSemanais || 0,
           topics: doc.topics ? JSON.parse(doc.topics) : [],
         }));
 
         const studyLog = logsResponse.documents.map((doc: any) => ({
-          id: doc.id,
+          id: doc.$id,
           subjectId: doc.subjectId,
-          topicId: doc.id, // Using doc.id as topicId for now, should be stored properly
+          topicId: doc.topicId || '', 
           date: doc.date,
           duration: doc.duration,
-          startPage: 0,
-          endPage: 0,
-          questionsTotal: 0,
-          questionsCorrect: 0,
-          source: 'appwrite',
+          startPage: doc.startPage || 0,
+          endPage: doc.endPage || 0,
+          questionsTotal: doc.questionsTotal || 0,
+          questionsCorrect: doc.questionsCorrect || 0,
+          source: doc.source || 'appwrite',
         }));
 
         const studySequence = sequencesResponse.documents.length > 0
           ? {
-              id: sequencesResponse.documents[0].id,
+              id: sequencesResponse.documents[0].$id,
               name: sequencesResponse.documents[0].name,
               sequence: sequencesResponse.documents[0].sequence ? JSON.parse(sequencesResponse.documents[0].sequence) : [],
             }
           : null;
 
         const templates = templatesResponse.documents.map(doc => ({
-          id: doc.id,
+          id: doc.$id,
           name: doc.name,
           description: doc.description || '',
           subjects: doc.subjects ? JSON.parse(doc.subjects) : [],
@@ -538,7 +541,13 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
               color: subject.color,
               description: subject.description || '',
               materialUrl: subject.materialUrl || '',
+              studyDuration: subject.studyDuration || 60,
+              peso: subject.peso || 1,
+              nivelConhecimento: subject.nivelConhecimento || 'intermediario',
+              horasSemanais: subject.horasSemanais || 0,
               topics: JSON.stringify(subject.topics),
+              revisionProgress: 0,
+              type: 'subject',
             };
 
             await databases.createDocument(
@@ -554,16 +563,24 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         case 'UPDATE_SUBJECT':
         case 'ADD_TOPIC':
         case 'TOGGLE_TOPIC_COMPLETED':
-        case 'DELETE_TOPIC': {
+        case 'DELETE_TOPIC':
+        case 'SET_REVISION_PROGRESS': {
           const subject = newState.subjects.find(s => s.id === (action.payload.id || action.payload.subjectId));
           if (subject) {
             const subjectData = {
               userId: uid,
+              id: subject.id,
               name: subject.name,
               color: subject.color,
               description: subject.description || '',
               materialUrl: subject.materialUrl || '',
+              studyDuration: subject.studyDuration || 60,
+              peso: subject.peso || 1,
+              nivelConhecimento: subject.nivelConhecimento || 'intermediario',
+              horasSemanais: subject.horasSemanais || 0,
               topics: JSON.stringify(subject.topics),
+              revisionProgress: subject.revisionProgress || 0,
+              type: 'subject',
             };
 
             // Try to update first, if it fails (document doesn't exist), create it
@@ -580,7 +597,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
                 'estudeaqui_db',
                 'study_subjects',
                 subject.id,
-                { ...subjectData, id: subject.id }
+                { ...subjectData }
               );
             }
           }
@@ -608,8 +625,13 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
               userId: uid,
               id: newLog.id,
               subjectId: newLog.subjectId,
+              topicId: newLog.topicId || '',
               date: newLog.date,
               duration: newLog.duration,
+              questionsTotal: newLog.questionsTotal || 0,
+              questionsCorrect: newLog.questionsCorrect || 0,
+              source: newLog.source || 'web',
+              type: 'study',
             };
 
             await databases.createDocument(
@@ -626,8 +648,10 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           if (newState.studySequence) {
             const sequenceData = {
               userId: uid,
+              id: newState.studySequence.id,
               name: newState.studySequence.name,
               sequence: JSON.stringify(newState.studySequence.sequence),
+              type: 'sequence',
             };
 
             try {
@@ -643,7 +667,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
                 'estudeaqui_db',
                 'study_sequences',
                 newState.studySequence.id,
-                { ...sequenceData, id: newState.studySequence.id }
+                sequenceData
               );
             }
           }
@@ -658,6 +682,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
               id: template.id,
               name: template.name,
               subjects: JSON.stringify(template.subjects),
+              type: 'template',
             };
 
             try {
