@@ -6,9 +6,20 @@ import { useToast } from "@/hooks/use-toast";
 import { format, subDays, isSameDay, parseISO } from 'date-fns';
 import { REVISION_SEQUENCE } from '@/components/revision-tab';
 import { useAuth } from './auth-context';
-import { useAppwrite } from './appwrite-context';
-import { databases } from '@/lib/appwrite';
-import { Query } from 'appwrite';
+import { db } from '@/lib/firebase';
+import { 
+  collection, 
+  doc, 
+  getDocs, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  where, 
+  orderBy, 
+  limit,
+  Timestamp 
+} from 'firebase/firestore';
 
 const initialPomodoroSettings: PomodoroSettings = {
   tasks: [
@@ -383,9 +394,9 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     stateRef.current = state;
   }, [state]);
 
-  // --- APPWRITE INTEGRATION ---
+  // --- FIREBASE INTEGRATION ---
 
-  // Load Data from Appwrite
+  // Load Data from Firebase
   useEffect(() => {
     if (!user) {
       setIsLoading(false);
@@ -396,82 +407,76 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const uid = user.$id;
+        const uid = user.uid;
 
         // Load subjects
-        const subjectsResponse = await databases.listDocuments(
-          'estudeaqui_db',
-          'study_subjects',
-          [Query.equal('userId', uid)]
-        );
+        const subjectsQuery = query(collection(db, 'study_subjects'), where('userId', '==', uid));
+        const subjectsSnapshot = await getDocs(subjectsQuery);
 
         // Load study logs
-        const logsResponse = await databases.listDocuments(
-          'estudeaqui_db',
-          'study_logs',
-          [
-            Query.equal('userId', uid),
-            Query.orderDesc('date')
-          ]
-        );
+        const logsQuery = query(collection(db, 'study_logs'), where('userId', '==', uid), orderBy('date', 'desc'));
+        const logsSnapshot = await getDocs(logsQuery);
 
         // Load study sequences
-        const sequencesResponse = await databases.listDocuments(
-          'estudeaqui_db',
-          'study_sequences',
-          [Query.equal('userId', uid)]
-        );
+        const sequencesQuery = query(collection(db, 'study_sequences'), where('userId', '==', uid));
+        const sequencesSnapshot = await getDocs(sequencesQuery);
 
         // Load templates
-        const templatesResponse = await databases.listDocuments(
-          'estudeaqui_db',
-          'study_templates',
-          [Query.equal('userId', uid)]
-        );
+        const templatesQuery = query(collection(db, 'study_templates'), where('userId', '==', uid));
+        const templatesSnapshot = await getDocs(templatesQuery);
 
-        // Transform data to match expected format
-        const subjects = subjectsResponse.documents.map(doc => ({
-          id: doc.$id,
-          name: doc.name,
-          color: doc.color,
-          description: doc.description || '',
-          materialUrl: doc.materialUrl || '',
-          studyDuration: doc.studyDuration || 60,
-          revisionProgress: doc.revisionProgress || 0,
-          peso: doc.peso || 1,
-          nivelConhecimento: doc.nivelConhecimento || 'intermediario',
-          horasSemanais: doc.horasSemanais || 0,
-          topics: doc.topics ? JSON.parse(doc.topics) : [],
-        }));
+        // Transform data
+        const subjects = subjectsSnapshot.docs.map(docSnap => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            name: data.name,
+            color: data.color,
+            description: data.description || '',
+            materialUrl: data.materialUrl || '',
+            studyDuration: data.studyDuration || 60,
+            revisionProgress: data.revisionProgress || 0,
+            peso: data.peso || 1,
+            nivelConhecimento: data.nivelConhecimento || 'intermediario',
+            horasSemanais: data.horasSemanais || 0,
+            topics: data.topics ? JSON.parse(data.topics) : [],
+          };
+        });
 
-        const studyLog = logsResponse.documents.map((doc: any) => ({
-          id: doc.$id,
-          subjectId: doc.subjectId,
-          topicId: doc.topicId || '', 
-          date: doc.date,
-          duration: doc.duration,
-          startPage: doc.startPage || 0,
-          endPage: doc.endPage || 0,
-          questionsTotal: doc.questionsTotal || 0,
-          questionsCorrect: doc.questionsCorrect || 0,
-          source: doc.source || 'appwrite',
-        }));
+        const studyLog = logsSnapshot.docs.map(docSnap => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            subjectId: data.subjectId,
+            topicId: data.topicId || '', 
+            date: data.date,
+            duration: data.duration,
+            startPage: data.startPage || 0,
+            endPage: data.endPage || 0,
+            questionsTotal: data.questionsTotal || 0,
+            questionsCorrect: data.questionsCorrect || 0,
+            source: data.source || 'firebase',
+          };
+        });
 
-        const studySequence = sequencesResponse.documents.length > 0
+        const studySequence = sequencesSnapshot.docs.length > 0
           ? {
-              id: sequencesResponse.documents[0].$id,
-              name: sequencesResponse.documents[0].name,
-              sequence: sequencesResponse.documents[0].sequence ? JSON.parse(sequencesResponse.documents[0].sequence) : [],
+              id: sequencesSnapshot.docs[0].id,
+              name: sequencesSnapshot.docs[0].data().name,
+              sequence: sequencesSnapshot.docs[0].data().sequence ? JSON.parse(sequencesSnapshot.docs[0].data().sequence) : [],
             }
           : null;
 
-        const templates = templatesResponse.documents.map(doc => ({
-          id: doc.$id,
-          name: doc.name,
-          description: doc.description || '',
-          subjects: doc.subjects ? JSON.parse(doc.subjects) : [],
-          settings: doc.settings ? JSON.parse(doc.settings) : {},
-        }));
+        const templates = templatesSnapshot.docs.map(docSnap => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            name: data.name,
+            description: data.description || '',
+            subjects: data.subjects ? JSON.parse(data.subjects) : [],
+            settings: data.settings ? JSON.parse(data.settings) : {},
+          };
+        });
 
         // Calculate streaks and other derived data
         let streak = 0;
@@ -488,7 +493,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
               streak++;
               currentDate.setDate(currentDate.getDate() - 1);
             } else if (isSameDay(currentDate, subDays(logDate, 0))) {
-              // Continue checking for consecutive days
               continue;
             } else {
               break;
@@ -513,7 +517,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         originalDispatch({ type: 'SET_STATE', payload: loadedState });
 
       } catch (error) {
-        console.error("Failed to load from Appwrite:", error);
+        console.error("Failed to load from Firebase:", error);
         toast({ title: "Erro de Carregamento", description: "Não foi possível carregar seus dados da nuvem.", variant: "destructive" });
       } finally {
         setIsLoading(false);
@@ -523,53 +527,35 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     loadData();
   }, [user, toast]);
 
-  // Sync actions to Appwrite
-  const syncToAppwrite = async (action: any, newState: StudyData) => {
+  // Sync actions to Firebase
+  const syncToFirebase = async (action: any, newState: StudyData) => {
     if (!user) return;
 
     try {
-      const uid = user.$id;
+      const uid = user.uid;
+      const now = new Date();
+
+      // Determine which subject was affected
+      let affectedSubjectId: string | null = null;
+      if (action.type === 'ADD_SUBJECT' || action.type === 'UPDATE_SUBJECT') {
+        affectedSubjectId = action.payload.id;
+      } else if (action.type === 'ADD_TOPIC' || action.type === 'TOGGLE_TOPIC_COMPLETED' || action.type === 'DELETE_TOPIC' || action.type === 'SET_REVISION_PROGRESS') {
+        affectedSubjectId = action.payload.subjectId;
+      }
 
       switch (action.type) {
-        case 'ADD_SUBJECT': {
-          const subject = newState.subjects.find(s => s.id === action.payload.id);
-          if (subject) {
-            const subjectData = {
-              userId: uid,
-              id: subject.id,
-              name: subject.name,
-              color: subject.color,
-              description: subject.description || '',
-              materialUrl: subject.materialUrl || '',
-              studyDuration: subject.studyDuration || 60,
-              peso: subject.peso || 1,
-              nivelConhecimento: subject.nivelConhecimento || 'intermediario',
-              horasSemanais: subject.horasSemanais || 0,
-              topics: JSON.stringify(subject.topics),
-              revisionProgress: 0,
-              type: 'subject',
-            };
-
-            await databases.createDocument(
-              'estudeaqui_db',
-              'study_subjects',
-              subject.id, // Use subject.id as document ID
-              subjectData
-            );
-          }
-          break;
-        }
-
+        case 'ADD_SUBJECT':
         case 'UPDATE_SUBJECT':
         case 'ADD_TOPIC':
         case 'TOGGLE_TOPIC_COMPLETED':
         case 'DELETE_TOPIC':
         case 'SET_REVISION_PROGRESS': {
-          const subject = newState.subjects.find(s => s.id === (action.payload.id || action.payload.subjectId));
+          if (!affectedSubjectId) return;
+          
+          const subject = newState.subjects.find(s => s.id === affectedSubjectId);
           if (subject) {
             const subjectData = {
               userId: uid,
-              id: subject.id,
               name: subject.name,
               color: subject.color,
               description: subject.description || '',
@@ -581,25 +567,15 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
               topics: JSON.stringify(subject.topics),
               revisionProgress: subject.revisionProgress || 0,
               type: 'subject',
+              updatedAt: now
             };
 
-            // Try to update first, if it fails (document doesn't exist), create it
-            try {
-              await databases.updateDocument(
-                'estudeaqui_db',
-                'study_subjects',
-                subject.id,
-                subjectData
-              );
-            } catch (error) {
-              // Document doesn't exist, create it
-              await databases.createDocument(
-                'estudeaqui_db',
-                'study_subjects',
-                subject.id,
-                { ...subjectData }
-              );
+            // For ADD_SUBJECT, we might want to include createdAt
+            if (action.type === 'ADD_SUBJECT') {
+              (subjectData as any).createdAt = now;
             }
+
+            await setDoc(doc(db, 'study_subjects', subject.id), subjectData, { merge: true });
           }
           break;
         }
@@ -607,23 +583,19 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         case 'DELETE_SUBJECT': {
           const subjectId = action.payload;
           try {
-            await databases.deleteDocument(
-              'estudeaqui_db',
-              'study_subjects',
-              subjectId
-            );
+            await deleteDoc(doc(db, 'study_subjects', subjectId));
           } catch (error) {
-            console.error("Error deleting subject from Appwrite:", error);
+            console.error("Error deleting subject from Firebase:", error);
           }
           break;
         }
 
         case 'ADD_STUDY_LOG': {
-          const newLog = newState.studyLog[0];
+          const logId = action.payload.id;
+          const newLog = newState.studyLog.find(l => l.id === logId);
           if (newLog) {
             const logData = {
               userId: uid,
-              id: newLog.id,
               subjectId: newLog.subjectId,
               topicId: newLog.topicId || '',
               date: newLog.date,
@@ -632,14 +604,10 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
               questionsCorrect: newLog.questionsCorrect || 0,
               source: newLog.source || 'web',
               type: 'study',
+              createdAt: now
             };
 
-            await databases.createDocument(
-              'estudeaqui_db',
-              'study_logs',
-              newLog.id,
-              logData
-            );
+            await setDoc(doc(db, 'study_logs', newLog.id), logData);
           }
           break;
         }
@@ -648,75 +616,55 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           if (newState.studySequence) {
             const sequenceData = {
               userId: uid,
-              id: newState.studySequence.id,
               name: newState.studySequence.name,
               sequence: JSON.stringify(newState.studySequence.sequence),
               type: 'sequence',
+              updatedAt: now
             };
 
-            try {
-              await databases.updateDocument(
-                'estudeaqui_db',
-                'study_sequences',
-                newState.studySequence.id,
-                sequenceData
-              );
-            } catch (error) {
-              // Document doesn't exist, create it
-              await databases.createDocument(
-                'estudeaqui_db',
-                'study_sequences',
-                newState.studySequence.id,
-                sequenceData
-              );
-            }
+            await setDoc(doc(db, 'study_sequences', newState.studySequence.id), sequenceData, { merge: true });
           }
           break;
         }
 
         case 'SAVE_TEMPLATE': {
-          const template = newState.templates[newState.templates.length - 1];
+          const templateId = action.payload.id;
+          const template = newState.templates.find(t => t.id === templateId);
           if (template) {
             const templateData = {
               userId: uid,
-              id: template.id,
               name: template.name,
               subjects: JSON.stringify(template.subjects),
               type: 'template',
+              updatedAt: now
             };
 
-            try {
-              await databases.updateDocument(
-                'estudeaqui_db',
-                'study_templates',
-                template.id,
-                templateData
-              );
-            } catch (error) {
-              // Document doesn't exist, create it
-              await databases.createDocument(
-                'estudeaqui_db',
-                'study_templates',
-                template.id,
-                templateData
-              );
-            }
+            await setDoc(doc(db, 'study_templates', template.id), templateData, { merge: true });
           }
           break;
         }
       }
     } catch (error) {
-      console.error("Error syncing to Appwrite:", error);
+      console.error("Error syncing to Firebase:", error);
       toast({ title: "Erro ao salvar", description: "Suas alterações podem não ter sido salvas na nuvem.", variant: "destructive" });
     }
   };
 
   const dispatch = async (action: any) => {
+    // Generate IDs if missing to ensure consistency between state and Firebase
+    if (['ADD_SUBJECT', 'ADD_TOPIC', 'ADD_STUDY_LOG', 'SAVE_TEMPLATE'].includes(action.type)) {
+      if (!action.payload.id) {
+        action.payload.id = crypto.randomUUID();
+      }
+    }
+
     originalDispatch(action);
 
-    // Sync to Appwrite after state update
+    // Sync to Firebase after state update
+    // Use a small timeout or wait for the next tick to ensure stateRef is updated if possible,
+    // but since we calculate predictedState it's usually fine.
     const predictedState = studyReducer(stateRef.current, action);
-    await syncToAppwrite(action, predictedState);
+    await syncToFirebase(action, predictedState);
   };
 
   const getAssociatedTopic = useCallback(() => {

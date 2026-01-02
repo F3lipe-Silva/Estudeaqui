@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { DatabaseService, Course, Lesson, Progress, StudySubject, StudyLog } from '../lib/database';
-import { Models } from 'appwrite';
 
 export function useCourses() {
   const [courses, setCourses] = useState<Course[]>([]);

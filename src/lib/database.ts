@@ -1,5 +1,20 @@
-import { databases } from './appwrite';
-import { APPWRITE_CONFIG } from './appwrite';
+import { db } from './firebase';
+import { 
+  collection, 
+  doc, 
+  addDoc, 
+  setDoc,
+  updateDoc, 
+  getDoc, 
+  getDocs, 
+  query, 
+  where, 
+  orderBy, 
+  limit, 
+  startAfter,
+  DocumentData,
+  Timestamp
+} from 'firebase/firestore';
 
 export interface User {
   $id?: string;
@@ -88,17 +103,29 @@ export interface StudyLog {
   notes?: string;
 }
 
+const mapDoc = (docSnap: DocumentData): any => {
+  const data = docSnap.data();
+  return {
+    ...data,
+    $id: docSnap.id,
+    $createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+    $updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+  };
+};
+
 // Database service functions
 export class DatabaseService {
   static async createUser(userData: Omit<User, '$id'>) {
     try {
-      const response = await databases.createDocument(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.users,
-        'unique()',
-        userData
-      );
-      return response;
+      const now = new Date();
+      // Using addDoc to generate a unique ID, matching 'unique()' behavior
+      const docRef = await addDoc(collection(db, 'users'), {
+        ...userData,
+        createdAt: now,
+        updatedAt: now
+      });
+      const newDoc = await getDoc(docRef);
+      return mapDoc(newDoc);
     } catch (error) {
       console.error('Error creating user:', error);
       throw error;
@@ -107,12 +134,10 @@ export class DatabaseService {
 
   static async getUser(userId: string) {
     try {
-      const response = await databases.getDocument(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.users,
-        userId
-      );
-      return response;
+      const docRef = doc(db, 'users', userId);
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) return null;
+      return mapDoc(docSnap);
     } catch (error) {
       console.error('Error getting user:', error);
       return null;
@@ -121,31 +146,30 @@ export class DatabaseService {
 
   static async updateUser(userId: string, userData: Partial<User>) {
     try {
-      const response = await databases.updateDocument(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.users,
-        userId,
-        userData
-      );
-      return response;
+      const docRef = doc(db, 'users', userId);
+      await updateDoc(docRef, {
+        ...userData,
+        updatedAt: new Date()
+      });
+      const updatedDoc = await getDoc(docRef);
+      return mapDoc(updatedDoc);
     } catch (error) {
       console.error('Error updating user:', error);
       throw error;
     }
   }
 
-  static async getCourses(limit = 20, offset = 0) {
+  static async getCourses(limitCount = 20, offset = 0) {
     try {
-      const response = await databases.listDocuments(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.courses,
-        [
-          `limit(${limit})`,
-          `offset(${offset})`,
-          'orderDesc("$createdAt")'
-        ]
+      // Offset is not directly supported in Firestore in the same way. 
+      // For now, we ignore offset or implement simple pagination later if needed.
+      const q = query(
+        collection(db, 'courses'),
+        orderBy('createdAt', 'desc'),
+        limit(limitCount)
       );
-      return response;
+      const querySnapshot = await getDocs(q);
+      return { documents: querySnapshot.docs.map(mapDoc), total: querySnapshot.size };
     } catch (error) {
       console.error('Error getting courses:', error);
       throw error;
@@ -154,12 +178,10 @@ export class DatabaseService {
 
   static async getCourse(courseId: string) {
     try {
-      const response = await databases.getDocument(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.courses,
-        courseId
-      );
-      return response;
+      const docRef = doc(db, 'courses', courseId);
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) return null;
+      return mapDoc(docSnap);
     } catch (error) {
       console.error('Error getting course:', error);
       return null;
@@ -168,13 +190,14 @@ export class DatabaseService {
 
   static async createCourse(courseData: Omit<Course, '$id'>) {
     try {
-      const response = await databases.createDocument(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.courses,
-        'unique()',
-        courseData
-      );
-      return response;
+      const now = new Date();
+      const docRef = await addDoc(collection(db, 'courses'), {
+        ...courseData,
+        createdAt: now,
+        updatedAt: now
+      });
+      const newDoc = await getDoc(docRef);
+      return mapDoc(newDoc);
     } catch (error) {
       console.error('Error creating course:', error);
       throw error;
@@ -183,15 +206,13 @@ export class DatabaseService {
 
   static async getLessonsByCourse(courseId: string) {
     try {
-      const response = await databases.listDocuments(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.lessons,
-        [
-          `equal("courseId", "${courseId}")`,
-          'orderAsc("order")'
-        ]
+      const q = query(
+        collection(db, 'lessons'),
+        where('courseId', '==', courseId),
+        orderBy('order', 'asc')
       );
-      return response;
+      const querySnapshot = await getDocs(q);
+      return { documents: querySnapshot.docs.map(mapDoc), total: querySnapshot.size };
     } catch (error) {
       console.error('Error getting lessons:', error);
       throw error;
@@ -200,13 +221,14 @@ export class DatabaseService {
 
   static async createLesson(lessonData: Omit<Lesson, '$id'>) {
     try {
-      const response = await databases.createDocument(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.lessons,
-        'unique()',
-        lessonData
-      );
-      return response;
+      const now = new Date();
+      const docRef = await addDoc(collection(db, 'lessons'), {
+        ...lessonData,
+        createdAt: now,
+        updatedAt: now
+      });
+      const newDoc = await getDoc(docRef);
+      return mapDoc(newDoc);
     } catch (error) {
       console.error('Error creating lesson:', error);
       throw error;
@@ -215,17 +237,14 @@ export class DatabaseService {
 
   static async getUserProgress(userId: string, courseId?: string) {
     try {
-      const queries = [`equal("userId", "${userId}")`];
+      const constraints = [where('userId', '==', userId)];
       if (courseId) {
-        queries.push(`equal("courseId", "${courseId}")`);
+        constraints.push(where('courseId', '==', courseId));
       }
       
-      const response = await databases.listDocuments(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.progress,
-        queries
-      );
-      return response;
+      const q = query(collection(db, 'progress'), ...constraints);
+      const querySnapshot = await getDocs(q);
+      return { documents: querySnapshot.docs.map(mapDoc), total: querySnapshot.size };
     } catch (error) {
       console.error('Error getting progress:', error);
       throw error;
@@ -234,13 +253,13 @@ export class DatabaseService {
 
   static async updateProgress(progressId: string, progressData: Partial<Progress>) {
     try {
-      const response = await databases.updateDocument(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.progress,
-        progressId,
-        progressData
-      );
-      return response;
+      const docRef = doc(db, 'progress', progressId);
+      await updateDoc(docRef, {
+        ...progressData,
+        updatedAt: new Date()
+      });
+      const updatedDoc = await getDoc(docRef);
+      return mapDoc(updatedDoc);
     } catch (error) {
       console.error('Error updating progress:', error);
       throw error;
@@ -249,19 +268,18 @@ export class DatabaseService {
 
   static async enrollUser(userId: string, courseId: string) {
     try {
-      const response = await databases.createDocument(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.enrollments,
-        'unique()',
-        {
-          userId,
-          courseId,
-          status: 'active',
-          progress: 0,
-          enrolledAt: new Date().toISOString()
-        }
-      );
-      return response;
+      const now = new Date();
+      const docRef = await addDoc(collection(db, 'enrollments'), {
+        userId,
+        courseId,
+        status: 'active',
+        progress: 0,
+        enrolledAt: now.toISOString(),
+        createdAt: now,
+        updatedAt: now
+      });
+      const newDoc = await getDoc(docRef);
+      return mapDoc(newDoc);
     } catch (error) {
       console.error('Error enrolling user:', error);
       throw error;
@@ -270,12 +288,9 @@ export class DatabaseService {
 
   static async getUserEnrollments(userId: string) {
     try {
-      const response = await databases.listDocuments(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.enrollments,
-        [`equal("userId", "${userId}")`]
-      );
-      return response;
+      const q = query(collection(db, 'enrollments'), where('userId', '==', userId));
+      const querySnapshot = await getDocs(q);
+      return { documents: querySnapshot.docs.map(mapDoc), total: querySnapshot.size };
     } catch (error) {
       console.error('Error getting enrollments:', error);
       throw error;
@@ -284,12 +299,9 @@ export class DatabaseService {
 
   static async getStudySubjects(userId: string) {
     try {
-      const response = await databases.listDocuments(
-        APPWRITE_CONFIG.databaseId,
-        'study_subjects',
-        [`equal("userId", "${userId}")`]
-      );
-      return response;
+      const q = query(collection(db, 'study_subjects'), where('userId', '==', userId));
+      const querySnapshot = await getDocs(q);
+      return { documents: querySnapshot.docs.map(mapDoc), total: querySnapshot.size };
     } catch (error) {
       console.error('Error getting study subjects:', error);
       throw error;
@@ -298,13 +310,14 @@ export class DatabaseService {
 
   static async createStudySubject(subjectData: Omit<StudySubject, '$id'>) {
     try {
-      const response = await databases.createDocument(
-        APPWRITE_CONFIG.databaseId,
-        'study_subjects',
-        'unique()',
-        subjectData
-      );
-      return response;
+      const now = new Date();
+      const docRef = await addDoc(collection(db, 'study_subjects'), {
+        ...subjectData,
+        createdAt: now,
+        updatedAt: now
+      });
+      const newDoc = await getDoc(docRef);
+      return mapDoc(newDoc);
     } catch (error) {
       console.error('Error creating study subject:', error);
       throw error;
@@ -313,31 +326,30 @@ export class DatabaseService {
 
   static async createStudyLog(logData: Omit<StudyLog, '$id'>) {
     try {
-      const response = await databases.createDocument(
-        APPWRITE_CONFIG.databaseId,
-        'study_logs',
-        'unique()',
-        logData
-      );
-      return response;
+      const now = new Date();
+      const docRef = await addDoc(collection(db, 'study_logs'), {
+        ...logData,
+        createdAt: now,
+        updatedAt: now
+      });
+      const newDoc = await getDoc(docRef);
+      return mapDoc(newDoc);
     } catch (error) {
       console.error('Error creating study log:', error);
       throw error;
     }
   }
 
-  static async getStudyLogs(userId: string, limit = 50) {
+  static async getStudyLogs(userId: string, limitCount = 50) {
     try {
-      const response = await databases.listDocuments(
-        APPWRITE_CONFIG.databaseId,
-        'study_logs',
-        [
-          `equal("userId", "${userId}")`,
-          `limit(${limit})`,
-          'orderDesc("$createdAt")'
-        ]
+      const q = query(
+        collection(db, 'study_logs'),
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(limitCount)
       );
-      return response;
+      const querySnapshot = await getDocs(q);
+      return { documents: querySnapshot.docs.map(mapDoc), total: querySnapshot.size };
     } catch (error) {
       console.error('Error getting study logs:', error);
       throw error;

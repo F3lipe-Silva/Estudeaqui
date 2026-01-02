@@ -1,8 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { account, APPWRITE_CONFIG } from '@/lib/appwrite';
-import { ID } from 'appwrite';
+import React, { createContext, useContext } from 'react';
+import { useAuth } from './auth-context';
 
 export interface User {
   $id: string;
@@ -23,59 +22,30 @@ interface AppwriteContextType {
 const AppwriteContext = createContext<AppwriteContextType | undefined>(undefined);
 
 export function AppwriteProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user: firebaseUser, loading, signIn, signUp, signOut } = useAuth();
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const currentUser = await account.get();
-      setUser(currentUser as User);
-    } catch (error) {
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const user: User | null = firebaseUser ? {
+    $id: firebaseUser.uid,
+    email: firebaseUser.email || '',
+    name: firebaseUser.displayName || '',
+    preferences: {}
+  } : null;
 
   const login = async (email: string, password: string) => {
-    try {
-      await account.createEmailPasswordSession(email, password);
-      const currentUser = await account.get();
-      setUser(currentUser as User);
-    } catch (error) {
-      throw error;
-    }
+    await signIn(email, password);
   };
 
   const register = async (email: string, password: string, name: string) => {
-    try {
-      await account.create(ID.unique(), email, password, name);
-      await login(email, password);
-    } catch (error) {
-      throw error;
-    }
+    await signUp(email, password, name);
   };
 
   const logout = async () => {
-    try {
-      await account.deleteSession('current');
-      setUser(null);
-    } catch (error) {
-      throw error;
-    }
+    await signOut();
   };
 
   const updateProfile = async (data: Partial<User>) => {
-    try {
-      const updatedUser = await account.updatePrefs(data.preferences || {});
-      setUser(prev => prev ? { ...prev, ...updatedUser } : null);
-    } catch (error) {
-      throw error;
-    }
+    console.warn("updateProfile not fully implemented in Firebase migration yet");
+    // Implementation would involve updateProfile from firebase/auth or updating a user document
   };
 
   return (

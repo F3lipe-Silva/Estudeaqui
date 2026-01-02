@@ -1,8 +1,18 @@
 'use client';
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { account } from '@/lib/appwrite';
-import { ID } from 'appwrite';
+import { auth } from '@/lib/firebase';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut as firebaseSignOut, 
+  onAuthStateChanged, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  sendPasswordResetEmail,
+  updateProfile,
+  User
+} from 'firebase/auth';
 
 interface Session {
   user: {
@@ -15,7 +25,7 @@ interface Session {
 
 interface AuthContextType {
   session: Session | null;
-  user: any | null;
+  user: User | null;
   loading: boolean;
   signUp: (email: string, password: string, name?: string) => Promise<any>;
   signIn: (email: string, password: string) => Promise<any>;
@@ -28,58 +38,43 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const currentUser = await account.get();
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (currentUser && currentUser.email) {
         setSession({
           user: {
-            id: currentUser.$id,
+            id: currentUser.uid,
             email: currentUser.email,
-            name: currentUser.name,
+            name: currentUser.displayName || undefined,
           },
           expires_at: Number.MAX_SAFE_INTEGER,
         });
       } else {
         setSession(null);
       }
-    } catch (error) {
-      setSession(null);
-      setUser(null);
-    } finally {
       setLoading(false);
-    }
-  };
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const signUp = async (email: string, password: string, name?: string) => {
     try {
-      // Criar conta
-      await account.create(ID.unique(), email, password, name || '');
-      
-      // Fazer login automaticamente
-      const userCredential = await account.createEmailPasswordSession(email, password);
-      const currentUser = await account.get();
-      
-      const sessionData = {
-        user: {
-          id: currentUser.$id,
-          email: currentUser.email,
-          name: currentUser.name,
-        },
-        expires_at: Number.MAX_SAFE_INTEGER,
-      };
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const currentUser = userCredential.user;
 
-      setSession(sessionData);
-      setUser(currentUser);
+      if (name) {
+        await updateProfile(currentUser, { displayName: name });
+        // Force reload to get updated display name
+        await currentUser.reload();
+      }
 
+      // Session state will be updated by onAuthStateChanged
+      
       // Redirect to main application after successful sign up
       if (typeof window !== 'undefined') {
         window.location.href = '/';
@@ -94,27 +89,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const userCredential = await account.createEmailPasswordSession(email, password);
-      const currentUser = await account.get();
-      
-      const sessionData = {
-        user: {
-          id: currentUser.$id,
-          email: currentUser.email,
-          name: currentUser.name,
-        },
-        expires_at: Number.MAX_SAFE_INTEGER,
-      };
-
-      setSession(sessionData);
-      setUser(currentUser);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // Session state will be updated by onAuthStateChanged
 
       // Redirect to main application after successful sign in
       if (typeof window !== 'undefined') {
         window.location.href = '/';
       }
 
-      return { data: { session: sessionData }, error: null };
+      return { data: { session: { user: userCredential.user } }, error: null };
     } catch (error: any) {
       console.error("SignIn Error:", error);
       return { data: null, error };
@@ -123,11 +106,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
-      // Appwrite OAuth2 para Google
-      await account.createOAuth2Session('google' as any, 'http://localhost:3000', 'http://localhost:3000/login');
-      
-      // O redirecionamento será tratado pelo Appwrite
-      return { data: null, error: null };
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      // Session state will be updated by onAuthStateChanged
+      return { data: {}, error: null };
     } catch (error: any) {
       console.error("Google SignIn Error:", error);
       return { data: null, error };
@@ -136,9 +118,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      await account.deleteSession('current');
-      setSession(null);
-      setUser(null);
+      await firebaseSignOut(auth);
+      // Session state will be updated by onAuthStateChanged
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
       }
@@ -150,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPassword = async (email: string) => {
     try {
-      await account.createRecovery(email, 'http://localhost:3000/reset-password');
+      await sendPasswordResetEmail(auth, email);
       return { data: {}, error: null };
     } catch (error: any) {
       return { data: null, error };
