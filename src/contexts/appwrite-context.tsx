@@ -14,7 +14,6 @@ interface AppwriteContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
 }
@@ -22,7 +21,7 @@ interface AppwriteContextType {
 const AppwriteContext = createContext<AppwriteContextType | undefined>(undefined);
 
 export function AppwriteProvider({ children }: { children: React.ReactNode }) {
-  const { user: firebaseUser, loading, signIn, signUp, signOut } = useAuth();
+  const { user: firebaseUser, loading, signIn, signOut } = useAuth();
 
   const user: User | null = firebaseUser ? {
     $id: firebaseUser.uid,
@@ -33,10 +32,6 @@ export function AppwriteProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     await signIn(email, password);
-  };
-
-  const register = async (email: string, password: string, name: string) => {
-    await signUp(email, password, name);
   };
 
   const logout = async () => {
@@ -54,7 +49,6 @@ export function AppwriteProvider({ children }: { children: React.ReactNode }) {
         user,
         loading,
         login,
-        register,
         logout,
         updateProfile
       }}

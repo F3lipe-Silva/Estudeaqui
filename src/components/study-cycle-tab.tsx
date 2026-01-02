@@ -101,6 +101,7 @@ export default function StudyCycleTab() {
   const [editingTopic, setEditingTopic] = useState<any>(null);
   const [editingTopicName, setEditingTopicName] = useState('');
   const [isEditingTopicOpen, setIsEditingTopicOpen] = useState(false);
+  const [isNewSubjectOpen, setIsNewSubjectOpen] = useState(false);
   const [saveTemplateName, setSaveTemplateName] = useState('');
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
@@ -132,9 +133,17 @@ export default function StudyCycleTab() {
     };
   }, []);
 
+  const generateId = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return Date.now().toString(36) + Math.random().toString(36).substring(2);
+  };
+
   const handleAddSubject = (data: any) => {
-    const subjectData = { ...data, id: crypto.randomUUID() };
+    const subjectData = { ...data, id: generateId() };
     dispatch({ type: 'ADD_SUBJECT', payload: subjectData });
+    setIsNewSubjectOpen(false);
   };
 
   const handleUpdateSubject = (data: any) => {
@@ -146,7 +155,7 @@ export default function StudyCycleTab() {
 
   const handleAddTopic = (subjectId: string) => {
     if (newTopicName.trim()) {
-      const topicData = { subjectId, name: newTopicName, id: crypto.randomUUID() };
+      const topicData = { subjectId, name: newTopicName, id: generateId() };
       dispatch({ type: 'ADD_TOPIC', payload: topicData });
       setNewTopicName('');
       setAddingTopicTo(null);
@@ -191,7 +200,7 @@ export default function StudyCycleTab() {
 
   const handleSaveTemplate = () => {
     if (saveTemplateName.trim()) {
-      const templateData = { id: crypto.randomUUID(), name: saveTemplateName };
+      const templateData = { id: generateId(), name: saveTemplateName };
       dispatch({ type: 'SAVE_TEMPLATE', payload: templateData });
       setSaveTemplateName('');
       setIsSaveDialogOpen(false);
@@ -227,7 +236,7 @@ export default function StudyCycleTab() {
               </DialogTrigger>
                             <DialogContent className="max-w-md">
                               <DialogHeader>
-                                <DialogTitle>Editar Assunto</DialogTitle>
+                                <DialogTitle>Salvar Template de Matérias</DialogTitle>
                               </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="space-y-2">
@@ -302,7 +311,7 @@ export default function StudyCycleTab() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Dialog>
+            <Dialog open={isNewSubjectOpen} onOpenChange={setIsNewSubjectOpen}>
               <DialogTrigger asChild>
                 <Button 
                   data-testid="new-subject-button"
@@ -313,7 +322,7 @@ export default function StudyCycleTab() {
               </DialogTrigger>
               <DialogContent className="max-h-[80vh] overflow-y-auto max-w-md">
                 <DialogHeader><DialogTitle>Adicionar Nova Matéria</DialogTitle></DialogHeader>
-                <SubjectForm onSave={handleAddSubject} onCancel={() => {}} />
+                <SubjectForm onSave={handleAddSubject} onCancel={() => setIsNewSubjectOpen(false)} />
               </DialogContent>
             </Dialog>
           </div>

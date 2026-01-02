@@ -35,7 +35,10 @@ export interface SubjectTemplate {
 export interface StudyLogEntry {
   id: string;
   subjectId: string;
+  subjectName?: string;
+  subjectColor?: string;
   topicId: string;
+  topicName?: string;
   date: string; // ISO String
   duration: number; // minutes
   startPage: number;
@@ -85,6 +88,7 @@ export interface StudySequence {
   id: string;
   name: string;
   sequence: StudySequenceItem[];
+  restartCount?: number;
 }
 
 export interface SchedulePlan {

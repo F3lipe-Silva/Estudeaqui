@@ -22,6 +22,7 @@ interface PomodoroCompletionDialogProps {
     duration: number;
     subjectName: string;
     topicName: string;
+    subjectColor: string;
   } | null;
 }
 

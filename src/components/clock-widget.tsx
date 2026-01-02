@@ -2,12 +2,13 @@
 
 import { useStudy } from '@/contexts/study-context';
 import { Card, CardContent } from '@/components/ui/card';
-import { Timer, Play, Pause, RotateCcw } from 'lucide-react';
+import { Timer, Play, Pause, RotateCcw, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export default function ClockWidget() {
-  const { pomodoroState, pausePomodoroTimer, setPomodoroState } = useStudy();
+  const { pomodoroState, pausePomodoroTimer, setPomodoroState, advancePomodoroCycle, data } = useStudy();
+  const { pomodoroSettings } = data;
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -15,128 +16,170 @@ export default function ClockWidget() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getStatusColor = () => {
+  const getStatusConfig = () => {
     switch (pomodoroState.status) {
       case 'focus':
-        return 'text-green-600 bg-green-50 border-green-200';
+        return {
+          label: 'Foco',
+          color: 'text-primary border-primary',
+          bgColor: 'bg-primary/10',
+          progressColor: 'stroke-primary',
+          animate: 'animate-pulse-subtle'
+        };
       case 'short_break':
-        return 'text-blue-600 bg-blue-50 border-blue-200';
+        return {
+          label: 'Pausa Curta',
+          color: 'text-blue-700 border-blue-300',
+          bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+          progressColor: 'stroke-blue-600',
+          animate: ''
+        };
       case 'long_break':
-        return 'text-purple-600 bg-purple-50 border-purple-200';
+        return {
+          label: 'Pausa Longa',
+          color: 'text-purple-700 border-purple-300',
+          bgColor: 'bg-purple-100 dark:bg-purple-900/30',
+          progressColor: 'stroke-purple-600',
+          animate: ''
+        };
       case 'paused':
-        return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+        return {
+          label: 'Pausado',
+          color: 'text-yellow-700 border-yellow-400',
+          bgColor: 'bg-yellow-100/50 dark:bg-yellow-900/20',
+          progressColor: 'stroke-yellow-500',
+          animate: ''
+        };
       default:
-        return 'text-gray-600 bg-gray-50 border-gray-200';
+        return {
+          label: 'Pronto',
+          color: 'text-muted-foreground border-border',
+          bgColor: 'bg-muted/30',
+          progressColor: 'stroke-muted-foreground',
+          animate: ''
+        };
     }
   };
 
-  const getStatusText = () => {
-    switch (pomodoroState.status) {
-      case 'focus':
-        return 'FOCO';
-      case 'short_break':
-        return 'PAUSA CURTA';
-      case 'long_break':
-        return 'PAUSA LONGA';
-      case 'paused':
-        return 'PAUSADO';
-      default:
-        return 'PRONTO';
-    }
-  };
-
-  const handlePause = () => {
-    if (pomodoroState.status === 'focus' || pomodoroState.status === 'short_break' || pomodoroState.status === 'long_break') {
-      pausePomodoroTimer();
-    }
-  };
+  const status = getStatusConfig();
 
   const handleReset = () => {
     setPomodoroState({
+      ...pomodoroState,
       status: 'idle',
-      timeRemaining: 0,
+      timeRemaining: pomodoroSettings?.tasks?.[0]?.duration || 1500,
       currentCycle: 0,
-      pomodorosCompletedToday: 0,
-      associatedItemId: undefined,
-      associatedItemType: undefined,
-      key: 0,
-      previousStatus: undefined,
-      pausedTime: 0,
-      currentTaskIndex: undefined,
-      isCustomDuration: false,
-      originalDuration: undefined
+      key: pomodoroState.key + 1,
+      currentTaskIndex: 0,
     });
   };
 
+  const currentTask = pomodoroState.currentTaskIndex !== undefined ? pomodoroSettings?.tasks?.[pomodoroState.currentTaskIndex] : null;
+  const totalDuration = pomodoroState.isCustomDuration ? pomodoroState.originalDuration || 1500 : (currentTask?.duration || 1500);
+  const progress = totalDuration > 0 ? (pomodoroState.timeRemaining / totalDuration) : 1;
+
   return (
-    <Card className={cn(
-      'border-2 transition-all duration-300',
-      getStatusColor()
-    )}>
-      <CardContent className="pt-6">
-        <div className="text-center space-y-6">
-          {/* Status */}
-          <div className="text-sm font-semibold uppercase tracking-wider">
-            {getStatusText()}
-          </div>
+    <div className="flex flex-col items-center space-y-6 py-4">
+      {/* Timer Circular */}
+      <div className="relative flex items-center justify-center w-64 h-64 md:w-72 md:h-72">
+        {/* SVG Progress Circle */}
+        <svg className="absolute w-full h-full -rotate-90 transform">
+          <circle
+            cx="50%"
+            cy="50%"
+            r="42%"
+            className="stroke-muted/20 fill-none"
+            strokeWidth="10"
+          />
+          <circle
+            cx="50%"
+            cy="50%"
+            r="42%"
+            className={cn("fill-none transition-all duration-1000 ease-linear", status.progressColor)}
+            strokeWidth="10"
+            strokeDasharray="553" 
+            strokeDashoffset={553 * (1 - progress)}
+            strokeLinecap="round"
+          />
+        </svg>
 
-          {/* Timer Principal */}
-          <div className="relative">
-            <div className="text-6xl md:text-7xl font-bold font-mono tabular-nums">
-              {formatTime(pomodoroState.timeRemaining)}
-            </div>
-            
-            {/* Indicador de progresso visual */}
-            <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className={cn(
-                  'h-2 rounded-full transition-all duration-1000',
-                  pomodoroState.status === 'focus' && 'bg-green-500',
-                  pomodoroState.status === 'short_break' && 'bg-blue-500',
-                  pomodoroState.status === 'long_break' && 'bg-purple-500',
-                  pomodoroState.status === 'paused' && 'bg-yellow-500',
-                  pomodoroState.status === 'idle' && 'bg-gray-400'
-                )}
-                style={{
-                  width: pomodoroState.originalDuration && pomodoroState.originalDuration > 0 
-                    ? `${((pomodoroState.originalDuration - pomodoroState.timeRemaining) / pomodoroState.originalDuration) * 100}%`
-                    : '0%'
-                }}
-              />
-            </div>
+        {/* Timer Content */}
+        <div className={cn(
+          "z-10 flex flex-col items-center justify-center w-56 h-56 md:w-64 md:h-64 rounded-full shadow-inner transition-all duration-500 border-4 border-transparent",
+          status.bgColor,
+          pomodoroState.status === 'focus' && "border-primary/20",
+          status.animate
+        )}>
+          <span className={cn("text-xs font-black uppercase tracking-widest mb-1", status.color)}>
+            {status.label}
+          </span>
+          <div className="text-5xl md:text-6xl font-black font-mono tracking-tighter tabular-nums select-none">
+            {formatTime(pomodoroState.timeRemaining)}
           </div>
-
-          {/* Controles */}
-          <div className="flex justify-center gap-2">
-            {(pomodoroState.status === 'focus' || pomodoroState.status === 'short_break' || pomodoroState.status === 'long_break') && (
-              <Button 
-                onClick={handlePause}
-                size="lg"
-                variant="outline"
-                className="rounded-full w-14 h-14"
-              >
-                <Pause className="h-6 w-6" />
-              </Button>
-            )}
-            
-            <Button 
-              onClick={handleReset}
-              size="lg"
-              variant="outline"
-              className="rounded-full w-14 h-14"
-            >
-              <RotateCcw className="h-6 w-6" />
-            </Button>
-          </div>
-
-          {/* Informações adicionais */}
-          {pomodoroState.currentCycle !== undefined && (
-            <div className="text-sm text-muted-foreground">
-              Ciclo {pomodoroState.currentCycle}
-            </div>
+          {pomodoroState.status === 'focus' && currentTask && (
+            <span className="mt-1 text-[10px] font-bold opacity-60 uppercase tracking-widest max-w-[140px] truncate text-center">
+              {currentTask.name}
+            </span>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+      
+      {/* Controles */}
+      <div className="flex items-center gap-4">
+        <Button 
+          onClick={handleReset}
+          size="icon"
+          variant="ghost"
+          className="rounded-full w-10 h-10 hover:bg-destructive/10 hover:text-destructive transition-colors"
+          title="Reiniciar"
+        >
+          <RotateCcw className="h-5 w-5" />
+        </Button>
+
+        <Button 
+          onClick={() => {
+            if (['focus', 'short_break', 'long_break', 'paused'].includes(pomodoroState.status)) {
+              pausePomodoroTimer();
+            }
+          }}
+          size="icon"
+          className={cn(
+            "rounded-full w-16 h-16 shadow-lg transition-transform active:scale-95",
+            "bg-primary text-primary-foreground hover:opacity-90"
+          )}
+        >
+          {pomodoroState.status === 'paused' || pomodoroState.status === 'idle' ? (
+            <Play className="h-8 w-8 fill-current ml-1" />
+          ) : (
+            <Pause className="h-8 w-8 fill-current" />
+          )}
+        </Button>
+
+        <Button 
+          onClick={advancePomodoroCycle}
+          size="icon"
+          variant="ghost"
+          disabled={pomodoroState.status === 'idle'}
+          className="rounded-full w-10 h-10 hover:bg-primary/10 transition-colors"
+          title="Avançar etapa"
+        >
+          <SkipForward className="h-5 w-5" />
+        </Button>
+      </div>
+
+      {/* Sessions Summary */}
+      <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-muted/50 border border-border/50">
+        <div className="flex items-center gap-1.5">
+          <div className="w-2 h-2 rounded-full bg-primary" />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            Ciclo {pomodoroState.currentCycle + 1}
+          </span>
+        </div>
+        <div className="w-px h-3 bg-border" />
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          {pomodoroState.pomodorosCompletedToday} concluídas hoje
+        </span>
+      </div>
+    </div>
   );
 }

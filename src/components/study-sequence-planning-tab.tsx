@@ -124,12 +124,6 @@ export default function StudySequencePlanningTab() {
       toast({ title: "Selecione uma matéria para adicionar." });
       return;
     }
-    // Verificar se a matéria já existe na sequência
-    const existingItem = editingSequence.find(item => item.subjectId === subjectId);
-    if (existingItem) {
-      toast({ title: "Esta matéria já está na sequência." });
-      return;
-    }
     setEditingSequence(prev => [...prev, { subjectId, totalTimeStudied: 0 }]);
   };
 
@@ -148,6 +142,13 @@ export default function StudySequencePlanningTab() {
       startPomodoroForItem(firstTopic.id, 'topic', true);
       setActiveTab('pomodoro');
     }
+  };
+
+  const generateId = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return Date.now().toString(36) + Math.random().toString(36).substring(2);
   };
 
   const generateSequenceFromSessions = (sessionsPerSubject: { [id: string]: number }, planName: string) => {
@@ -190,7 +191,7 @@ export default function StudySequencePlanningTab() {
     }
 
     const newSequence = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       name: planName,
       sequence: newSequenceItems,
     };
@@ -226,7 +227,7 @@ export default function StudySequencePlanningTab() {
 
   const handleCreateEmptySequence = () => {
     const newSequence = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       name: "Plano de Estudos Manual",
       sequence: subjects.map(s => ({ subjectId: s.id, totalTimeStudied: 0 })),
     };
@@ -236,7 +237,7 @@ export default function StudySequencePlanningTab() {
 
   const handleCreateEmptyManualSequence = () => {
     const newSequence = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       name: "Plano de Estudos Manual Vazio",
       sequence: [],
     };
@@ -291,7 +292,14 @@ export default function StudySequencePlanningTab() {
             <Card className="border-2 shadow-sm hover:shadow-md transition-shadow">
               <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gradient-to-r from-primary/5 to-transparent">
                 <div>
-                  <CardTitle className="text-xl">{studySequence.name}</CardTitle>
+                  <div className="flex items-center gap-3">
+                    <CardTitle className="text-xl">{studySequence.name}</CardTitle>
+                    {studySequence.restartCount !== undefined && studySequence.restartCount > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20">
+                        {studySequence.restartCount} {studySequence.restartCount === 1 ? 'reinício' : 'reinícios'}
+                      </span>
+                    )}
+                  </div>
                   <CardDescription className="mt-1">Este é o seu plano de estudos ativo. Conclua cada sessão para avançar.</CardDescription>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">

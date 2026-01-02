@@ -27,7 +27,7 @@ export function SettingsDialog() {
     const handleResetData = () => {
         if (confirm("Tem certeza? Isso apagará todos os seus dados de estudo locais. Essa ação não pode ser desfeita.")) {
             if (user) {
-                localStorage.removeItem(`estudeaqui_data_${user.$id}`);
+                localStorage.removeItem(`estudeaqui_data_${user.uid}`);
             }
             dispatch({ type: 'SET_STATE', payload: { subjects: INITIAL_SUBJECTS, studyLog: [], lastStudiedDate: null, streak: 0, studySequence: null, sequenceIndex: 0, templates: [] } });
             toast({

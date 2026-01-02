@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Trash2 } from 'lucide-react';
 import { useStudy } from '@/contexts/study-context';
 
 interface PomodoroSettingsDialogProps {
@@ -25,33 +26,46 @@ export default function PomodoroSettingsDialog({
   const { data, dispatch } = useStudy();
   const { pomodoroSettings } = data;
   
-  const [focusDuration, setFocusDuration] = useState(25); // in minutes
-  const [shortBreakDuration, setShortBreakDuration] = useState(5); // in minutes
-  const [longBreakDuration, setLongBreakDuration] = useState(15); // in minutes
+  const [tasks, setTasks] = useState<{ id: string, name: string, duration: number }[]>([]);
+  const [shortBreakDuration, setShortBreakDuration] = useState(5);
+  const [longBreakDuration, setLongBreakDuration] = useState(15);
   const [cyclesUntilLongBreak, setCyclesUntilLongBreak] = useState(4);
 
-  // Initialize form with current settings
   useEffect(() => {
-    if (pomodoroSettings) {
-      setFocusDuration(Math.round(pomodoroSettings.tasks?.[0]?.duration / 60 || 25));
-      setShortBreakDuration(Math.round(pomodoroSettings.shortBreakDuration / 60 || 5));
-      setLongBreakDuration(Math.round(pomodoroSettings.longBreakDuration / 60 || 15));
-      setCyclesUntilLongBreak(pomodoroSettings.cyclesUntilLongBreak || 4);
+    if (pomodoroSettings && open) {
+      setTasks(pomodoroSettings.tasks.map(t => ({ ...t, duration: Math.round(t.duration / 60) })));
+      setShortBreakDuration(Math.round(pomodoroSettings.shortBreakDuration / 60));
+      setLongBreakDuration(Math.round(pomodoroSettings.longBreakDuration / 60));
+      setCyclesUntilLongBreak(pomodoroSettings.cyclesUntilLongBreak);
     }
   }, [pomodoroSettings, open]);
 
+  const generateId = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return Date.now().toString(36) + Math.random().toString(36).substring(2);
+  };
+
+  const handleAddTask = () => {
+    setTasks([...tasks, { id: generateId(), name: 'Nova Tarefa', duration: 25 }]);
+  };
+
+  const handleRemoveTask = (id: string) => {
+    if (tasks.length > 1) {
+      setTasks(tasks.filter(t => t.id !== id));
+    }
+  };
+
+  const handleUpdateTask = (id: string, field: 'name' | 'duration', value: any) => {
+    setTasks(tasks.map(t => t.id === id ? { ...t, [field]: value } : t));
+  };
+
   const handleSave = () => {
-    // Create a single focus task with the specified duration
     const newSettings = {
-      tasks: [
-        {
-          id: 'task-1',
-          name: 'Foco',
-          duration: focusDuration * 60 // Convert to seconds
-        }
-      ],
-      shortBreakDuration: shortBreakDuration * 60, // Convert to seconds
-      longBreakDuration: longBreakDuration * 60, // Convert to seconds
+      tasks: tasks.map(t => ({ ...t, duration: t.duration * 60 })),
+      shortBreakDuration: shortBreakDuration * 60,
+      longBreakDuration: longBreakDuration * 60,
       cyclesUntilLongBreak,
     };
 
@@ -63,83 +77,87 @@ export default function PomodoroSettingsDialog({
     onOpenChange(false);
   };
 
-  const handleCancel = () => {
-    // Reset to current settings when canceling
-    if (pomodoroSettings) {
-      setFocusDuration(Math.round(pomodoroSettings.tasks?.[0]?.duration / 60 || 25));
-      setShortBreakDuration(Math.round(pomodoroSettings.shortBreakDuration / 60 || 5));
-      setLongBreakDuration(Math.round(pomodoroSettings.longBreakDuration / 60 || 15));
-      setCyclesUntilLongBreak(pomodoroSettings.cyclesUntilLongBreak || 4);
-    }
-    onOpenChange(false);
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            Configurações do Pomodoro
-          </DialogTitle>
+          <DialogTitle>Configurações do Pomodoro</DialogTitle>
         </DialogHeader>
 
-        <div className="py-4 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="focusDuration">Tempo de Foco (minutos)</Label>
-            <Input
-              id="focusDuration"
-              type="number"
-              min="1"
-              max="60"
-              value={focusDuration}
-              onChange={(e) => setFocusDuration(Math.max(1, parseInt(e.target.value) || 1))}
-            />
+        <div className="py-4 space-y-6">
+          {/* Sessões de Foco */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-bold">Sessões de Foco</Label>
+              <Button size="sm" variant="outline" onClick={handleAddTask}>
+                Adicionar Tarefa
+              </Button>
+            </div>
+            
+            <div className="space-y-3">
+              {tasks.map((task, index) => (
+                <div key={task.id} className="flex gap-2 items-end border p-3 rounded-lg bg-muted/20">
+                  <div className="flex-grow space-y-1">
+                    <Label className="text-xs">Nome</Label>
+                    <Input 
+                      value={task.name} 
+                      onChange={(e) => handleUpdateTask(task.id, 'name', e.target.value)}
+                    />
+                  </div>
+                  <div className="w-24 space-y-1">
+                    <Label className="text-xs">Minutos</Label>
+                    <Input 
+                      type="number"
+                      value={task.duration} 
+                      onChange={(e) => handleUpdateTask(task.id, 'duration', parseInt(e.target.value) || 0)}
+                    />
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="text-destructive"
+                    onClick={() => handleRemoveTask(task.id)}
+                    disabled={tasks.length === 1}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 border-t pt-4">
+            <div className="space-y-2">
+              <Label>Pausa Curta (min)</Label>
+              <Input
+                type="number"
+                value={shortBreakDuration}
+                onChange={(e) => setShortBreakDuration(parseInt(e.target.value) || 1)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Pausa Longa (min)</Label>
+              <Input
+                type="number"
+                value={longBreakDuration}
+                onChange={(e) => setLongBreakDuration(parseInt(e.target.value) || 1)}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="shortBreakDuration">Tempo de Pausa Curta (minutos)</Label>
+            <Label>Ciclos até Pausa Longa</Label>
             <Input
-              id="shortBreakDuration"
               type="number"
-              min="1"
-              max="30"
-              value={shortBreakDuration}
-              onChange={(e) => setShortBreakDuration(Math.max(1, parseInt(e.target.value) || 1))}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="longBreakDuration">Tempo de Pausa Longa (minutos)</Label>
-            <Input
-              id="longBreakDuration"
-              type="number"
-              min="1"
-              max="60"
-              value={longBreakDuration}
-              onChange={(e) => setLongBreakDuration(Math.max(1, parseInt(e.target.value) || 1))}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="cyclesUntilLongBreak">Ciclos até Pausa Longa</Label>
-            <Input
-              id="cyclesUntilLongBreak"
-              type="number"
-              min="1"
-              max="10"
               value={cyclesUntilLongBreak}
-              onChange={(e) => setCyclesUntilLongBreak(Math.max(1, parseInt(e.target.value) || 1))}
+              onChange={(e) => setCyclesUntilLongBreak(parseInt(e.target.value) || 1)}
             />
           </div>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={handleCancel}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSave}>
-            Salvar Configurações
-          </Button>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={handleSave}>Salvar Tudo</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

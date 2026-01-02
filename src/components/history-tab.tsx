@@ -38,8 +38,9 @@ export default function HistoryTab() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<StudyLogEntry | null>(null);
   
-  const getSubjectName = (id: string) => data.subjects.find(s => s.id === id)?.name || 'N/A';
-  const getTopicName = (subjectId: string, topicId: string) => data.subjects.find(s => s.id === subjectId)?.topics.find(t => t.id === topicId)?.name || 'N/A';
+  const getSubjectName = (log: StudyLogEntry) => data.subjects.find(s => s.id === log.subjectId)?.name || log.subjectName || 'N/A';
+  const getTopicName = (log: StudyLogEntry) => data.subjects.find(s => s.id === log.subjectId)?.topics.find(t => t.id === log.topicId)?.name || log.topicName || 'N/A';
+  const getSubjectColor = (log: StudyLogEntry) => data.subjects.find(s => s.id === log.subjectId)?.color || log.subjectColor || 'hsl(var(--muted-foreground))';
 
   const getSourceDisplayName = (source?: string) => {
       if (!source || source === 'site-questoes') return 'Site de Questões';
@@ -111,13 +112,16 @@ export default function HistoryTab() {
                   <Card key={log.id} className="relative group hover:shadow-lg transition-all duration-300 border-2">
                     <CardHeader className="p-4 pb-3">
                        <CardTitle className="text-base flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                         <span className="font-bold text-lg">{getSubjectName(log.subjectId)}</span>
+                         <span className="font-bold text-lg flex items-center gap-2">
+                           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: getSubjectColor(log) }} />
+                           {getSubjectName(log)}
+                         </span>
                          <span className="text-xs font-normal text-muted-foreground flex items-center gap-1.5 bg-muted px-2 py-1 rounded-md">
                            <CalendarIcon className="h-3.5 w-3.5" />
                            {format(parseISO(log.date), "dd/MM/yyyy 'às' HH:mm")}
                          </span>
                        </CardTitle>
-                       <CardDescription className="text-sm font-medium">{getTopicName(log.subjectId, log.topicId)}</CardDescription>
+                       <CardDescription className="text-sm font-medium">{getTopicName(log)}</CardDescription>
                     </CardHeader>
                     <CardContent className="p-4 pt-0 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 text-sm">
                        <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-lg">

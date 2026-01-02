@@ -80,9 +80,15 @@ export default function StudyLogForm({ onSave, onCancel, existingLog, initialDat
       return;
     }
     
+    const subject = data.subjects.find(s => s.id === subjectId);
+    const topic = subject?.topics.find(t => t.id === topicId);
+    
     const logData = {
         subjectId,
+        subjectName: subject?.name || existingLog?.subjectName,
+        subjectColor: subject?.color || existingLog?.subjectColor,
         topicId,
+        topicName: topic?.name || existingLog?.topicName,
         duration: numericDuration,
         startPage: Number(startPage),
         endPage: Number(endPage),

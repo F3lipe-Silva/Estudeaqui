@@ -46,6 +46,13 @@ const initialState: StudyData = {
 
 const StudyContext = createContext<StudyContextType | undefined>(undefined);
 
+const generateId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Date.now().toString(36) + Math.random().toString(36).substring(2);
+};
+
 function studyReducer(state: StudyData, action: any): StudyData {
   switch (action.type) {
     case 'SET_STATE':
@@ -57,7 +64,7 @@ function studyReducer(state: StudyData, action: any): StudyData {
       return { ...initialState, ...loadedState };
     case 'ADD_SUBJECT': {
       const newSubject: Subject = {
-        id: action.payload.id || crypto.randomUUID(),
+        id: action.payload.id || generateId(),
         name: action.payload.name,
         color: action.payload.color,
         description: action.payload.description,
@@ -85,7 +92,7 @@ function studyReducer(state: StudyData, action: any): StudyData {
       const subjects = state.subjects.map(s => {
         if (s.id === subjectId) {
           const newTopic: Topic = {
-            id: id || crypto.randomUUID(),
+            id: id || generateId(),
             subjectId,
             name,
             order: s.topics.length,
@@ -155,7 +162,7 @@ function studyReducer(state: StudyData, action: any): StudyData {
 
       const newLog: StudyLogEntry = {
         ...logData,
-        id: logData.id || crypto.randomUUID(),
+        id: logData.id || generateId(),
         date: logData.date || today.toISOString(),
       };
 
@@ -289,7 +296,11 @@ function studyReducer(state: StudyData, action: any): StudyData {
       }));
       return {
         ...state,
-        studySequence: { ...state.studySequence, sequence: resetSequence },
+        studySequence: { 
+          ...state.studySequence, 
+          sequence: resetSequence,
+          restartCount: (state.studySequence.restartCount || 0) + 1 
+        },
         sequenceIndex: 0,
       };
     }
@@ -327,6 +338,40 @@ function studyReducer(state: StudyData, action: any): StudyData {
       return {
         ...state,
         templates: [...state.templates, newTemplate],
+      };
+    }
+    case 'LOAD_TEMPLATE': {
+      const templateId = action.payload;
+      const template = state.templates.find(t => t.id === templateId);
+      if (!template) return state;
+
+      const newSubjects: Subject[] = template.subjects.map(ts => ({
+        id: crypto.randomUUID(),
+        name: ts.name,
+        color: ts.color,
+        description: ts.description,
+        studyDuration: ts.studyDuration,
+        materialUrl: ts.materialUrl,
+        revisionProgress: 0,
+        topics: ts.topics.map((tt, index) => ({
+          id: crypto.randomUUID(),
+          subjectId: '', // Will be set below
+          name: tt.name,
+          order: index,
+          isCompleted: false,
+        })),
+      }));
+
+      // Fix subjectId in topics
+      newSubjects.forEach(s => {
+        s.topics.forEach(t => {
+          t.subjectId = s.id;
+        });
+      });
+
+      return {
+        ...state,
+        subjects: newSubjects,
       };
     }
     case 'LOAD_TEMPLATE_SUCCESS': {
@@ -448,7 +493,10 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           return {
             id: docSnap.id,
             subjectId: data.subjectId,
-            topicId: data.topicId || '', 
+            subjectName: data.subjectName,
+            subjectColor: data.subjectColor,
+            topicId: data.topicId || '',
+            topicName: data.topicName,
             date: data.date,
             duration: data.duration,
             startPage: data.startPage || 0,
@@ -456,6 +504,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             questionsTotal: data.questionsTotal || 0,
             questionsCorrect: data.questionsCorrect || 0,
             source: data.source || 'firebase',
+            sequenceItemIndex: data.sequenceItemIndex,
           };
         });
 
@@ -464,6 +513,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
               id: sequencesSnapshot.docs[0].id,
               name: sequencesSnapshot.docs[0].data().name,
               sequence: sequencesSnapshot.docs[0].data().sequence ? JSON.parse(sequencesSnapshot.docs[0].data().sequence) : [],
+              restartCount: sequencesSnapshot.docs[0].data().restartCount || 0,
             }
           : null;
 
@@ -597,22 +647,59 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             const logData = {
               userId: uid,
               subjectId: newLog.subjectId,
+              subjectName: newLog.subjectName || null,
+              subjectColor: newLog.subjectColor || null,
               topicId: newLog.topicId || '',
+              topicName: newLog.topicName || null,
               date: newLog.date,
               duration: newLog.duration,
               questionsTotal: newLog.questionsTotal || 0,
               questionsCorrect: newLog.questionsCorrect || 0,
               source: newLog.source || 'web',
               type: 'study',
-              createdAt: now
+              createdAt: now,
+              ...(newLog.sequenceItemIndex !== undefined && { sequenceItemIndex: newLog.sequenceItemIndex })
             };
 
             await setDoc(doc(db, 'study_logs', newLog.id), logData);
+
+            // Also sync the updated sequence if this log affected it
+            if (newLog.sequenceItemIndex !== undefined && newState.studySequence) {
+              const sequenceData = {
+                userId: uid,
+                name: newState.studySequence.name,
+                sequence: JSON.stringify(newState.studySequence.sequence),
+                type: 'sequence',
+                updatedAt: now
+              };
+              await setDoc(doc(db, 'study_sequences', newState.studySequence.id), sequenceData, { merge: true });
+            }
           }
           break;
         }
 
-        case 'SAVE_STUDY_SEQUENCE': {
+        case 'UPDATE_STUDY_LOG': {
+          const updatedLog = action.payload;
+          if (updatedLog) {
+             const logData = {
+              userId: uid,
+              subjectId: updatedLog.subjectId,
+              subjectName: updatedLog.subjectName || null,
+              subjectColor: updatedLog.subjectColor || null,
+              topicId: updatedLog.topicId || '',
+              topicName: updatedLog.topicName || null,
+              date: updatedLog.date,
+              duration: updatedLog.duration,
+              questionsTotal: updatedLog.questionsTotal || 0,
+              questionsCorrect: updatedLog.questionsCorrect || 0,
+              source: updatedLog.source || 'web',
+              type: 'study',
+              updatedAt: now,
+              ...(updatedLog.sequenceItemIndex !== undefined && { sequenceItemIndex: updatedLog.sequenceItemIndex })
+            };
+            await setDoc(doc(db, 'study_logs', updatedLog.id), logData, { merge: true });
+          }
+          // Also sync sequence if needed
           if (newState.studySequence) {
             const sequenceData = {
               userId: uid,
@@ -621,8 +708,89 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
               type: 'sequence',
               updatedAt: now
             };
+            await setDoc(doc(db, 'study_sequences', newState.studySequence.id), sequenceData, { merge: true });
+          }
+          break;
+        }
+
+        case 'DELETE_STUDY_LOG': {
+          const logId = action.payload;
+          try {
+            await deleteDoc(doc(db, 'study_logs', logId));
+          } catch (error) {
+            console.error("Error deleting log from Firebase:", error);
+          }
+          
+          if (newState.studySequence) {
+            const sequenceData = {
+              userId: uid,
+              name: newState.studySequence.name,
+              sequence: JSON.stringify(newState.studySequence.sequence),
+              type: 'sequence',
+              updatedAt: now
+            };
+            await setDoc(doc(db, 'study_sequences', newState.studySequence.id), sequenceData, { merge: true });
+          }
+          break;
+        }
+
+        case 'SAVE_STUDY_SEQUENCE':
+        case 'RESET_STUDY_SEQUENCE': {
+          if (newState.studySequence) {
+            const sequenceData = {
+              userId: uid,
+              name: newState.studySequence.name,
+              sequence: JSON.stringify(newState.studySequence.sequence),
+              restartCount: newState.studySequence.restartCount || 0,
+              type: 'sequence',
+              updatedAt: now
+            };
 
             await setDoc(doc(db, 'study_sequences', newState.studySequence.id), sequenceData, { merge: true });
+          } else if (stateRef.current.studySequence) {
+            // If it was null in newState but not in old state, it was deleted
+            await deleteDoc(doc(db, 'study_sequences', stateRef.current.studySequence.id));
+          }
+          break;
+        }
+
+        case 'LOAD_TEMPLATE': {
+          // 1. Delete all existing subjects for this user
+          const subjectsQuery = query(collection(db, 'study_subjects'), where('userId', '==', uid));
+          const subjectsSnapshot = await getDocs(subjectsQuery);
+          const deletePromises = subjectsSnapshot.docs.map(docSnap => deleteDoc(doc(db, 'study_subjects', docSnap.id)));
+          await Promise.all(deletePromises);
+
+          // 2. Save all new subjects from the updated state
+          const savePromises = newState.subjects.map(subject => {
+            const subjectData = {
+              userId: uid,
+              name: subject.name,
+              color: subject.color,
+              description: subject.description || '',
+              materialUrl: subject.materialUrl || '',
+              studyDuration: subject.studyDuration || 60,
+              peso: subject.peso || 1,
+              nivelConhecimento: subject.nivelConhecimento || 'intermediario',
+              horasSemanais: subject.horasSemanais || 0,
+              topics: JSON.stringify(subject.topics),
+              revisionProgress: subject.revisionProgress || 0,
+              type: 'subject',
+              updatedAt: now,
+              createdAt: now
+            };
+            return setDoc(doc(db, 'study_subjects', subject.id), subjectData);
+          });
+          await Promise.all(savePromises);
+          break;
+        }
+
+        case 'DELETE_TEMPLATE': {
+          const templateId = action.payload;
+          try {
+            await deleteDoc(doc(db, 'study_templates', templateId));
+          } catch (error) {
+            console.error("Error deleting template from Firebase:", error);
           }
           break;
         }
@@ -654,7 +822,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     // Generate IDs if missing to ensure consistency between state and Firebase
     if (['ADD_SUBJECT', 'ADD_TOPIC', 'ADD_STUDY_LOG', 'SAVE_TEMPLATE'].includes(action.type)) {
       if (!action.payload.id) {
-        action.payload.id = crypto.randomUUID();
+        action.payload.id = generateId();
       }
     }
 
@@ -882,13 +1050,17 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       if (prevState.status === 'focus') {
         if (prevState.isCustomDuration) {
           if (topic && !manualRegistrationExpectedRef.current) {
+            const subject = state.subjects.find(s => s.id === topic.subjectId);
             const sequenceItemIndex = state.studySequence ? state.studySequence.sequence.findIndex((item: any, index: number) => item.subjectId === topic.subjectId && index === state.sequenceIndex) : -1;
             dispatch({
               type: 'ADD_STUDY_LOG',
               payload: {
                 duration: Math.floor(effectiveTimeSpent / 60),
                 subjectId: topic.subjectId,
+                subjectName: subject?.name,
+                subjectColor: subject?.color,
                 topicId: topic.id,
+                topicName: topic.name,
                 startPage: 0, endPage: 0, questionsTotal: 0, questionsCorrect: 0,
                 source: 'pomodoro',
                 sequenceItemIndex: sequenceItemIndex !== -1 ? sequenceItemIndex : null,
@@ -936,6 +1108,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           } else {
             const topic = getAssociatedTopic();
             if (topic && !manualRegistrationExpectedRef.current) {
+              const subject = state.subjects.find(s => s.id === topic.subjectId);
               const totalFocusDuration = pomodoroSettings.tasks.reduce((sum: number, task: any) => sum + task.duration, 0);
               const sequenceItemIndex = state.studySequence ? state.studySequence.sequence.findIndex((item: any, index: number) => item.subjectId === topic.subjectId && index === state.sequenceIndex) : -1;
               dispatch({
@@ -943,7 +1116,10 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
                 payload: {
                   duration: Math.floor(totalFocusDuration / 60),
                   subjectId: topic.subjectId,
+                  subjectName: subject?.name,
+                  subjectColor: subject?.color,
                   topicId: topic.id,
+                  topicName: topic.name,
                   startPage: 0, endPage: 0, questionsTotal: 0, questionsCorrect: 0,
                   source: 'pomodoro',
                   sequenceItemIndex: sequenceItemIndex !== -1 ? sequenceItemIndex : null,
